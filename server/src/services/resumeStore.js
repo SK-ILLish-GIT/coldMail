@@ -1,0 +1,69 @@
+import { Binary } from 'mongodb';
+import { nanoid } from 'nanoid';
+
+import { getDb } from './db.js';
+
+const COLLECTION = 'resumes';
+
+function col() {
+  return getDb().collection(COLLECTION);
+}
+
+// Mongo's driver returns Binary for binary fields. Normalise to a Node Buffer.
+function toBuffer(value) {
+  if (!value) return null;
+  if (Buffer.isBuffer(value)) return value;
+  if (value instanceof Binary) return value.buffer;
+  if (value.buffer && Buffer.isBuffer(value.buffer)) return value.buffer;
+  return Buffer.from(value);
+}
+
+/**
+ * Library of resume PDFs stored inline in MongoDB. Designed for a small
+ * personal collection (5-50 docs). A single MongoDB document is capped at
+ * 16 MB; we cap individual files at 10 MB in the upload middleware so this
+ * stays comfortably inside that limit.
+ */
+export const resumeStore = {
+  async list() {
+    return col()
+      .find({}, { projection: { content: 0 } })
+      .sort({ createdAt: -1 })
+      .toArray();
+  },
+
+  async get(id) {
+    const doc = await col().findOne({ id });
+    if (!doc) return null;
+    return { ...doc, content: toBuffer(doc.content) };
+  },
+
+  async create({ name, filename, contentType, size, content }) {
+    const id = nanoid(10);
+    const createdAt = new Date().toISOString();
+    await col().insertOne({
+      id,
+      name: String(name || '').trim(),
+      filename: String(filename || '').trim(),
+      contentType: contentType || 'application/pdf',
+      size: Number(size) || (content ? content.length : 0),
+      content,
+      createdAt,
+    });
+    return { id, name, filename, contentType, size, createdAt };
+  },
+
+  async update(id, { name }) {
+    const res = await col().findOneAndUpdate(
+      { id },
+      { $set: { name: String(name || '').trim(), updatedAt: new Date().toISOString() } },
+      { returnDocument: 'after', projection: { content: 0 } }
+    );
+    return res?.value || res || null;
+  },
+
+  async delete(id) {
+    const res = await col().deleteOne({ id });
+    return res.deletedCount > 0;
+  },
+};

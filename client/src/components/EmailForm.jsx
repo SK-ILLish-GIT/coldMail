@@ -8,7 +8,22 @@ import CsvUploader from './CsvUploader.jsx';
 import MailIDPanel from './MailIDPanel.jsx';
 import LinkedInPanel from './LinkedInPanel.jsx';
 import VariableChips from './VariableChips.jsx';
-import AttachmentList from './AttachmentList.jsx';
+
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const ATTACH_DEVICE = '__device__';
+
+function isPdf(file) {
+  if (!file) return false;
+  if (file.type === 'application/pdf') return true;
+  return /\.pdf$/i.test(file.name || '');
+}
+
+function fmtSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 const DEFAULT_TEMPLATE = `<div style="font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;width:100%;line-height:1.65;font-size:15px;">
   <p style="margin:0 0 18px;">Hi {{name}},</p>
@@ -86,7 +101,10 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
   const [savingAs, setSavingAs] = useState(false);
   const [savedName, setSavedName] = useState('');
 
-  const [attachments, setAttachments] = useState([]);
+  // Single attachment per draft: either a saved-library resume (resumeId)
+  // or a one-shot device upload (deviceFile). Mutually exclusive.
+  const [attachment, setAttachment] = useState({ resumeId: '', deviceFile: null });
+  const [resumes, setResumes] = useState([]);
 
   // Saved templates loaded from the API, plus which one is currently in use.
   const [templates, setTemplates] = useState([]);
@@ -124,6 +142,64 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
   useEffect(() => {
     loadTemplates();
   }, []);
+
+  // Resume library for the attachment dropdown.
+  const loadResumes = async () => {
+    try {
+      const data = await api.listResumes();
+      setResumes(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.warn('Failed to load resumes:', err.message);
+    }
+  };
+
+  useEffect(() => {
+    loadResumes();
+  }, []);
+
+  // Turn the current attachment state into the (payload, files[]) pair that
+  // api.sendEmail / api.sendBulk expect.
+  const attachmentArgs = useMemo(() => {
+    if (attachment.resumeId) {
+      return { extraPayload: { resumeId: attachment.resumeId }, files: [] };
+    }
+    if (attachment.deviceFile) {
+      return { extraPayload: {}, files: [attachment.deviceFile] };
+    }
+    return { extraPayload: {}, files: [] };
+  }, [attachment]);
+
+  const attachmentSelectValue = attachment.resumeId
+    ? attachment.resumeId
+    : attachment.deviceFile
+      ? ATTACH_DEVICE
+      : '';
+
+  const onAttachmentSelect = (value) => {
+    if (!value) {
+      setAttachment({ resumeId: '', deviceFile: null });
+      return;
+    }
+    if (value === ATTACH_DEVICE) {
+      setAttachment({ resumeId: '', deviceFile: null });
+      // The hidden file input is opened by the "Choose file" button below.
+      return;
+    }
+    setAttachment({ resumeId: value, deviceFile: null });
+  };
+
+  const onDeviceFilePicked = (file) => {
+    if (!file) return;
+    if (!isPdf(file)) {
+      toast.error(`"${file.name}" isn't a PDF.`);
+      return;
+    }
+    if (file.size > MAX_FILE_BYTES) {
+      toast.error(`"${file.name}" is over 10 MB.`);
+      return;
+    }
+    setAttachment({ resumeId: '', deviceFile: file });
+  };
 
   const onPickTemplate = (id) => {
     setSelectedTemplateId(id);
@@ -175,7 +251,10 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
     if (!template.trim()) return toast.error('Template is empty.');
 
     setSending(true);
-    const promise = api.sendBulk({ recipients, subject, template }, attachments);
+    const promise = api.sendBulk(
+      { recipients, subject, template, ...attachmentArgs.extraPayload },
+      attachmentArgs.files
+    );
     try {
       const res = await toast.promise(promise, {
         loading: `Saving ${recipients.length} draft${recipients.length === 1 ? '' : 's'}...`,
@@ -286,7 +365,7 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
               setCompany={setLinkedinCompany}
               subject={subject}
               template={template}
-              attachments={attachments}
+              attachmentArgs={attachmentArgs}
               aiEnabled={aiEnabled}
             />
           )}
@@ -337,10 +416,52 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
             />
           </div>
 
-          {/* Attachments */}
+          {/* Attachment — pick a saved resume or upload one PDF from device.
+              Always renamed server-side to the configured public filename. */}
           <div>
-            <label className="label">Attachments</label>
-            <AttachmentList files={attachments} onChange={setAttachments} />
+            <div className="mb-1.5 flex items-end justify-between gap-3">
+              <label className="label !mb-0" htmlFor="attachment-picker">
+                Attachment <span className="font-normal text-ink-500">(optional, max 1 PDF)</span>
+              </label>
+              <span className="hint">
+                Saved in Gmail draft as <span className="font-mono">Sk_Sahil_Parvez_CV.pdf</span>
+              </span>
+            </div>
+            <select
+              id="attachment-picker"
+              className="input"
+              value={attachmentSelectValue}
+              onChange={(e) => onAttachmentSelect(e.target.value)}
+            >
+              <option value="">(None)</option>
+              <option value={ATTACH_DEVICE}>Upload from device...</option>
+              {resumes.length > 0 && (
+                <optgroup label="Saved resumes">
+                  {resumes.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+
+            {attachmentSelectValue === ATTACH_DEVICE && (
+              <div className="mt-2 flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-ink-200 bg-ink-50/40 px-3 py-2">
+                <input
+                  id="attachment-device-file"
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  className="input !p-1.5 !h-auto flex-1"
+                  onChange={(e) => onDeviceFilePicked(e.target.files?.[0] || null)}
+                />
+                {attachment.deviceFile && (
+                  <span className="text-2xs text-ink-500">
+                    {attachment.deviceFile.name} · {fmtSize(attachment.deviceFile.size)}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

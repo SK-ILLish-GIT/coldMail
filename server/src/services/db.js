@@ -22,6 +22,8 @@ async function ensureIndexes(database) {
     database.collection('sent_log').createIndex({ sentAt: -1 }),
     database.collection('sent_log').createIndex({ status: 1 }),
     database.collection('sent_log').createIndex({ id: 1 }, { unique: true }),
+    database.collection('resumes').createIndex({ createdAt: -1 }),
+    database.collection('resumes').createIndex({ id: 1 }, { unique: true }),
   ]);
   indexesEnsured = true;
 }

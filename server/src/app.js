@@ -12,6 +12,7 @@ import emailRoutes from './routes/email.js';
 import templateRoutes from './routes/templates.js';
 import logRoutes from './routes/log.js';
 import enrichRoutes from './routes/enrich.js';
+import resumeRoutes from './routes/resumes.js';
 import { ping } from './services/db.js';
 import { isEnrichmentEnabled } from './services/enrich.js';
 
@@ -64,6 +65,7 @@ export function createApp() {
   app.use('/api/enrich', sendLimiter, enrichRoutes);
   app.use('/api/templates', templateRoutes);
   app.use('/api/log', logRoutes);
+  app.use('/api/resumes', resumeRoutes);
 
   // In production we run as a single process: Express serves the built React
   // SPA from client/dist and falls back to index.html for client-side routes.

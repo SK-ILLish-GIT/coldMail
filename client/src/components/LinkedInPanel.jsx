@@ -69,7 +69,7 @@ export default function LinkedInPanel({
   setCompany,
   subject,
   template,
-  attachments = [],
+  attachmentArgs = { extraPayload: {}, files: [] },
   aiEnabled = false,
 }) {
   const [url, setUrl] = useState('');
@@ -218,7 +218,7 @@ export default function LinkedInPanel({
             company={company}
             subject={subject}
             template={template}
-            attachments={attachments}
+            attachmentArgs={attachmentArgs}
           />
         </div>
       )}

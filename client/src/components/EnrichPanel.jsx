@@ -28,7 +28,7 @@ export default function EnrichPanel({
   company,
   subject,
   template,
-  attachments = [],
+  attachmentArgs = { extraPayload: {}, files: [] },
   onLoggedSend,
 }) {
   const [sendingEmail, setSendingEmail] = useState(null);
@@ -52,6 +52,7 @@ export default function EnrichPanel({
         company,
         subject,
         template,
+        ...attachmentArgs.extraPayload,
         meta: {
           enriched: true,
           pattern: cand.pattern,
@@ -59,7 +60,7 @@ export default function EnrichPanel({
           mxValid: cand.mxValid,
         },
       },
-      attachments
+      attachmentArgs.files
     );
     try {
       await toast.promise(promise, {

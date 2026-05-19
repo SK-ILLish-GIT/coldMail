@@ -57,6 +57,11 @@ services:
         value: '30'
       - key: BULK_SEND_DELAY_MS
         value: '250'
+      # Server-side filename override for the single attachment on each
+      # draft. Whatever PDF the user picked (library or device upload) is
+      # saved into the Gmail draft under this exact name + ".pdf".
+      - key: DRAFT_ATTACHMENT_FILENAME
+        value: Sk_Sahil_Parvez_CV
 
       # --- Secrets: set these manually in the Render dashboard ---
       - key: MONGODB_URI

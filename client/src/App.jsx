@@ -3,12 +3,14 @@ import { useEffect, useState } from 'react';
 import { api } from './lib/api.js';
 import EmailForm from './components/EmailForm.jsx';
 import TemplateLibrary from './components/TemplateLibrary.jsx';
+import ResumeLibrary from './components/ResumeLibrary.jsx';
 import SentLog from './components/SentLog.jsx';
 import StatusPill from './components/StatusPill.jsx';
 
 const TABS = [
   { id: 'compose', label: 'Compose' },
   { id: 'templates', label: 'Templates' },
+  { id: 'resumes', label: 'Resumes' },
   { id: 'log', label: 'Drafts Log' },
 ];
 
@@ -127,6 +129,7 @@ export default function App() {
           />
         )}
         {tab === 'templates' && <TemplateLibrary onUseTemplate={handleUseTemplate} />}
+        {tab === 'resumes' && <ResumeLibrary />}
         {tab === 'log' && <SentLog />}
       </main>
 

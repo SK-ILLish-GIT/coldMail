@@ -85,4 +85,15 @@ export const api = {
 
   enrichEmail: (payload) => call('post', '/enrich/email', payload),
   extractNames: (payload) => call('post', '/enrich/names', payload),
+
+  listResumes: () => call('get', '/resumes'),
+  uploadResume: (name, file) => {
+    const fd = new FormData();
+    fd.append('name', name);
+    fd.append('file', file, file.name);
+    return callForm('post', '/resumes', fd);
+  },
+  renameResume: (id, name) => call('put', `/resumes/${id}`, { name }),
+  deleteResume: (id) => call('delete', `/resumes/${id}`),
+  resumeDownloadUrl: (id) => `${baseURL}/resumes/${id}`,
 };

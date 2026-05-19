@@ -4,12 +4,20 @@ import { nanoid } from 'nanoid';
 import { renderTemplate } from '../utils/render.js';
 import { saveDraft } from '../services/imapDrafts.js';
 import { sentLogStore } from '../services/store.js';
+import { resumeStore } from '../services/resumeStore.js';
 import { HttpError } from '../middleware/error.js';
 import { validateSingleSend, validateBulkSend } from '../middleware/validate.js';
 import { acceptAttachments, parseJsonField } from '../middleware/upload.js';
 
 const router = Router();
 const BULK_DELAY = Number(process.env.BULK_SEND_DELAY_MS) || 250;
+
+// Every draft attachment is renamed to this on the way out so the recipient
+// always sees a consistent filename, regardless of which library PDF or
+// device PDF was selected. Override via the env var if needed.
+const ATTACHMENT_FILENAME = (
+  process.env.DRAFT_ATTACHMENT_FILENAME || 'Sk_Sahil_Parvez_CV'
+).replace(/\.pdf$/i, '');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -18,17 +26,37 @@ function buildVars(row) {
   return { name: '', company: '', email: '', ...row };
 }
 
-function buildAttachments(files = []) {
-  return files.map((f) => ({
-    filename: f.originalname,
-    content: f.buffer,
-    contentType: f.mimetype || 'application/pdf',
-  }));
-}
+// Resolve the single attachment for a draft. Precedence: device upload
+// (multipart "attachments" field) > library resume id > none. Hard-cap to
+// one file and rename it to the configured public filename so the recipient
+// always sees the same name.
+async function resolveAttachment({ files = [], resumeId }) {
+  let chosen = null;
+  if (Array.isArray(files) && files.length) {
+    const f = files[0];
+    chosen = {
+      filename: f.originalname,
+      content: f.buffer,
+      contentType: f.mimetype || 'application/pdf',
+      size: f.size,
+    };
+  } else if (resumeId) {
+    const doc = await resumeStore.get(String(resumeId));
+    if (!doc) throw new HttpError(400, 'Selected resume not found.');
+    chosen = {
+      filename: doc.filename || 'resume.pdf',
+      content: doc.content,
+      contentType: doc.contentType || 'application/pdf',
+      size: doc.size,
+    };
+  }
+  if (!chosen) return { attachments: [], info: null };
 
-function attachmentMeta(files = []) {
-  if (!files.length) return null;
-  return files.map((f) => ({ name: f.originalname, size: f.size }));
+  const renamed = { ...chosen, filename: `${ATTACHMENT_FILENAME}.pdf` };
+  return {
+    attachments: [renamed],
+    info: [{ name: renamed.filename, size: chosen.size }],
+  };
 }
 
 // Some multipart clients send the `meta` field as a JSON string. Normalise it.
@@ -88,8 +116,20 @@ router.post(
     } = req.body;
     const meta = parseMaybeJson(req.body.meta) || req.body.meta;
     const vars = buildVars({ email, name, company, ...extra });
-    const attachments = buildAttachments(req.files);
-    const attachInfo = attachmentMeta(req.files);
+
+    let attachments;
+    let attachInfo;
+    try {
+      const resolved = await resolveAttachment({
+        files: req.files,
+        resumeId: req.body.resumeId,
+      });
+      attachments = resolved.attachments;
+      attachInfo = resolved.info;
+    } catch (err) {
+      return next(err);
+    }
+
     const mergedMeta =
       meta || attachInfo
         ? { ...(typeof meta === 'object' ? meta : {}), ...(attachInfo ? { attachments: attachInfo } : {}) }
@@ -146,8 +186,20 @@ router.post(
   validateBulkSend,
   async (req, res, next) => {
     const { recipients, template, subject } = req.body;
-    const attachments = buildAttachments(req.files);
-    const attachInfo = attachmentMeta(req.files);
+
+    let attachments;
+    let attachInfo;
+    try {
+      const resolved = await resolveAttachment({
+        files: req.files,
+        resumeId: req.body.resumeId,
+      });
+      attachments = resolved.attachments;
+      attachInfo = resolved.info;
+    } catch (err) {
+      return next(err);
+    }
+
     const metaPart = attachInfo ? { meta: { attachments: attachInfo } } : {};
 
     const results = [];

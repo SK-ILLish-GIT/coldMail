@@ -51,6 +51,12 @@ services:
       # --- Secrets: set these manually in the Render dashboard ---
       - key: MONGODB_URI
         sync: false
+      # Render's free tier blocks outbound SMTP (ports 25/465/587). The
+      # server prefers Resend (HTTPS) when RESEND_API_KEY is set, and
+      # silently falls back to SMTP for local dev. SMTP_USER/SMTP_PASS
+      # are still useful locally but optional on Render free.
+      - key: RESEND_API_KEY
+        sync: false
       - key: SMTP_USER
         sync: false
       - key: SMTP_PASS

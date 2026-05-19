@@ -6,6 +6,7 @@ import { extractVariables } from '../lib/render.js';
 import PreviewModal from './PreviewModal.jsx';
 import CsvUploader from './CsvUploader.jsx';
 import MailIDPanel from './MailIDPanel.jsx';
+import LinkedInPanel from './LinkedInPanel.jsx';
 import VariableChips from './VariableChips.jsx';
 import AttachmentList from './AttachmentList.jsx';
 
@@ -53,6 +54,7 @@ const DEFAULT_SUBJECT =
 const MODES = [
   { id: 'mailid', label: 'By MailID' },
   { id: 'bulk', label: 'By CSV' },
+  { id: 'linkedin', label: 'By LinkedIn' },
 ];
 
 // Sentinel value for the "(Default)" choice in the template picker.
@@ -70,6 +72,12 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
 
   // MailID mode: company is one value applied to every row.
   const [mailidCompany, setMailidCompany] = useState('');
+
+  // LinkedIn mode: single recipient. Lifted up so the Full-preview modal
+  // can show {{name}} / {{company}} merge fields before the user picks
+  // an AI-suggested email.
+  const [linkedinName, setLinkedinName] = useState('');
+  const [linkedinCompany, setLinkedinCompany] = useState('');
 
   const [previewOpen, setPreviewOpen] = useState(false);
 
@@ -143,11 +151,15 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
   );
 
   const previewVars = useMemo(() => {
+    if (mode === 'linkedin') {
+      return { name: linkedinName, company: linkedinCompany, email: '' };
+    }
     if (recipients.length) return recipients[0];
     return { name: '', company: mailidCompany, email: '' };
-  }, [recipients, mailidCompany]);
+  }, [mode, recipients, mailidCompany, linkedinName, linkedinCompany]);
 
-  const previewTo = recipients[0]?.email || '';
+  const previewTo =
+    mode === 'linkedin' ? '' : recipients[0]?.email || '';
 
   // ----------------------- Saving drafts -----------------------
 
@@ -254,7 +266,7 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
 
         <div className="space-y-6 px-6 py-5">
           {/* Recipients — driven by the active mode */}
-          {mode === 'mailid' ? (
+          {mode === 'mailid' && (
             <MailIDPanel
               company={mailidCompany}
               setCompany={setMailidCompany}
@@ -262,8 +274,21 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
               setRecipients={setRecipients}
               aiEnabled={aiEnabled}
             />
-          ) : (
+          )}
+          {mode === 'bulk' && (
             <CsvUploader recipients={recipients} onChange={setRecipients} />
+          )}
+          {mode === 'linkedin' && (
+            <LinkedInPanel
+              name={linkedinName}
+              setName={setLinkedinName}
+              company={linkedinCompany}
+              setCompany={setLinkedinCompany}
+              subject={subject}
+              template={template}
+              attachments={attachments}
+              aiEnabled={aiEnabled}
+            />
           )}
 
           <div className="divider" />
@@ -384,6 +409,7 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
             <button type="button" className="btn-secondary" onClick={() => setPreviewOpen(true)}>
               Full preview
             </button>
+            {mode !== 'linkedin' && (
             <button
               type="submit"
               className="btn-gradient"
@@ -422,6 +448,12 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
                 </>
               )}
             </button>
+            )}
+            {mode === 'linkedin' && (
+              <span className="hint">
+                Use the Draft button on a candidate above to save 1 draft.
+              </span>
+            )}
           </div>
         </div>
       </form>

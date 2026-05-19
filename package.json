@@ -1,0 +1,16 @@
+{
+  "name": "coldmail",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Production-ready email campaign app (React + Express + Nodemailer)",
+  "scripts": {
+    "install:all": "npm install && npm --prefix server install && npm --prefix client install",
+    "dev": "concurrently -n server,client -c blue,magenta \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
+    "build": "npm --prefix server install && npm --prefix client install && npm --prefix client run build",
+    "start": "node server/src/index.js",
+    "lint": "npm --prefix client run lint"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1"
+  }
+}

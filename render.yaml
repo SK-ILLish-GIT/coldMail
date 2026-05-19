@@ -1,0 +1,54 @@
+# Render Blueprint for coldMail (single-origin deploy)
+# Docs: https://render.com/docs/blueprint-spec
+#
+# When you connect this repo via Render's "Blueprint" flow, Render reads this
+# file and creates the web service automatically. Variables marked
+# `sync: false` are secrets — paste their real values into the Render
+# dashboard after the service is created.
+
+services:
+  - type: web
+    name: coldmail
+    runtime: node
+    plan: free
+    # Change to your closest region (oregon, frankfurt, singapore, ohio, virginia)
+    region: oregon
+    buildCommand: npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      # --- Non-secret configuration ---
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_DB
+        value: coldmail
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: '587'
+      - key: SMTP_SECURE
+        value: 'false'
+      - key: GEMINI_MODEL
+        value: gemini-2.0-flash
+      - key: ENRICH_CONFIDENCE_THRESHOLD
+        value: '0.5'
+      - key: RATE_LIMIT_WINDOW_MIN
+        value: '1'
+      - key: RATE_LIMIT_MAX
+        value: '30'
+      - key: BULK_SEND_DELAY_MS
+        value: '250'
+
+      # --- Secrets: set these manually in the Render dashboard ---
+      - key: MONGODB_URI
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false

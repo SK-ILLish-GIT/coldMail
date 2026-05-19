@@ -87,12 +87,7 @@ export default function TemplateLibrary({ onUseTemplate }) {
     <div className="grid gap-6 lg:grid-cols-5">
       <section className="card overflow-hidden lg:col-span-3">
         <header className="flex items-center justify-between border-b border-ink-200/60 dark:border-ink-800 px-6 py-4">
-          <div>
-            <h2 className="text-base font-semibold text-ink-900 dark:text-ink-100">Saved templates</h2>
-            <p className="text-xs text-ink-500 dark:text-ink-400">
-              Reusable email bodies. Click <strong>Use</strong> to load one into Compose.
-            </p>
-          </div>
+          <h2 className="text-base font-semibold text-ink-900 dark:text-ink-100">Saved templates</h2>
           <button type="button" className="btn-ghost btn-xs" onClick={refresh}>
             Refresh
           </button>
@@ -163,11 +158,6 @@ export default function TemplateLibrary({ onUseTemplate }) {
           <h3 className="text-sm font-semibold text-ink-900 dark:text-ink-100">
             {editingId ? 'Edit template' : 'New template'}
           </h3>
-          <p className="text-2xs text-ink-500 dark:text-ink-400">
-            {editingId
-              ? 'Editing existing template. Cancel to keep the original.'
-              : 'Create a template you can load into Compose anytime.'}
-          </p>
         </header>
         <div className="space-y-3 px-5 py-4">
           <div>
@@ -205,9 +195,6 @@ export default function TemplateLibrary({ onUseTemplate }) {
               tags={form.tags}
               onChange={(tags) => setForm({ ...form, tags })}
             />
-            <p className="hint mt-1">
-              Filter templates by tag in Compose.
-            </p>
           </div>
         </div>
         <footer className="flex items-center justify-end gap-2 border-t border-ink-200/60 dark:border-ink-800 bg-ink-50/40 dark:bg-ink-800/40 px-5 py-3">

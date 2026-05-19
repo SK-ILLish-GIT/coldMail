@@ -139,9 +139,6 @@ export default function LinkedInPanel({
             Extract name
           </button>
         </div>
-        <p className="hint mt-1">
-          We can't read the company from LinkedIn URLs — fill it in manually below.
-        </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -203,11 +200,9 @@ export default function LinkedInPanel({
           </svg>
           {enriching ? 'Asking AI...' : 'Find emails with AI'}
         </button>
-        <span className="hint">
-          {aiEnabled
-            ? 'Gemini proposes 5 likely email addresses with success rate. Pick one to save as a Gmail draft.'
-            : 'AI is disabled — set GEMINI_API_KEY on the server to enable this.'}
-        </span>
+        {!aiEnabled && (
+          <span className="hint">AI disabled — set GEMINI_API_KEY.</span>
+        )}
       </div>
 
       {enrichResult && (

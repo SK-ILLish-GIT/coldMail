@@ -81,12 +81,7 @@ export default function JDMatcher({ templates = [], resumes = [], aiEnabled = fa
               <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
             </svg>
           </span>
-          <div>
-            <p className="text-sm font-semibold text-ink-900 dark:text-white">Match by JD</p>
-            <p className="text-2xs text-ink-500 dark:text-ink-400">
-              Paste a job description — AI picks the best template + resume from your library.
-            </p>
-          </div>
+          <p className="text-sm font-semibold text-ink-900 dark:text-white">Match by JD</p>
         </div>
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -124,9 +119,9 @@ export default function JDMatcher({ templates = [], resumes = [], aiEnabled = fa
               value={jd}
               onChange={(e) => setJd(e.target.value)}
             />
-            <p className="hint mt-1">
-              {jd.trim().length} chars · only template/resume names + tags are sent to the model, never bodies or PDFs.
-            </p>
+            {jd.trim().length > 0 && (
+              <p className="hint mt-1">{jd.trim().length} chars</p>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <button

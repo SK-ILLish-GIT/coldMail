@@ -137,10 +137,7 @@ export default function ResumeLibrary({ onChange }) {
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200/60 dark:border-ink-800 px-6 py-4">
           <div>
             <h2 className="text-base font-semibold text-ink-900 dark:text-ink-100">Upload a resume</h2>
-            <p className="text-xs text-ink-500 dark:text-ink-400">
-              PDF only · max 10 MB · stored in MongoDB · pick one from
-              the Compose tab when drafting.
-            </p>
+            <p className="text-xs text-ink-500 dark:text-ink-400">PDF · max 10 MB</p>
           </div>
         </header>
         <div className="space-y-4 px-6 py-5">
@@ -175,9 +172,6 @@ export default function ResumeLibrary({ onChange }) {
           <div>
             <label className="label">Tags</label>
             <TagInput tags={tags} onChange={setTags} />
-            <p className="hint mt-1">
-              e.g. <span className="font-mono">backend, java, golang, sre</span> — used to filter pickers in Compose.
-            </p>
           </div>
           <div>
             <button
@@ -196,10 +190,7 @@ export default function ResumeLibrary({ onChange }) {
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200/60 dark:border-ink-800 px-6 py-4">
           <div>
             <h2 className="text-base font-semibold text-ink-900 dark:text-ink-100">Your resumes</h2>
-            <p className="text-xs text-ink-500 dark:text-ink-400">
-              {items.length} stored · attached files are auto-renamed on
-              draft for consistency.
-            </p>
+            <p className="text-xs text-ink-500 dark:text-ink-400">{items.length} stored</p>
           </div>
           <button type="button" className="btn-ghost btn-xs" onClick={refresh}>
             Refresh

@@ -125,7 +125,8 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
 
   // Saved templates loaded from the API, plus which one is currently in use.
   const [templates, setTemplates] = useState([]);
-  const [templatesLoading, setTemplatesLoading] = useState(false);
+  // We no longer surface a loading hint, so this just gates the initial fetch.
+  const [, setTemplatesLoading] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState(DEFAULT_TEMPLATE_ID);
 
   const subjectRef = useRef(null);
@@ -386,13 +387,7 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
       {/* ---------- Form card (full width) ---------- */}
       <form onSubmit={handleSubmit} className="card overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200/60 dark:border-ink-800/60 px-6 py-4">
-          <div>
-            <h2 className="text-base font-semibold text-ink-900 dark:text-white">Compose</h2>
-            <p className="text-xs text-ink-500 dark:text-ink-400">
-              Write once, personalise per recipient with{' '}
-              <span className="rounded bg-ink-100 dark:bg-ink-800 px-1 py-0.5 font-mono text-2xs">{`{{vars}}`}</span>.
-            </p>
-          </div>
+          <h2 className="text-base font-semibold text-ink-900 dark:text-white">Compose</h2>
           <div className="tabs text-xs">
             {MODES.map((m) => (
               <button
@@ -455,13 +450,11 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
           <div>
             <div className="mb-1.5 flex items-end justify-between gap-3">
               <label className="label !mb-0" htmlFor="template-picker">Template</label>
-              <span className="hint">
-                {templatesLoading
-                  ? 'Loading templates...'
-                  : templates.length
-                    ? `${filteredTemplates.length}/${templates.length} shown${templateTagFilter.length ? ' · filtered' : ''}`
-                    : 'No saved templates yet · using the built-in default'}
-              </span>
+              {templates.length > 0 && templateTagFilter.length > 0 && (
+                <span className="hint">
+                  {filteredTemplates.length}/{templates.length} shown
+                </span>
+              )}
             </div>
             {allTemplateTags.length > 0 && (
               <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -517,12 +510,7 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
               Always renamed server-side to the configured public filename. */}
           <div>
             <div className="mb-1.5 flex items-end justify-between gap-3">
-              <label className="label !mb-0" htmlFor="attachment-picker">
-                Attachment <span className="font-normal text-ink-500 dark:text-ink-400">(optional, max 1 PDF)</span>
-              </label>
-              <span className="hint">
-                Saved in Gmail draft as <span className="font-mono">Sk_Sahil_Parvez_CV.pdf</span>
-              </span>
+              <label className="label !mb-0" htmlFor="attachment-picker">Attachment</label>
             </div>
             {allResumeTags.length > 0 && (
               <div className="mb-2 flex flex-wrap items-center gap-2">

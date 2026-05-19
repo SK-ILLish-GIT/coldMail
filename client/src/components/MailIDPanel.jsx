@@ -133,11 +133,11 @@ export default function MailIDPanel({
           <label className="label !mb-0" htmlFor="mailid-emails">
             Emails
           </label>
-          <span className="hint">
-            {previewEmails.length > 0
-              ? `${previewEmails.length} valid email${previewEmails.length === 1 ? '' : 's'} detected`
-              : 'paste any number — separate with comma, space, or newline'}
-          </span>
+          {previewEmails.length > 0 && (
+            <span className="hint">
+              {previewEmails.length} valid
+            </span>
+          )}
         </div>
         <textarea
           id="mailid-emails"
@@ -188,11 +188,6 @@ export default function MailIDPanel({
             Clear all
           </button>
         )}
-        <span className="hint">
-          {aiEnabled
-            ? 'Names are AI-inferred from each address. Edit any cell below before saving.'
-            : 'Algorithmic split (no AI). Edit any cell below before saving.'}
-        </span>
       </div>
 
       {recipients.length > 0 && (
@@ -201,7 +196,6 @@ export default function MailIDPanel({
             <span className="text-2xs font-semibold uppercase tracking-[0.08em] text-ink-500 dark:text-ink-400">
               Recipients ({recipients.length})
             </span>
-            <span className="hint">Edit names · drafts are saved 1-by-1 in Gmail</span>
           </div>
           <div className="max-h-[360px] overflow-auto">
             <table className="w-full text-left text-sm">

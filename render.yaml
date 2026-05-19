@@ -44,8 +44,11 @@ services:
         value: imap.gmail.com
       - key: IMAP_PORT
         value: '993'
+      # gemini-2.0-flash has no free-tier quota on this project (limit: 0
+      # from the API). gemini-1.5-flash works on free tier and matches the
+      # value used in local dev (server/.env).
       - key: GEMINI_MODEL
-        value: gemini-2.0-flash
+        value: gemini-1.5-flash
       - key: ENRICH_CONFIDENCE_THRESHOLD
         value: '0.5'
       - key: RATE_LIMIT_WINDOW_MIN

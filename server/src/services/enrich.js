@@ -177,6 +177,113 @@ async function callGemini({ company, domain }) {
   return validateModelOutput(parsed);
 }
 
+// ===========================================================================
+// Reverse direction: given email addresses, infer the recipient's full name.
+// Used by the "By MailID" compose mode.
+// ===========================================================================
+
+const NAMES_SCHEMA = {
+  type: 'object',
+  properties: {
+    candidates: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          email: { type: 'string' },
+          name: {
+            type: 'string',
+            description:
+              'Likely Full Name title-cased. Empty string if local-part is generic (sales, info, hr, support, admin, team, hello, noreply).',
+          },
+        },
+        required: ['email', 'name'],
+      },
+    },
+  },
+  required: ['candidates'],
+};
+
+const NAMES_SYSTEM_PROMPT = `You infer a person's full name from the local-part of an email address.
+
+Rules:
+- Recognise common conventions: "first.last@", "f.last@", "firstlast@", "first_last@", "firstname@".
+- Strip digits, plus-addressing suffixes, and obvious noise.
+- Title-case the result.
+- If the local-part is a generic alias (sales, info, contact, hr, support, admin, team, hello, noreply, no-reply, careers, jobs, billing), return an empty string for name.
+- Return EXACTLY one entry per input email, preserving the input order.
+- Return ONLY JSON matching the provided schema; no markdown, no commentary.`;
+
+function algoExtractName(email) {
+  const local = String(email || '').split('@')[0]?.split('+')[0] ?? '';
+  if (!local) return '';
+  const generic = new Set([
+    'sales', 'info', 'contact', 'hr', 'support', 'admin', 'team', 'hello',
+    'noreply', 'no-reply', 'careers', 'jobs', 'billing', 'accounts',
+  ]);
+  const tokens = local
+    .split(/[._-]+/)
+    .map((s) => s.trim())
+    .filter((s) => s && !/^\d+$/.test(s));
+  if (!tokens.length) return '';
+  if (tokens.length === 1 && generic.has(tokens[0].toLowerCase())) return '';
+  return tokens
+    .map((t) => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase())
+    .join(' ');
+}
+
+/**
+ * Use Gemini to extract a likely Full Name from each email's local-part.
+ * Falls back to a deterministic algorithmic split when the model returns
+ * an empty or malformed answer for a row.
+ *
+ * @param {{ emails: string[], company: string }} input
+ * @returns {Promise<Array<{ email: string, name: string }>>}
+ */
+export async function extractNamesFromEmails({ emails, company }) {
+  const modelName = (process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim();
+  const gen = getClient();
+  const model = gen.getGenerativeModel({
+    model: modelName,
+    systemInstruction: NAMES_SYSTEM_PROMPT,
+    generationConfig: {
+      temperature: 0,
+      responseMimeType: 'application/json',
+      responseSchema: NAMES_SCHEMA,
+    },
+  });
+
+  const userPrompt = `Company: "${company}".\nEmails:\n${emails
+    .map((e, i) => `${i + 1}. ${e}`)
+    .join('\n')}`;
+
+  const result = await model.generateContent(userPrompt);
+  const text = result?.response?.text?.();
+  if (!text) throw new Error('Gemini returned an empty response.');
+
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error('Gemini returned non-JSON content.');
+  }
+  if (!parsed?.candidates || !Array.isArray(parsed.candidates)) {
+    throw new Error('Gemini response missing candidates array.');
+  }
+
+  // Build email->name map (case-insensitive lookup), then return in input order.
+  const map = new Map();
+  for (const c of parsed.candidates) {
+    if (typeof c?.email === 'string' && typeof c?.name === 'string') {
+      map.set(c.email.trim().toLowerCase(), c.name.trim());
+    }
+  }
+  return emails.map((email) => {
+    const aiName = map.get(email.trim().toLowerCase());
+    return { email, name: aiName || algoExtractName(email) };
+  });
+}
+
 /**
  * Find 5 candidate email addresses for a person at a company.
  *

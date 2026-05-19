@@ -3,12 +3,15 @@ import { Router } from 'express';
 import { HttpError } from '../middleware/error.js';
 import {
   findEmailCandidates,
+  extractNamesFromEmails,
   isEnrichmentEnabled,
 } from '../services/enrich.js';
 
 const router = Router();
 
 const MAX_FIELD = 200;
+const MAX_EMAILS_PER_CALL = 50;
+const EMAIL_REGEX = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 function nonEmpty(v) {
   return typeof v === 'string' && v.trim().length > 0;
@@ -55,6 +58,69 @@ router.post('/email', async (req, res, next) => {
     }
     const msg = err.message || 'Gemini request failed';
     // Gemini returns quota errors with status 429 in the message text.
+    if (/quota|exceeded|rate/i.test(msg)) {
+      return next(
+        new HttpError(
+          429,
+          'Gemini quota exhausted. Check your free-tier limits at https://aistudio.google.com/'
+        )
+      );
+    }
+    next(new HttpError(502, `Gemini error: ${msg}`));
+  }
+});
+
+// POST /api/enrich/names — given a list of emails + company, return a likely
+// recipient name for each. Used by the "By MailID" compose mode.
+router.post('/names', async (req, res, next) => {
+  try {
+    if (!isEnrichmentEnabled()) {
+      throw new HttpError(
+        503,
+        'AI is disabled. Set GEMINI_API_KEY in server/.env to enable it.'
+      );
+    }
+
+    const { emails, company } = req.body || {};
+    const errors = {};
+
+    if (!Array.isArray(emails) || emails.length === 0) {
+      errors.emails = 'emails must be a non-empty array.';
+    } else if (emails.length > MAX_EMAILS_PER_CALL) {
+      errors.emails = `Maximum ${MAX_EMAILS_PER_CALL} emails per call.`;
+    }
+    if (!nonEmpty(company)) errors.company = 'Company is required.';
+    if (typeof company === 'string' && company.length > MAX_FIELD) {
+      errors.company = `Company is too long (max ${MAX_FIELD} chars).`;
+    }
+    if (Object.keys(errors).length) {
+      throw new HttpError(400, 'Validation failed', errors);
+    }
+
+    // Normalise + filter to syntactically-valid addresses; dedupe.
+    const seen = new Set();
+    const cleaned = [];
+    for (const raw of emails) {
+      const e = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+      if (EMAIL_REGEX.test(e) && !seen.has(e)) {
+        seen.add(e);
+        cleaned.push(e);
+      }
+    }
+    if (!cleaned.length) {
+      throw new HttpError(400, 'No valid email addresses provided.');
+    }
+
+    const candidates = await extractNamesFromEmails({
+      emails: cleaned,
+      company: company.trim(),
+    });
+    res.json({ candidates });
+  } catch (err) {
+    if (err.status && err.status >= 400 && err.status < 600 && err.message) {
+      return next(err);
+    }
+    const msg = err.message || 'Gemini request failed';
     if (/quota|exceeded|rate/i.test(msg)) {
       return next(
         new HttpError(

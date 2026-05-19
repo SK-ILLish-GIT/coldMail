@@ -84,4 +84,5 @@ export const api = {
   clearLog: () => call('delete', '/log'),
 
   enrichEmail: (payload) => call('post', '/enrich/email', payload),
+  extractNames: (payload) => call('post', '/enrich/names', payload),
 };

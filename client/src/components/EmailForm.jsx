@@ -5,7 +5,7 @@ import { api } from '../lib/api.js';
 import { extractVariables } from '../lib/render.js';
 import PreviewModal from './PreviewModal.jsx';
 import CsvUploader from './CsvUploader.jsx';
-import EnrichPanel from './EnrichPanel.jsx';
+import MailIDPanel from './MailIDPanel.jsx';
 import LivePreview from './LivePreview.jsx';
 import TemplateEditor from './TemplateEditor.jsx';
 import VariableChips from './VariableChips.jsx';
@@ -53,8 +53,8 @@ const DEFAULT_SUBJECT =
   'SK Sahil – IIIT Allahabad | Highspot | 1+ Year Exp | Interested in {{company}}';
 
 const MODES = [
-  { id: 'single', label: 'Single recipient' },
-  { id: 'bulk', label: 'Bulk (CSV)' },
+  { id: 'mailid', label: 'By MailID' },
+  { id: 'bulk', label: 'By CSV' },
 ];
 
 const BODY_TABS = [
@@ -63,12 +63,16 @@ const BODY_TABS = [
 ];
 
 export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled = false }) {
-  const [mode, setMode] = useState('single');
+  const [mode, setMode] = useState('mailid');
   const [subject, setSubject] = useState(DEFAULT_SUBJECT);
   const [template, setTemplate] = useState(DEFAULT_TEMPLATE);
 
-  const [recipient, setRecipient] = useState({ email: '', name: '', company: '' });
+  // Both modes (MailID + CSV) populate this single recipients array; the
+  // submit path is the same bulk endpoint either way.
   const [recipients, setRecipients] = useState([]);
+
+  // MailID mode: company is one value applied to every row.
+  const [mailidCompany, setMailidCompany] = useState('');
 
   const [previewOpen, setPreviewOpen] = useState(false);
 
@@ -76,9 +80,6 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
   const [saveOpen, setSaveOpen] = useState(false);
   const [savingAs, setSavingAs] = useState(false);
   const [savedName, setSavedName] = useState('');
-
-  const [enriching, setEnriching] = useState(false);
-  const [enrichResult, setEnrichResult] = useState(null);
 
   const [attachments, setAttachments] = useState([]);
 
@@ -100,9 +101,11 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialTemplate]);
 
+  // Clear the recipients table when the user switches mode so a stale list
+  // from CSV doesn't bleed into MailID (or vice versa).
   useEffect(() => {
-    setEnrichResult(null);
-  }, [mode, recipient.name, recipient.company]);
+    setRecipients([]);
+  }, [mode]);
 
   const detectedVars = useMemo(
     () => Array.from(new Set([...extractVariables(template), ...extractVariables(subject)])),
@@ -110,43 +113,22 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
   );
 
   const previewVars = useMemo(() => {
-    if (mode === 'bulk' && recipients.length) return recipients[0];
-    return { ...recipient };
-  }, [mode, recipients, recipient]);
+    if (recipients.length) return recipients[0];
+    return { name: '', company: mailidCompany, email: '' };
+  }, [recipients, mailidCompany]);
 
-  const previewTo = mode === 'bulk' ? recipients[0]?.email || '' : recipient.email;
+  const previewTo = recipients[0]?.email || '';
 
-  // ----------------------- Sending -----------------------
-
-  const sendSingle = async () => {
-    if (!recipient.email.trim()) return toast.error('Recipient email is required.');
-    if (!subject.trim()) return toast.error('Subject is required.');
-    if (!template.trim()) return toast.error('Template is empty.');
-
-    setSending(true);
-    const promise = api.sendEmail(
-      {
-        email: recipient.email.trim(),
-        name: recipient.name.trim(),
-        company: recipient.company.trim(),
-        subject,
-        template,
-      },
-      attachments
-    );
-    try {
-      await toast.promise(promise, {
-        loading: `Saving draft for ${recipient.email}...`,
-        success: 'Draft saved in Gmail.',
-        error: (err) => err.message || 'Could not save draft',
-      });
-    } finally {
-      setSending(false);
-    }
-  };
+  // ----------------------- Saving drafts -----------------------
 
   const sendBulk = async () => {
-    if (!recipients.length) return toast.error('Upload a CSV first.');
+    if (!recipients.length) {
+      return toast.error(
+        mode === 'mailid'
+          ? 'Add emails and extract names first.'
+          : 'Upload a CSV first.'
+      );
+    }
     if (!subject.trim()) return toast.error('Subject is required.');
     if (!template.trim()) return toast.error('Template is empty.');
 
@@ -154,13 +136,13 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
     const promise = api.sendBulk({ recipients, subject, template }, attachments);
     try {
       const res = await toast.promise(promise, {
-        loading: `Saving ${recipients.length} drafts...`,
+        loading: `Saving ${recipients.length} draft${recipients.length === 1 ? '' : 's'}...`,
         success: (data) =>
           `Drafts saved: ${data.sent}${data.failed ? `, ${data.failed} failed` : ''}.`,
-        error: (err) => err.message || 'Bulk drafts failed',
+        error: (err) => err.message || 'Saving drafts failed',
       });
       if (res.failed) {
-        console.warn('Failed sends:', res.results.filter((r) => r.status === 'failed'));
+        console.warn('Failed drafts:', res.results.filter((r) => r.status === 'failed'));
       }
     } finally {
       setSending(false);
@@ -170,42 +152,7 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (sending) return;
-    if (mode === 'single') sendSingle();
-    else sendBulk();
-  };
-
-  // ----------------------- AI lookup -----------------------
-
-  const splitName = (full) => {
-    const parts = (full || '').trim().split(/\s+/).filter(Boolean);
-    if (parts.length === 0) return { firstName: '', lastName: '' };
-    if (parts.length === 1) return { firstName: parts[0], lastName: parts[0] };
-    return { firstName: parts[0], lastName: parts[parts.length - 1] };
-  };
-
-  const canEnrich =
-    aiEnabled &&
-    mode === 'single' &&
-    recipient.name.trim() &&
-    recipient.company.trim();
-
-  const findWithAI = async () => {
-    if (!canEnrich || enriching) return;
-    const { firstName, lastName } = splitName(recipient.name);
-    setEnriching(true);
-    try {
-      const res = await api.enrichEmail({
-        firstName,
-        lastName,
-        company: recipient.company.trim(),
-      });
-      setEnrichResult(res);
-      if (!res.candidates?.length) toast.error('AI returned no usable candidates.');
-    } catch (err) {
-      toast.error(err.message || 'AI lookup failed');
-    } finally {
-      setEnriching(false);
-    }
+    sendBulk();
   };
 
   // ----------------------- Save as template -----------------------
@@ -276,95 +223,15 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
         </div>
 
         <div className="space-y-6 px-6 py-5">
-          {/* Recipient */}
-          {mode === 'single' ? (
-            <fieldset className="space-y-4">
-              <legend className="label !mb-2">Recipient</legend>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <label className="label" htmlFor="email">Email</label>
-                  <input
-                    id="email"
-                    type="email"
-                    required
-                    className="input"
-                    placeholder="john@example.com"
-                    value={recipient.email}
-                    onChange={(e) => setRecipient({ ...recipient, email: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="label" htmlFor="name">Full name</label>
-                  <input
-                    id="name"
-                    type="text"
-                    className="input"
-                    placeholder="John Doe"
-                    value={recipient.name}
-                    onChange={(e) => setRecipient({ ...recipient, name: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="label" htmlFor="company">Company</label>
-                  <input
-                    id="company"
-                    type="text"
-                    className="input"
-                    placeholder="Acme Inc."
-                    value={recipient.company}
-                    onChange={(e) => setRecipient({ ...recipient, company: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              {aiEnabled && (
-                <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    type="button"
-                    className="btn-secondary btn-xs"
-                    onClick={findWithAI}
-                    disabled={!canEnrich || enriching}
-                    title={
-                      !recipient.name.trim() || !recipient.company.trim()
-                        ? 'Fill name + company first'
-                        : 'Ask AI for likely email addresses'
-                    }
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="h-3.5 w-3.5"
-                    >
-                      <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
-                    </svg>
-                    {enriching ? 'Asking AI...' : 'Find email with AI'}
-                  </button>
-                  <span className="hint">
-                    {canEnrich
-                      ? 'Uses name + company to propose 5 likely email addresses.'
-                      : 'Fill the name and company fields to enable.'}
-                  </span>
-                </div>
-              )}
-
-              {enrichResult && (
-                <div className="anim-in">
-                  <EnrichPanel
-                    result={enrichResult}
-                    recipientName={recipient.name}
-                    company={recipient.company}
-                    subject={subject}
-                    template={template}
-                    attachments={attachments}
-                  />
-                </div>
-              )}
-            </fieldset>
+          {/* Recipients — driven by the active mode */}
+          {mode === 'mailid' ? (
+            <MailIDPanel
+              company={mailidCompany}
+              setCompany={setMailidCompany}
+              recipients={recipients}
+              setRecipients={setRecipients}
+              aiEnabled={aiEnabled}
+            />
           ) : (
             <CsvUploader recipients={recipients} onChange={setRecipients} />
           )}
@@ -460,7 +327,12 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
             <button type="button" className="btn-secondary" onClick={() => setPreviewOpen(true)}>
               Full preview
             </button>
-            <button type="submit" className="btn-gradient" disabled={sending}>
+            <button
+              type="submit"
+              className="btn-gradient"
+              disabled={sending || recipients.length === 0}
+              title={recipients.length === 0 ? 'Add recipients first' : ''}
+            >
               {sending ? (
                 <>
                   <svg
@@ -474,9 +346,9 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
                   </svg>
                   Saving...
                 </>
-              ) : mode === 'single' ? (
+              ) : (
                 <>
-                  Save to Gmail Drafts
+                  Save {recipients.length || 0} draft{recipients.length === 1 ? '' : 's'} to Gmail
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 24 24"
@@ -491,8 +363,6 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
                     <polygon points="22 2 15 22 11 13 2 9 22 2" />
                   </svg>
                 </>
-              ) : (
-                <>Save {recipients.length || 0} drafts</>
               )}
             </button>
           </div>

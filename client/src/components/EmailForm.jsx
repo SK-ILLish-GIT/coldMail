@@ -11,7 +11,7 @@ import TemplateEditor from './TemplateEditor.jsx';
 import VariableChips from './VariableChips.jsx';
 import AttachmentList from './AttachmentList.jsx';
 
-const DEFAULT_TEMPLATE = `<div style="font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;max-width:640px;line-height:1.65;font-size:15px;">
+const DEFAULT_TEMPLATE = `<div style="font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;width:100%;line-height:1.65;font-size:15px;">
   <p style="margin:0 0 18px;">Hi {{name}},</p>
 
   <h3 style="margin:22px 0 8px;color:#2563eb;font-size:18px;font-weight:700;">About Me:</h3>

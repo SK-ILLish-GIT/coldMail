@@ -182,7 +182,7 @@ export default function MailIDPanel({
         {recipients.length > 0 && (
           <button
             type="button"
-            className="btn-ghost btn-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30"
+            className="btn-ghost btn-xs text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:ring-rose-800/50 dark:bg-rose-900/20 dark:hover:bg-rose-900/40"
             onClick={clearAll}
           >
             Clear all
@@ -222,7 +222,7 @@ export default function MailIDPanel({
                     <td className="px-4 py-2 text-right">
                       <button
                         type="button"
-                        className="btn-ghost btn-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30"
+                        className="btn-ghost btn-xs text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:ring-rose-800/50 dark:bg-rose-900/20 dark:hover:bg-rose-900/40"
                         onClick={() => removeRow(i)}
                       >
                         Remove

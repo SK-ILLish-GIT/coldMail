@@ -97,7 +97,7 @@ export default function SentLog() {
           </button>
           <button
             type="button"
-            className="btn-ghost btn-xs text-rose-600 hover:bg-rose-50"
+            className="btn-ghost btn-xs text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:ring-rose-800/50 dark:bg-rose-900/20 dark:hover:bg-rose-900/40"
             onClick={clearAll}
             disabled={!items.length}
           >

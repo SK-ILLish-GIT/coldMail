@@ -104,7 +104,8 @@
 
   .btn-ghost {
     @apply btn text-ink-600 hover:bg-ink-100 hover:text-ink-900 focus-visible:ring-ink-200
-           dark:text-ink-300 dark:hover:bg-ink-800 dark:hover:text-white
+           dark:bg-ink-800/60 dark:text-ink-200 dark:ring-1 dark:ring-inset dark:ring-ink-700/60
+           dark:hover:bg-ink-700 dark:hover:text-white
            dark:focus-visible:ring-ink-700;
   }
 

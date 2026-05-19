@@ -259,7 +259,7 @@ export default function ResumeLibrary({ onChange }) {
 
                 <div className="flex items-center gap-1.5">
                   <a
-                    className="btn-ghost btn-xs"
+                    className="btn-ghost btn-xs text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:ring-emerald-800/50 dark:bg-emerald-900/20 dark:hover:bg-emerald-900/40"
                     href={api.resumeDownloadUrl(r.id)}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -287,14 +287,14 @@ export default function ResumeLibrary({ onChange }) {
                     <>
                       <button
                         type="button"
-                        className="btn-ghost btn-xs"
+                        className="btn-ghost btn-xs text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:ring-amber-800/50 dark:bg-amber-900/20 dark:hover:bg-amber-900/40"
                         onClick={() => startEdit(r)}
                       >
                         Edit
                       </button>
                       <button
                         type="button"
-                        className="btn-ghost btn-xs text-rose-600 hover:bg-rose-50"
+                        className="btn-ghost btn-xs text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:ring-rose-800/50 dark:bg-rose-900/20 dark:hover:bg-rose-900/40"
                         onClick={() => remove(r)}
                       >
                         Delete

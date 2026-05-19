@@ -127,21 +127,21 @@ export default function TemplateLibrary({ onUseTemplate }) {
                 <div className="flex shrink-0 gap-1">
                   <button
                     type="button"
-                    className="btn-secondary btn-xs"
+                    className="btn-primary btn-xs"
                     onClick={() => onUseTemplate(tpl)}
                   >
                     Use
                   </button>
                   <button
                     type="button"
-                    className="btn-ghost btn-xs"
+                    className="btn-ghost btn-xs text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:ring-amber-800/50 dark:bg-amber-900/20 dark:hover:bg-amber-900/40"
                     onClick={() => startEdit(tpl)}
                   >
                     Edit
                   </button>
                   <button
                     type="button"
-                    className="btn-ghost btn-xs text-rose-600 hover:bg-rose-50"
+                    className="btn-ghost btn-xs text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:ring-rose-800/50 dark:bg-rose-900/20 dark:hover:bg-rose-900/40"
                     onClick={() => remove(tpl)}
                   >
                     Delete

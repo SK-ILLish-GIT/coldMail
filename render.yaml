@@ -22,6 +22,13 @@ services:
         value: production
       - key: PORT
         value: 10000
+      # Single-origin deploy: the SPA is served from the same Render host,
+      # but Vite tags assets with `crossorigin` which forces the browser to
+      # send an Origin header. Without listing our own host here, the CORS
+      # middleware rejects asset requests with 500. Update if you add a
+      # custom domain (comma-separated).
+      - key: CORS_ORIGIN
+        value: https://coldmail-e9x0.onrender.com
       - key: MONGODB_DB
         value: coldmail
       - key: SMTP_HOST

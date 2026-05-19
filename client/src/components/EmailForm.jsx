@@ -76,6 +76,17 @@ const MODES = [
   { id: 'linkedin', label: 'By LinkedIn', tone: 'sky' },
 ];
 
+// Subtle wash + ring applied to the recipient block per active mode so
+// the channel context is obvious at a glance, not just in the tab pill.
+const MODE_PANEL_CLASS = {
+  mailid:
+    'rounded-xl bg-rose-50/60 ring-1 ring-rose-200/60 dark:bg-rose-900/10 dark:ring-rose-800/40 p-4',
+  bulk:
+    'rounded-xl bg-emerald-50/60 ring-1 ring-emerald-200/60 dark:bg-emerald-900/10 dark:ring-emerald-800/40 p-4',
+  linkedin:
+    'rounded-xl bg-sky-50/60 ring-1 ring-sky-200/60 dark:bg-sky-900/10 dark:ring-sky-800/40 p-4',
+};
+
 // Sentinel value for the "(Default)" choice in the template picker.
 // We can't use empty string because <select> will pick the placeholder.
 const DEFAULT_TEMPLATE_ID = '__default__';
@@ -400,31 +411,34 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
         </div>
 
         <div className="space-y-6 px-6 py-5">
-          {/* Recipients — driven by the active mode */}
-          {mode === 'mailid' && (
-            <MailIDPanel
-              company={mailidCompany}
-              setCompany={setMailidCompany}
-              recipients={recipients}
-              setRecipients={setRecipients}
-              aiEnabled={aiEnabled}
-            />
-          )}
-          {mode === 'bulk' && (
-            <CsvUploader recipients={recipients} onChange={setRecipients} />
-          )}
-          {mode === 'linkedin' && (
-            <LinkedInPanel
-              name={linkedinName}
-              setName={setLinkedinName}
-              company={linkedinCompany}
-              setCompany={setLinkedinCompany}
-              subject={subject}
-              template={template}
-              attachmentArgs={attachmentArgs}
-              aiEnabled={aiEnabled}
-            />
-          )}
+          {/* Recipients — driven by the active mode. Wrapped in a tinted
+              surface so each channel has a distinct colour cue. */}
+          <div className={MODE_PANEL_CLASS[mode]}>
+            {mode === 'mailid' && (
+              <MailIDPanel
+                company={mailidCompany}
+                setCompany={setMailidCompany}
+                recipients={recipients}
+                setRecipients={setRecipients}
+                aiEnabled={aiEnabled}
+              />
+            )}
+            {mode === 'bulk' && (
+              <CsvUploader recipients={recipients} onChange={setRecipients} />
+            )}
+            {mode === 'linkedin' && (
+              <LinkedInPanel
+                name={linkedinName}
+                setName={setLinkedinName}
+                company={linkedinCompany}
+                setCompany={setLinkedinCompany}
+                subject={subject}
+                template={template}
+                attachmentArgs={attachmentArgs}
+                aiEnabled={aiEnabled}
+              />
+            )}
+          </div>
 
           <div className="divider" />
 

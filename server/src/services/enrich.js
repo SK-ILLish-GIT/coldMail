@@ -284,6 +284,113 @@ export async function extractNamesFromEmails({ emails, company }) {
   });
 }
 
+// ===========================================================================
+// JD matcher: given a Job Description and the user's template+resume library
+// (id, name, tags only — no body/file bytes sent to the model), pick the
+// best-fit template and resume. Empty string = "no good match".
+// ===========================================================================
+
+const JD_MATCH_SCHEMA = {
+  type: 'object',
+  properties: {
+    templateId: {
+      type: 'string',
+      description:
+        'The id of the best-fit template, copied EXACTLY from the input list. Empty string if nothing reasonably matches.',
+    },
+    resumeId: {
+      type: 'string',
+      description:
+        'The id of the best-fit resume, copied EXACTLY from the input list. Empty string if nothing reasonably matches.',
+    },
+    reasoning: {
+      type: 'string',
+      description:
+        'One short sentence explaining the picks. Reference tags or names that drove the choice.',
+    },
+  },
+  required: ['templateId', 'resumeId', 'reasoning'],
+};
+
+const JD_MATCH_SYSTEM_PROMPT = `You are helping a candidate match a job description to the right cold-email template and the right resume from their personal library.
+
+You receive:
+- A Job Description (JD)
+- A list of available email templates: each has id, name, and tags
+- A list of available resumes: each has id, name, and tags
+
+Pick the best-fit template AND the best-fit resume by reasoning about:
+- Tags are the strongest signal (e.g. JD mentions "backend Java" -> prefer items tagged "backend" or "java").
+- Names are a weaker signal but useful when tags are empty.
+- If nothing reasonably matches in a category, return an EMPTY STRING for that id; do not guess.
+- Always copy ids verbatim from the input lists.
+
+Return ONLY JSON matching the schema. No markdown, no commentary outside the JSON.`;
+
+function summariseList(items) {
+  return items.map((it) => ({
+    id: it.id,
+    name: it.name || '',
+    tags: Array.isArray(it.tags) ? it.tags : [],
+  }));
+}
+
+/**
+ * Ask Gemini to match a JD to one template + one resume from the user's library.
+ * Returns { templateId, resumeId, reasoning }. Either id can be empty string.
+ *
+ * @param {{ jobDescription: string, templates: Array, resumes: Array }} input
+ */
+export async function matchJobDescription({ jobDescription, templates, resumes }) {
+  const modelName = (process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim();
+  const gen = getClient();
+  const model = gen.getGenerativeModel({
+    model: modelName,
+    systemInstruction: JD_MATCH_SYSTEM_PROMPT,
+    generationConfig: {
+      temperature: 0.1,
+      responseMimeType: 'application/json',
+      responseSchema: JD_MATCH_SCHEMA,
+    },
+  });
+
+  const userPrompt = [
+    'Job Description:',
+    '"""',
+    jobDescription.trim(),
+    '"""',
+    '',
+    'Available templates:',
+    JSON.stringify(summariseList(templates), null, 2),
+    '',
+    'Available resumes:',
+    JSON.stringify(summariseList(resumes), null, 2),
+  ].join('\n');
+
+  const result = await model.generateContent(userPrompt);
+  const text = result?.response?.text?.();
+  if (!text) throw new Error('Gemini returned an empty response.');
+
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error('Gemini returned non-JSON content.');
+  }
+  if (typeof parsed?.templateId !== 'string' || typeof parsed?.resumeId !== 'string') {
+    throw new Error('Gemini response missing required fields.');
+  }
+
+  // Defensive: ensure ids actually exist in the input lists; drop bogus ones.
+  const tIds = new Set(templates.map((t) => t.id));
+  const rIds = new Set(resumes.map((r) => r.id));
+  return {
+    templateId: tIds.has(parsed.templateId) ? parsed.templateId : '',
+    resumeId: rIds.has(parsed.resumeId) ? parsed.resumeId : '',
+    reasoning: String(parsed.reasoning || '').slice(0, 400),
+  };
+}
+
 /**
  * Find 5 candidate email addresses for a person at a company.
  *

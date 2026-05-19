@@ -9,6 +9,7 @@ import MailIDPanel from './MailIDPanel.jsx';
 import LinkedInPanel from './LinkedInPanel.jsx';
 import VariableChips from './VariableChips.jsx';
 import { TagPills } from './Tags.jsx';
+import JDMatcher from './JDMatcher.jsx';
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const ATTACH_DEVICE = '__device__';
@@ -210,6 +211,21 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
       cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]
     );
 
+  // Apply the AI's JD match: select the template (loads subject+body) and
+  // set the attachment to the chosen resume. Tag filters are cleared so the
+  // user can actually see the AI's picks even if a stale filter would hide
+  // them in the dropdowns.
+  const applyJDMatch = ({ templateId, resumeId }) => {
+    if (templateId) {
+      setTemplateTagFilter([]);
+      onPickTemplate(templateId);
+    }
+    if (resumeId) {
+      setResumeTagFilter([]);
+      setAttachment({ resumeId, deviceFile: null });
+    }
+  };
+
   const onAttachmentSelect = (value) => {
     if (!value) {
       setAttachment({ resumeId: '', deviceFile: null });
@@ -406,6 +422,15 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
           )}
 
           <div className="divider" />
+
+          {/* JD-based auto-picker (collapsible, optional). Sits above the
+              template selector so the AI can prefill both pickers below. */}
+          <JDMatcher
+            templates={templates}
+            resumes={resumes}
+            aiEnabled={aiEnabled}
+            onMatch={applyJDMatch}
+          />
 
           {/* Template picker — body editing lives in the Templates tab */}
           <div>

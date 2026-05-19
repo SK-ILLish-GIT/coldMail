@@ -4,6 +4,7 @@ import { HttpError } from '../middleware/error.js';
 import {
   findEmailCandidates,
   extractNamesFromEmails,
+  matchJobDescription,
   isEnrichmentEnabled,
 } from '../services/enrich.js';
 
@@ -11,6 +12,8 @@ const router = Router();
 
 const MAX_FIELD = 200;
 const MAX_EMAILS_PER_CALL = 50;
+const MAX_JD_CHARS = 20_000;
+const MAX_LIBRARY_ITEMS = 200;
 const EMAIL_REGEX = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 function nonEmpty(v) {
@@ -116,6 +119,59 @@ router.post('/names', async (req, res, next) => {
       company: company.trim(),
     });
     res.json({ candidates });
+  } catch (err) {
+    if (err.status && err.status >= 400 && err.status < 600 && err.message) {
+      return next(err);
+    }
+    const msg = err.message || 'Gemini request failed';
+    if (/quota|exceeded|rate/i.test(msg)) {
+      return next(
+        new HttpError(
+          429,
+          'Gemini quota exhausted. Check your free-tier limits at https://aistudio.google.com/'
+        )
+      );
+    }
+    next(new HttpError(502, `Gemini error: ${msg}`));
+  }
+});
+
+// POST /api/enrich/jd-match — given a JD + the client's library summaries,
+// returns the best-fit template id and resume id (either may be empty).
+router.post('/jd-match', async (req, res, next) => {
+  try {
+    if (!isEnrichmentEnabled()) {
+      throw new HttpError(503, 'AI is disabled. Set GEMINI_API_KEY on the server.');
+    }
+
+    const { jobDescription, templates, resumes } = req.body || {};
+    const errors = {};
+
+    if (!nonEmpty(jobDescription)) {
+      errors.jobDescription = 'jobDescription is required.';
+    } else if (jobDescription.length > MAX_JD_CHARS) {
+      errors.jobDescription = `JD is too long (max ${MAX_JD_CHARS} chars).`;
+    }
+    if (!Array.isArray(templates) || !Array.isArray(resumes)) {
+      errors.library = 'templates and resumes must be arrays.';
+    } else if (
+      templates.length > MAX_LIBRARY_ITEMS ||
+      resumes.length > MAX_LIBRARY_ITEMS
+    ) {
+      errors.library = `Library too large (max ${MAX_LIBRARY_ITEMS} per kind).`;
+    } else if (!templates.length && !resumes.length) {
+      errors.library = 'No templates or resumes to match against.';
+    }
+    if (Object.keys(errors).length) {
+      throw new HttpError(400, 'Validation failed', errors);
+    }
+
+    const result = await matchJobDescription({
+      jobDescription,
+      templates,
+      resumes,
+    });
+    res.json(result);
   } catch (err) {
     if (err.status && err.status >= 400 && err.status < 600 && err.message) {
       return next(err);

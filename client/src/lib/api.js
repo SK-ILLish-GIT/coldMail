@@ -85,6 +85,7 @@ export const api = {
 
   enrichEmail: (payload) => call('post', '/enrich/email', payload),
   extractNames: (payload) => call('post', '/enrich/names', payload),
+  matchJD: (payload) => call('post', '/enrich/jd-match', payload),
 
   listResumes: () => call('get', '/resumes'),
   uploadResume: (name, file, tags = []) => {

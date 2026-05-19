@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { nanoid } from 'nanoid';
 
 import { renderTemplate } from '../utils/render.js';
-import { sendMail } from '../services/mailer.js';
+import { saveDraft } from '../services/imapDrafts.js';
 import { sentLogStore } from '../services/store.js';
 import { HttpError } from '../middleware/error.js';
 import { validateSingleSend, validateBulkSend } from '../middleware/validate.js';
@@ -100,7 +100,7 @@ router.post(
       const html = renderTemplate(template, vars);
       const renderedSubject = renderTemplate(subject, vars);
 
-      const info = await sendMail({
+      const info = await saveDraft({
         to: email,
         subject: renderedSubject,
         html,
@@ -114,7 +114,7 @@ router.post(
         company,
         subject: renderedSubject,
         messageId: info.messageId,
-        status: 'sent',
+        status: 'drafted',
         sentAt: new Date().toISOString(),
         ...metaPart,
       };
@@ -133,7 +133,7 @@ router.post(
         sentAt: new Date().toISOString(),
         ...metaPart,
       });
-      next(new HttpError(502, `Failed to send email: ${err.message}`));
+      next(new HttpError(502, `Failed to save draft: ${err.message}`));
     }
   }
 );
@@ -162,7 +162,7 @@ router.post(
         const html = renderTemplate(template, vars);
 
         try {
-          const info = await sendMail({
+          const info = await saveDraft({
             to: r.email,
             subject: renderedSubject,
             html,
@@ -175,12 +175,12 @@ router.post(
             company: r.company || '',
             subject: renderedSubject,
             messageId: info.messageId,
-            status: 'sent',
+            status: 'drafted',
             sentAt: new Date().toISOString(),
             ...metaPart,
           };
           await logSend(entry);
-          results.push({ email: r.email, status: 'sent', messageId: info.messageId });
+          results.push({ email: r.email, status: 'drafted', messageId: info.messageId });
           sent++;
         } catch (err) {
           await logSend({

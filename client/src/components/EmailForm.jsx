@@ -136,9 +136,9 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
     );
     try {
       await toast.promise(promise, {
-        loading: `Sending to ${recipient.email}...`,
-        success: 'Email sent.',
-        error: (err) => err.message || 'Send failed',
+        loading: `Saving draft for ${recipient.email}...`,
+        success: 'Draft saved in Gmail.',
+        error: (err) => err.message || 'Could not save draft',
       });
     } finally {
       setSending(false);
@@ -154,10 +154,10 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
     const promise = api.sendBulk({ recipients, subject, template }, attachments);
     try {
       const res = await toast.promise(promise, {
-        loading: `Sending to ${recipients.length} recipients...`,
+        loading: `Saving ${recipients.length} drafts...`,
         success: (data) =>
-          `Bulk complete: ${data.sent} sent${data.failed ? `, ${data.failed} failed` : ''}.`,
-        error: (err) => err.message || 'Bulk send failed',
+          `Drafts saved: ${data.sent}${data.failed ? `, ${data.failed} failed` : ''}.`,
+        error: (err) => err.message || 'Bulk drafts failed',
       });
       if (res.failed) {
         console.warn('Failed sends:', res.results.filter((r) => r.status === 'failed'));
@@ -472,11 +472,11 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
                     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
                     <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                   </svg>
-                  Sending...
+                  Saving...
                 </>
               ) : mode === 'single' ? (
                 <>
-                  Send Email
+                  Save to Gmail Drafts
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 24 24"
@@ -492,7 +492,7 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
                   </svg>
                 </>
               ) : (
-                <>Send to {recipients.length || 0}</>
+                <>Save {recipients.length || 0} drafts</>
               )}
             </button>
           </div>

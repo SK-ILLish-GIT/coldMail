@@ -9,7 +9,7 @@ import StatusPill from './components/StatusPill.jsx';
 const TABS = [
   { id: 'compose', label: 'Compose' },
   { id: 'templates', label: 'Templates' },
-  { id: 'log', label: 'Sent Log' },
+  { id: 'log', label: 'Drafts Log' },
 ];
 
 export default function App() {

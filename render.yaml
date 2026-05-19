@@ -31,12 +31,19 @@ services:
         value: https://coldmail-e9x0.onrender.com
       - key: MONGODB_DB
         value: coldmail
+      # SMTP host/port are kept for local dev parity. Render free blocks
+      # outbound SMTP, so the deployed app uses IMAP (port 993) to drop
+      # messages into Gmail Drafts instead of sending them.
       - key: SMTP_HOST
         value: smtp.gmail.com
       - key: SMTP_PORT
         value: '587'
       - key: SMTP_SECURE
         value: 'false'
+      - key: IMAP_HOST
+        value: imap.gmail.com
+      - key: IMAP_PORT
+        value: '993'
       - key: GEMINI_MODEL
         value: gemini-2.0-flash
       - key: ENRICH_CONFIDENCE_THRESHOLD

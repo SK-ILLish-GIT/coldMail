@@ -15,9 +15,12 @@ function fmtDate(iso) {
 
 const FILTERS = [
   { id: 'all', label: 'All' },
-  { id: 'sent', label: 'Sent' },
+  { id: 'drafted', label: 'Drafted' },
   { id: 'failed', label: 'Failed' },
 ];
+
+// Accept legacy 'sent' entries as "successful" so older rows still render.
+const isSuccess = (status) => status === 'drafted' || status === 'sent';
 
 export default function SentLog() {
   const [items, setItems] = useState([]);
@@ -40,21 +43,22 @@ export default function SentLog() {
     refresh();
   }, []);
 
-  const filtered = useMemo(
-    () => (filter === 'all' ? items : items.filter((i) => i.status === filter)),
-    [items, filter]
-  );
+  const filtered = useMemo(() => {
+    if (filter === 'all') return items;
+    if (filter === 'drafted') return items.filter((i) => isSuccess(i.status));
+    return items.filter((i) => i.status === filter);
+  }, [items, filter]);
 
   const counts = useMemo(() => {
     const total = items.length;
-    const sent = items.filter((i) => i.status === 'sent').length;
-    const failed = total - sent;
-    return { total, sent, failed };
+    const drafted = items.filter((i) => isSuccess(i.status)).length;
+    const failed = total - drafted;
+    return { total, drafted, failed };
   }, [items]);
 
   const clearAll = async () => {
     if (!items.length) return;
-    if (!confirm('Clear the entire sent log? This cannot be undone.')) return;
+    if (!confirm('Clear the entire drafts log? This cannot be undone.')) return;
     try {
       await api.clearLog();
       toast.success('Log cleared.');
@@ -68,10 +72,10 @@ export default function SentLog() {
     <section className="card overflow-hidden">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200/60 px-6 py-4">
         <div>
-          <h2 className="text-base font-semibold text-ink-900">Sent log</h2>
+          <h2 className="text-base font-semibold text-ink-900">Drafts log</h2>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-500">
             <span className="pill-ink">{counts.total} total</span>
-            <span className="pill-emerald">{counts.sent} sent</span>
+            <span className="pill-emerald">{counts.drafted} drafted</span>
             <span className="pill-rose">{counts.failed} failed</span>
           </div>
         </div>
@@ -115,13 +119,13 @@ export default function SentLog() {
           icon="mail"
           title={
             items.length === 0
-              ? 'No emails sent yet'
+              ? 'No drafts saved yet'
               : `No ${filter} emails to show`
           }
           description={
             items.length === 0
-              ? 'Once you start sending campaigns, you’ll see a per-recipient audit trail here.'
-              : 'Try a different filter or come back after a fresh send.'
+              ? 'Once you save drafts to Gmail, you’ll see a per-recipient audit trail here.'
+              : 'Try a different filter or come back after saving more drafts.'
           }
         />
       ) : (
@@ -140,10 +144,10 @@ export default function SentLog() {
                 <tr key={row.id} className="transition hover:bg-ink-50/40">
                   <td className="px-6 py-3">
                     <div className="flex flex-wrap items-center gap-1">
-                      {row.status === 'sent' ? (
+                      {isSuccess(row.status) ? (
                         <span className="pill-emerald">
                           <span className="status-dot bg-emerald-500" />
-                          Sent
+                          Drafted
                         </span>
                       ) : (
                         <span className="pill-rose" title={row.error || ''}>

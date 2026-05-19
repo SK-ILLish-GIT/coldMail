@@ -68,10 +68,12 @@ const DEFAULT_TEMPLATE = `<div style="font-family:Inter,-apple-system,BlinkMacSy
 const DEFAULT_SUBJECT =
   'SK Sahil – IIIT Allahabad | Highspot | 1+ Year Exp | Interested in {{company}}';
 
+// Each mode carries a tone so the active tab gets a clear color cue:
+// email-ish = rose (red), csv = emerald (green), linkedin = sky (blue).
 const MODES = [
-  { id: 'mailid', label: 'By MailID' },
-  { id: 'bulk', label: 'By CSV' },
-  { id: 'linkedin', label: 'By LinkedIn' },
+  { id: 'mailid', label: 'By MailID', tone: 'rose' },
+  { id: 'bulk', label: 'By CSV', tone: 'emerald' },
+  { id: 'linkedin', label: 'By LinkedIn', tone: 'sky' },
 ];
 
 // Sentinel value for the "(Default)" choice in the template picker.
@@ -386,7 +388,10 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
                 type="button"
                 key={m.id}
                 onClick={() => setMode(m.id)}
-                className={['tab', mode === m.id && 'tab-active'].filter(Boolean).join(' ')}
+                className={[
+                  'tab',
+                  mode === m.id && `tab-active-${m.tone}`,
+                ].filter(Boolean).join(' ')}
               >
                 {m.label}
               </button>

@@ -22,12 +22,10 @@
            dark:bg-ink-950 dark:text-ink-100;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'ss01';
   }
-  /* Tailwind's @apply parser chokes on `dark:bg-gradient-app-dark` (trailing
-     "-dark" looks like a variant), so set the dark gradient with raw CSS. */
+  /* Dark mode is intentionally a flat black/gray surface — no colored
+     radial washes — so the UI reads as the user asked for. */
   html.dark body {
-    background-image:
-      radial-gradient(1200px 600px at 100% -10%, rgb(99 102 241 / 0.22), transparent 60%),
-      radial-gradient(900px 500px at -10% 110%, rgb(217 70 239 / 0.16), transparent 60%);
+    background-image: none;
   }
 
   ::selection {
@@ -181,6 +179,20 @@
   .tab-active {
     @apply bg-white text-ink-900 shadow-sm ring-1 ring-inset ring-ink-200/60
            dark:bg-ink-900 dark:text-white dark:ring-ink-700;
+  }
+  /* Mode-specific active tab tints. Used in the compose form so each
+     channel (email / csv / linkedin) gets a clear color cue. */
+  .tab-active-rose {
+    @apply bg-rose-50 text-rose-700 shadow-sm ring-1 ring-inset ring-rose-200/70
+           dark:bg-rose-900/30 dark:text-rose-200 dark:ring-rose-800/50;
+  }
+  .tab-active-emerald {
+    @apply bg-emerald-50 text-emerald-700 shadow-sm ring-1 ring-inset ring-emerald-200/70
+           dark:bg-emerald-900/30 dark:text-emerald-200 dark:ring-emerald-800/50;
+  }
+  .tab-active-sky {
+    @apply bg-sky-50 text-sky-700 shadow-sm ring-1 ring-inset ring-sky-200/70
+           dark:bg-sky-900/30 dark:text-sky-200 dark:ring-sky-800/50;
   }
   /* Mobile: let a long tab strip scroll horizontally instead of wrapping. */
   .tabs-scroll {

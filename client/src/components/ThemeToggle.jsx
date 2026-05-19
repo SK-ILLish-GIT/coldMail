@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
 
 // Reads + persists the theme choice. Returns ['light' | 'dark', setter].
-// On first load, we honour an explicit saved choice, else the OS preference.
+// Default is LIGHT; we only flip to dark if the user explicitly toggled it
+// last time (saved in localStorage). OS preference is intentionally NOT
+// honoured automatically — it's too easy to land in dark by surprise on a
+// system that defaults to dark.
 export function useTheme() {
   const [theme, setThemeState] = useState(() => {
     if (typeof window === 'undefined') return 'light';
     const saved = window.localStorage.getItem('coldmail.theme');
     if (saved === 'light' || saved === 'dark') return saved;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches
-      ? 'dark'
-      : 'light';
+    return 'light';
   });
 
   // Mirror the choice onto <html class="dark"> and persist.

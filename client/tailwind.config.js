@@ -5,20 +5,21 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Softer brand — violet (lavender) instead of indigo. Less navy.
         brand: {
-          50: '#eef2ff',
-          100: '#e0e7ff',
-          200: '#c7d2fe',
-          300: '#a5b4fc',
-          400: '#818cf8',
-          500: '#6366f1',
-          600: '#4f46e5',
-          700: '#4338ca',
-          800: '#3730a3',
-          900: '#312e81',
-          950: '#1e1b4b',
+          50: '#f5f3ff',
+          100: '#ede9fe',
+          200: '#ddd6fe',
+          300: '#c4b5fd',
+          400: '#a78bfa',
+          500: '#8b5cf6',
+          600: '#7c3aed',
+          700: '#6d28d9',
+          800: '#5b21b6',
+          900: '#4c1d95',
+          950: '#2e1065',
         },
-        // Secondary accent — pink/fuchsia for a more colourful UI.
+        // Secondary accent — fuchsia.
         accent: {
           50: '#fdf4ff',
           100: '#fae8ff',
@@ -31,18 +32,20 @@ export default {
           800: '#86198f',
           900: '#701a75',
         },
+        // Pure neutral grays — no blue tint. Light mode reads as white-and-
+        // gray, dark mode reads as black-and-gray.
         ink: {
-          50: '#f8fafc',
-          100: '#f1f5f9',
-          200: '#e2e8f0',
-          300: '#cbd5e1',
-          400: '#94a3b8',
-          500: '#64748b',
-          600: '#475569',
-          700: '#334155',
-          800: '#1e293b',
-          900: '#0f172a',
-          950: '#020617',
+          50: '#fafafa',
+          100: '#f5f5f5',
+          200: '#e5e5e5',
+          300: '#d4d4d4',
+          400: '#a3a3a3',
+          500: '#737373',
+          600: '#525252',
+          700: '#404040',
+          800: '#262626',
+          900: '#171717',
+          950: '#0a0a0a',
         },
       },
       fontFamily: {
@@ -75,14 +78,15 @@ export default {
         'inner-soft': 'inset 0 1px 2px 0 rgb(15 23 42 / 0.04)',
       },
       backgroundImage: {
-        // Richer brand gradient: indigo -> violet -> fuchsia.
+        // Brand gradient — violet -> fuchsia. Skips indigo to avoid the
+        // "navy" look the previous gradient had.
         'gradient-brand':
-          'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%)',
-        // Light-mode app background wash. The dark-mode counterpart is set
-        // via a raw `html.dark body` rule in index.css because Tailwind's
-        // `@apply` parser treats a trailing "-dark" segment as a variant.
+          'linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%)',
+        // Light-mode app background: a very subtle violet wash. Dark mode
+        // intentionally has no wash (pure neutral gray) — set via
+        // `html.dark body` in index.css.
         'gradient-app':
-          'radial-gradient(1200px 600px at 100% -10%, rgb(99 102 241 / 0.10), transparent 60%), radial-gradient(900px 500px at -10% 110%, rgb(217 70 239 / 0.08), transparent 60%)',
+          'radial-gradient(1200px 600px at 100% -10%, rgb(139 92 246 / 0.08), transparent 60%), radial-gradient(900px 500px at -10% 110%, rgb(217 70 239 / 0.06), transparent 60%)',
       },
       keyframes: {
         'fade-in-up': {

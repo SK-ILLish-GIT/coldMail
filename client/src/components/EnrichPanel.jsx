@@ -41,7 +41,7 @@ export default function EnrichPanel({
   const sendTo = async (cand) => {
     if (sendingEmail) return;
     if (!canSend) {
-      toast.error('Add subject and template before sending.');
+      toast.error('Add subject and template before drafting.');
       return;
     }
     setSendingEmail(cand.email);
@@ -63,9 +63,9 @@ export default function EnrichPanel({
     );
     try {
       await toast.promise(promise, {
-        loading: `Sending to ${cand.email}...`,
-        success: 'Email sent.',
-        error: (err) => err.message || 'Send failed',
+        loading: `Saving draft for ${cand.email}...`,
+        success: 'Draft saved in Gmail.',
+        error: (err) => err.message || 'Could not save draft',
       });
       onLoggedSend?.();
     } catch {
@@ -125,7 +125,7 @@ export default function EnrichPanel({
             ? 'Domain has no MX records — mail will bounce.'
             : !canSend
               ? 'Add a subject and template first.'
-              : `Send to ${c.email}`;
+              : `Save draft for ${c.email}`;
           return (
             <li
               key={c.email}
@@ -147,7 +147,7 @@ export default function EnrichPanel({
                 disabled={disabled}
                 title={tooltip}
               >
-                {sendingEmail === c.email ? 'Sending...' : 'Send'}
+                {sendingEmail === c.email ? 'Saving...' : 'Draft'}
               </button>
             </li>
           );

@@ -19,8 +19,15 @@
 
   body {
     @apply bg-ink-50 bg-gradient-app text-ink-900 antialiased
-           dark:bg-ink-950 dark:bg-gradient-app-dark dark:text-ink-100;
+           dark:bg-ink-950 dark:text-ink-100;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'ss01';
+  }
+  /* Tailwind's @apply parser chokes on `dark:bg-gradient-app-dark` (trailing
+     "-dark" looks like a variant), so set the dark gradient with raw CSS. */
+  html.dark body {
+    background-image:
+      radial-gradient(1200px 600px at 100% -10%, rgb(99 102 241 / 0.22), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgb(217 70 239 / 0.16), transparent 60%);
   }
 
   ::selection {

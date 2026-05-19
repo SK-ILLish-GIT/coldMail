@@ -78,10 +78,11 @@ export default {
         // Richer brand gradient: indigo -> violet -> fuchsia.
         'gradient-brand':
           'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%)',
+        // Light-mode app background wash. The dark-mode counterpart is set
+        // via a raw `html.dark body` rule in index.css because Tailwind's
+        // `@apply` parser treats a trailing "-dark" segment as a variant.
         'gradient-app':
           'radial-gradient(1200px 600px at 100% -10%, rgb(99 102 241 / 0.10), transparent 60%), radial-gradient(900px 500px at -10% 110%, rgb(217 70 239 / 0.08), transparent 60%)',
-        'gradient-app-dark':
-          'radial-gradient(1200px 600px at 100% -10%, rgb(99 102 241 / 0.22), transparent 60%), radial-gradient(900px 500px at -10% 110%, rgb(217 70 239 / 0.16), transparent 60%)',
       },
       keyframes: {
         'fade-in-up': {

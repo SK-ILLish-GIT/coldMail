@@ -70,10 +70,10 @@ export default function SentLog() {
 
   return (
     <section className="card overflow-hidden">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200/60 px-6 py-4">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200/60 dark:border-ink-800 px-6 py-4">
         <div>
-          <h2 className="text-base font-semibold text-ink-900">Drafts log</h2>
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-500">
+          <h2 className="text-base font-semibold text-ink-900 dark:text-ink-100">Drafts log</h2>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-500 dark:text-ink-400">
             <span className="pill-ink">{counts.total} total</span>
             <span className="pill-emerald">{counts.drafted} drafted</span>
             <span className="pill-rose">{counts.failed} failed</span>
@@ -110,7 +110,7 @@ export default function SentLog() {
         <div className="p-6">
           <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-12 animate-pulse rounded-lg bg-ink-100" />
+              <div key={i} className="h-12 animate-pulse rounded-lg bg-ink-100 dark:bg-ink-800" />
             ))}
           </div>
         </div>
@@ -131,7 +131,7 @@ export default function SentLog() {
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="bg-ink-50/60 text-2xs uppercase tracking-[0.08em] text-ink-500">
+            <thead className="bg-ink-50/60 dark:bg-ink-800/40 text-2xs uppercase tracking-[0.08em] text-ink-500 dark:text-ink-400">
               <tr>
                 <th className="px-6 py-3 font-semibold">Status</th>
                 <th className="px-6 py-3 font-semibold">Recipient</th>
@@ -139,9 +139,9 @@ export default function SentLog() {
                 <th className="px-6 py-3 font-semibold">When</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-ink-100">
+            <tbody className="divide-y divide-ink-100 dark:divide-ink-800">
               {filtered.map((row) => (
-                <tr key={row.id} className="transition hover:bg-ink-50/40">
+                <tr key={row.id} className="transition hover:bg-ink-50/40 dark:hover:bg-ink-800/60">
                   <td className="px-6 py-3">
                     <div className="flex flex-wrap items-center gap-1">
                       {isSuccess(row.status) ? (
@@ -170,17 +170,17 @@ export default function SentLog() {
                     </div>
                   </td>
                   <td className="px-6 py-3">
-                    <div className="font-medium text-ink-900">{row.to}</div>
+                    <div className="font-medium text-ink-900 dark:text-ink-100">{row.to}</div>
                     {(row.name || row.company) && (
-                      <div className="text-xs text-ink-500">
+                      <div className="text-xs text-ink-500 dark:text-ink-400">
                         {[row.name, row.company].filter(Boolean).join(' · ')}
                       </div>
                     )}
                   </td>
-                  <td className="px-6 py-3 max-w-sm truncate text-ink-700">
-                    {row.subject || <span className="italic text-ink-400">(no subject)</span>}
+                  <td className="px-6 py-3 max-w-sm truncate text-ink-700 dark:text-ink-200">
+                    {row.subject || <span className="italic text-ink-400 dark:text-ink-500">(no subject)</span>}
                   </td>
-                  <td className="px-6 py-3 text-xs text-ink-500">{fmtDate(row.sentAt)}</td>
+                  <td className="px-6 py-3 text-xs text-ink-500 dark:text-ink-400">{fmtDate(row.sentAt)}</td>
                 </tr>
               ))}
             </tbody>

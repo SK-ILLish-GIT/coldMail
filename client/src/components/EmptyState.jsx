@@ -33,12 +33,12 @@ const ICONS = {
 export default function EmptyState({ icon = 'mail', title, description, action }) {
   return (
     <div className="grid place-items-center px-6 py-14 text-center">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-50 to-brand-100 text-brand-600 shadow-soft">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-50 to-brand-100 dark:from-brand-900/30 dark:to-brand-800/40 text-brand-600 dark:text-brand-300 shadow-soft">
         <span className="h-6 w-6">{ICONS[icon] || ICONS.mail}</span>
       </div>
-      <h3 className="mt-3 text-sm font-semibold text-ink-900">{title}</h3>
+      <h3 className="mt-3 text-sm font-semibold text-ink-900 dark:text-white">{title}</h3>
       {description && (
-        <p className="mt-1 max-w-sm text-sm text-ink-500">{description}</p>
+        <p className="mt-1 max-w-sm text-sm text-ink-500 dark:text-ink-400">{description}</p>
       )}
       {action && <div className="mt-4">{action}</div>}
     </div>

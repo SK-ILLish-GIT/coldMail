@@ -14,7 +14,7 @@ function ConfidenceCell({ value, threshold }) {
   const tone = confidenceTone(value, threshold);
   return (
     <div className="flex items-center gap-2">
-      <div className="h-1.5 w-20 overflow-hidden rounded-full bg-ink-100">
+      <div className="h-1.5 w-20 overflow-hidden rounded-full bg-ink-100 dark:bg-ink-800/40">
         <div className={`h-full ${tone.bar}`} style={{ width: `${pct}%` }} />
       </div>
       <span className={`${tone.pill} font-mono tabular-nums`}>{Math.round(pct)}%</span>
@@ -78,7 +78,7 @@ export default function EnrichPanel({
 
   return (
     <section className="surface overflow-hidden">
-      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-200/60 bg-gradient-to-br from-brand-50/60 to-white px-4 py-3">
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-200/60 dark:border-ink-800 bg-gradient-to-br from-brand-50/60 to-white dark:from-brand-900/20 dark:to-ink-900 px-4 py-3">
         <div className="flex items-center gap-2">
           <span className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-brand text-white">
             <svg
@@ -95,11 +95,11 @@ export default function EnrichPanel({
             </svg>
           </span>
           <div>
-            <p className="text-2xs font-semibold uppercase tracking-[0.08em] text-brand-700">
+            <p className="text-2xs font-semibold uppercase tracking-[0.08em] text-brand-700 dark:text-brand-300">
               AI email candidates
             </p>
-            <p className="text-2xs text-ink-500">
-              Domain <span className="font-mono text-ink-700">{domain || 'unknown'}</span>
+            <p className="text-2xs text-ink-500 dark:text-ink-400">
+              Domain <span className="font-mono text-ink-700 dark:text-ink-200">{domain || 'unknown'}</span>
             </p>
           </div>
         </div>
@@ -119,7 +119,7 @@ export default function EnrichPanel({
         </div>
       </header>
 
-      <ul className="divide-y divide-ink-200/60">
+      <ul className="divide-y divide-ink-200/60 dark:divide-ink-800">
         {candidates.map((c) => {
           const disabled = !c.mxValid || !canSend || sendingEmail !== null;
           const tooltip = !c.mxValid
@@ -130,12 +130,12 @@ export default function EnrichPanel({
           return (
             <li
               key={c.email}
-              className="grid grid-cols-[1fr_auto] items-start gap-3 px-4 py-3 transition hover:bg-ink-50/60 sm:grid-cols-[1fr_auto_auto] sm:items-center"
+              className="grid grid-cols-[1fr_auto] items-start gap-3 px-4 py-3 transition hover:bg-ink-50/60 dark:hover:bg-ink-800/60 sm:grid-cols-[1fr_auto_auto] sm:items-center"
             >
               <div className="min-w-0">
-                <p className="truncate font-mono text-sm text-ink-900">{c.email}</p>
+                <p className="truncate font-mono text-sm text-ink-900 dark:text-ink-100">{c.email}</p>
                 {c.reasoning && (
-                  <p className="mt-0.5 line-clamp-1 text-2xs text-ink-500" title={c.reasoning}>
+                  <p className="mt-0.5 line-clamp-1 text-2xs text-ink-500 dark:text-ink-400" title={c.reasoning}>
                     {c.reasoning}
                   </p>
                 )}
@@ -155,7 +155,7 @@ export default function EnrichPanel({
         })}
       </ul>
 
-      <footer className="border-t border-ink-200/60 bg-ink-50/40 px-4 py-2.5 text-2xs text-ink-500">
+      <footer className="border-t border-ink-200/60 dark:border-ink-800 bg-ink-50/40 dark:bg-ink-800/40 px-4 py-2.5 text-2xs text-ink-500 dark:text-ink-400">
         Patterns proposed by Google Gemini. Confidence is a model estimate, not deliverability.
       </footer>
     </section>

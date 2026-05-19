@@ -20,27 +20,27 @@ export default function PreviewModal({ open, onClose, subject, html, to }) {
       onClick={onClose}
     >
       <div
-        className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-lift"
+        className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white dark:bg-ink-900 shadow-lift"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex items-start justify-between gap-4 border-b border-ink-200/60 px-5 py-4">
+        <header className="flex items-start justify-between gap-4 border-b border-ink-200/60 dark:border-ink-800 px-5 py-4">
           <div className="min-w-0">
-            <p className="text-2xs font-semibold uppercase tracking-[0.08em] text-ink-500">
+            <p className="text-2xs font-semibold uppercase tracking-[0.08em] text-ink-500 dark:text-ink-400">
               Email preview
             </p>
-            <h3 className="truncate text-base font-semibold text-ink-900">
-              {subject || <span className="italic text-ink-400">(no subject)</span>}
+            <h3 className="truncate text-base font-semibold text-ink-900 dark:text-white">
+              {subject || <span className="italic text-ink-400 dark:text-ink-500">(no subject)</span>}
             </h3>
             {to && (
-              <p className="mt-0.5 truncate text-xs text-ink-500">
-                To <span className="font-medium text-ink-700">{to}</span>
+              <p className="mt-0.5 truncate text-xs text-ink-500 dark:text-ink-400">
+                To <span className="font-medium text-ink-700 dark:text-ink-200">{to}</span>
               </p>
             )}
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1.5 text-ink-400 hover:bg-ink-100 hover:text-ink-700"
+            className="rounded-md p-1.5 text-ink-400 dark:text-ink-500 hover:bg-ink-100 dark:hover:bg-ink-800/60 hover:text-ink-700 dark:hover:text-ink-200"
             aria-label="Close preview"
           >
             <svg
@@ -59,16 +59,16 @@ export default function PreviewModal({ open, onClose, subject, html, to }) {
           </button>
         </header>
 
-        <div className="flex-1 overflow-auto bg-ink-100/60 p-4">
+        <div className="flex-1 overflow-auto bg-ink-100/60 dark:bg-ink-800/40 p-4">
           <iframe
             title="Email preview"
             srcDoc={html || '<p style="font-family:sans-serif;color:#94a3b8;">Nothing to preview yet.</p>'}
             sandbox=""
-            className="preview-frame h-[60vh] w-full rounded-lg border border-ink-200 bg-white"
+            className="preview-frame h-[60vh] w-full rounded-lg border border-ink-200 dark:border-ink-800 bg-white"
           />
         </div>
 
-        <footer className="flex items-center justify-end gap-2 border-t border-ink-200/60 bg-white px-5 py-3">
+        <footer className="flex items-center justify-end gap-2 border-t border-ink-200/60 dark:border-ink-800 bg-white dark:bg-ink-900 px-5 py-3">
           <button type="button" className="btn-secondary" onClick={onClose}>
             Close
           </button>

@@ -1,6 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,jsx,ts,tsx}'],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
@@ -16,6 +17,19 @@ export default {
           800: '#3730a3',
           900: '#312e81',
           950: '#1e1b4b',
+        },
+        // Secondary accent — pink/fuchsia for a more colourful UI.
+        accent: {
+          50: '#fdf4ff',
+          100: '#fae8ff',
+          200: '#f5d0fe',
+          300: '#f0abfc',
+          400: '#e879f9',
+          500: '#d946ef',
+          600: '#c026d3',
+          700: '#a21caf',
+          800: '#86198f',
+          900: '#701a75',
         },
         ink: {
           50: '#f8fafc',
@@ -61,9 +75,13 @@ export default {
         'inner-soft': 'inset 0 1px 2px 0 rgb(15 23 42 / 0.04)',
       },
       backgroundImage: {
-        'gradient-brand': 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+        // Richer brand gradient: indigo -> violet -> fuchsia.
+        'gradient-brand':
+          'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%)',
         'gradient-app':
-          'radial-gradient(1200px 600px at 100% -10%, rgb(99 102 241 / 0.06), transparent 60%), radial-gradient(900px 500px at -10% 110%, rgb(139 92 246 / 0.05), transparent 60%)',
+          'radial-gradient(1200px 600px at 100% -10%, rgb(99 102 241 / 0.10), transparent 60%), radial-gradient(900px 500px at -10% 110%, rgb(217 70 239 / 0.08), transparent 60%)',
+        'gradient-app-dark':
+          'radial-gradient(1200px 600px at 100% -10%, rgb(99 102 241 / 0.22), transparent 60%), radial-gradient(900px 500px at -10% 110%, rgb(217 70 239 / 0.16), transparent 60%)',
       },
       keyframes: {
         'fade-in-up': {

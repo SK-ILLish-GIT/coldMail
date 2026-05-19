@@ -34,14 +34,14 @@ export default function VariableChips({ inputRef, extra = [] }) {
 
   return (
     <div className="flex flex-wrap items-center gap-1">
-      <span className="text-2xs uppercase tracking-wider text-ink-400">Insert:</span>
+      <span className="text-2xs uppercase tracking-wider text-ink-400 dark:text-ink-500">Insert:</span>
       {all.map((v) => (
         <button
           key={v}
           type="button"
           onClick={() => insert(v)}
-          className="rounded-md bg-ink-100 px-1.5 py-0.5 font-mono text-2xs text-ink-700 transition
-                     hover:bg-brand-50 hover:text-brand-700 hover:ring-1 hover:ring-inset hover:ring-brand-100"
+          className="rounded-md bg-ink-100 dark:bg-ink-800/60 px-1.5 py-0.5 font-mono text-2xs text-ink-700 dark:text-ink-200 transition
+                     hover:bg-brand-50 dark:hover:bg-brand-900/30 hover:text-brand-700 dark:hover:text-brand-300 hover:ring-1 hover:ring-inset hover:ring-brand-100 dark:hover:ring-brand-800"
           title={`Insert {{${v}}} at cursor`}
         >
           {`{{${v}}}`}

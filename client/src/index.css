@@ -9,13 +9,22 @@
     height: 100%;
   }
 
+  /* Default = light. The `dark` class on <html> swaps everything. */
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+
   body {
-    @apply bg-ink-50 bg-gradient-app text-ink-900 antialiased;
+    @apply bg-ink-50 bg-gradient-app text-ink-900 antialiased
+           dark:bg-ink-950 dark:bg-gradient-app-dark dark:text-ink-100;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'ss01';
   }
 
   ::selection {
-    @apply bg-brand-200 text-brand-900;
+    @apply bg-brand-200 text-brand-900 dark:bg-brand-700/60 dark:text-white;
   }
 
   /* Subtle scrollbar styling */
@@ -27,10 +36,10 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    @apply rounded-full bg-ink-200;
+    @apply rounded-full bg-ink-200 dark:bg-ink-700;
   }
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-ink-300;
+    @apply bg-ink-300 dark:bg-ink-600;
   }
 }
 
@@ -40,18 +49,22 @@
     @apply w-full rounded-lg border border-ink-200 bg-white px-3.5 py-2.5 text-sm
            text-ink-900 placeholder:text-ink-400 shadow-inner-soft
            transition focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100
-           disabled:cursor-not-allowed disabled:bg-ink-50 disabled:text-ink-400;
+           disabled:cursor-not-allowed disabled:bg-ink-50 disabled:text-ink-400
+           dark:border-ink-700 dark:bg-ink-900 dark:text-ink-100 dark:placeholder:text-ink-500
+           dark:focus:border-brand-400 dark:focus:ring-brand-900/40
+           dark:disabled:bg-ink-800/60 dark:disabled:text-ink-500;
   }
   .input-mono {
     @apply input font-mono text-[13px] leading-relaxed;
   }
 
   .label {
-    @apply mb-1.5 block text-2xs font-semibold uppercase tracking-[0.08em] text-ink-500;
+    @apply mb-1.5 block text-2xs font-semibold uppercase tracking-[0.08em]
+           text-ink-500 dark:text-ink-400;
   }
 
   .hint {
-    @apply text-xs text-ink-500;
+    @apply text-xs text-ink-500 dark:text-ink-400;
   }
 
   /* ---------- Buttons ---------- */
@@ -59,13 +72,15 @@
     @apply relative inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium
            transition active:scale-[0.98]
            focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-100
-           disabled:cursor-not-allowed disabled:opacity-55 disabled:active:scale-100;
+           disabled:cursor-not-allowed disabled:opacity-55 disabled:active:scale-100
+           dark:focus-visible:ring-brand-900/40;
   }
 
   .btn-primary {
     @apply btn bg-brand-600 text-white shadow-sm
            hover:bg-brand-700 hover:shadow-md
-           focus-visible:ring-brand-200;
+           focus-visible:ring-brand-200
+           dark:bg-brand-500 dark:hover:bg-brand-400;
   }
 
   .btn-gradient {
@@ -77,17 +92,22 @@
   .btn-secondary {
     @apply btn bg-white text-ink-700 ring-1 ring-inset ring-ink-200 shadow-sm
            hover:bg-ink-50 hover:ring-ink-300
-           focus-visible:ring-brand-200;
+           focus-visible:ring-brand-200
+           dark:bg-ink-800 dark:text-ink-100 dark:ring-ink-700
+           dark:hover:bg-ink-700 dark:hover:ring-ink-600;
   }
 
   .btn-ghost {
-    @apply btn text-ink-600 hover:bg-ink-100 hover:text-ink-900 focus-visible:ring-ink-200;
+    @apply btn text-ink-600 hover:bg-ink-100 hover:text-ink-900 focus-visible:ring-ink-200
+           dark:text-ink-300 dark:hover:bg-ink-800 dark:hover:text-white
+           dark:focus-visible:ring-ink-700;
   }
 
   .btn-danger {
     @apply btn bg-rose-600 text-white shadow-sm
            hover:bg-rose-700
-           focus-visible:ring-rose-200;
+           focus-visible:ring-rose-200
+           dark:bg-rose-500 dark:hover:bg-rose-400;
   }
 
   .btn-xs {
@@ -96,15 +116,17 @@
 
   /* ---------- Cards & surfaces ---------- */
   .card {
-    @apply rounded-2xl border border-ink-200/70 bg-white shadow-soft;
+    @apply rounded-2xl border border-ink-200/70 bg-white shadow-soft
+           dark:border-ink-800 dark:bg-ink-900/80 dark:backdrop-blur;
   }
 
   .surface {
-    @apply rounded-xl border border-ink-200/70 bg-white;
+    @apply rounded-xl border border-ink-200/70 bg-white
+           dark:border-ink-800 dark:bg-ink-900/70;
   }
 
   .divider {
-    @apply h-px w-full bg-ink-200/70;
+    @apply h-px w-full bg-ink-200/70 dark:bg-ink-800;
   }
 
   /* ---------- Pills ---------- */
@@ -113,19 +135,24 @@
   }
 
   .pill-brand {
-    @apply pill bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-100;
+    @apply pill bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-100
+           dark:bg-brand-900/40 dark:text-brand-200 dark:ring-brand-800/50;
   }
   .pill-emerald {
-    @apply pill bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200/70;
+    @apply pill bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200/70
+           dark:bg-emerald-900/30 dark:text-emerald-200 dark:ring-emerald-800/40;
   }
   .pill-rose {
-    @apply pill bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200/70;
+    @apply pill bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200/70
+           dark:bg-rose-900/30 dark:text-rose-200 dark:ring-rose-800/40;
   }
   .pill-amber {
-    @apply pill bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200/70;
+    @apply pill bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200/70
+           dark:bg-amber-900/30 dark:text-amber-200 dark:ring-amber-800/40;
   }
   .pill-ink {
-    @apply pill bg-ink-100 text-ink-700 ring-1 ring-inset ring-ink-200;
+    @apply pill bg-ink-100 text-ink-700 ring-1 ring-inset ring-ink-200
+           dark:bg-ink-800 dark:text-ink-200 dark:ring-ink-700;
   }
 
   /* Tiny pulsing status dot used inside status pills */
@@ -135,14 +162,26 @@
 
   /* ---------- Tabs ---------- */
   .tabs {
-    @apply inline-flex items-center gap-0.5 rounded-xl bg-ink-100/80 p-1 ring-1 ring-inset ring-ink-200/60;
+    @apply inline-flex items-center gap-0.5 rounded-xl bg-ink-100/80 p-1
+           ring-1 ring-inset ring-ink-200/60
+           dark:bg-ink-800/70 dark:ring-ink-700/60;
   }
   .tab {
     @apply rounded-lg px-3 py-1.5 text-sm font-medium text-ink-600 transition
-           hover:text-ink-900;
+           hover:text-ink-900
+           dark:text-ink-300 dark:hover:text-white;
   }
   .tab-active {
-    @apply bg-white text-ink-900 shadow-sm ring-1 ring-inset ring-ink-200/60;
+    @apply bg-white text-ink-900 shadow-sm ring-1 ring-inset ring-ink-200/60
+           dark:bg-ink-900 dark:text-white dark:ring-ink-700;
+  }
+  /* Mobile: let a long tab strip scroll horizontally instead of wrapping. */
+  .tabs-scroll {
+    @apply -mx-1 max-w-full overflow-x-auto px-1;
+    scrollbar-width: none;
+  }
+  .tabs-scroll::-webkit-scrollbar {
+    display: none;
   }
 
   /* ---------- Preview frame ---------- */

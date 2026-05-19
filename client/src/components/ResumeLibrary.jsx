@@ -134,10 +134,10 @@ export default function ResumeLibrary({ onChange }) {
   return (
     <div className="space-y-6">
       <section className="card overflow-hidden">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200/60 px-6 py-4">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200/60 dark:border-ink-800 px-6 py-4">
           <div>
-            <h2 className="text-base font-semibold text-ink-900">Upload a resume</h2>
-            <p className="text-xs text-ink-500">
+            <h2 className="text-base font-semibold text-ink-900 dark:text-ink-100">Upload a resume</h2>
+            <p className="text-xs text-ink-500 dark:text-ink-400">
               PDF only · max 10 MB · stored in MongoDB · pick one from
               the Compose tab when drafting.
             </p>
@@ -193,10 +193,10 @@ export default function ResumeLibrary({ onChange }) {
       </section>
 
       <section className="card overflow-hidden">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200/60 px-6 py-4">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200/60 dark:border-ink-800 px-6 py-4">
           <div>
-            <h2 className="text-base font-semibold text-ink-900">Your resumes</h2>
-            <p className="text-xs text-ink-500">
+            <h2 className="text-base font-semibold text-ink-900 dark:text-ink-100">Your resumes</h2>
+            <p className="text-xs text-ink-500 dark:text-ink-400">
               {items.length} stored · attached files are auto-renamed on
               draft for consistency.
             </p>
@@ -210,7 +210,7 @@ export default function ResumeLibrary({ onChange }) {
           <div className="p-6">
             <div className="space-y-2">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-14 animate-pulse rounded-lg bg-ink-100" />
+                <div key={i} className="h-14 animate-pulse rounded-lg bg-ink-100 dark:bg-ink-800" />
               ))}
             </div>
           </div>
@@ -221,13 +221,13 @@ export default function ResumeLibrary({ onChange }) {
             description="Upload your first PDF above. You can keep different versions for different roles."
           />
         ) : (
-          <ul className="divide-y divide-ink-200/60">
+          <ul className="divide-y divide-ink-200/60 dark:divide-ink-800">
             {items.map((r) => (
               <li
                 key={r.id}
-                className="flex flex-wrap items-start gap-3 px-6 py-3 transition hover:bg-ink-50/40"
+                className="flex flex-wrap items-start gap-3 px-6 py-3 transition hover:bg-ink-50/40 dark:hover:bg-ink-800/60"
               >
-                <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-rose-50 text-rose-600">
+                <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-300">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 24 24"
@@ -257,11 +257,11 @@ export default function ResumeLibrary({ onChange }) {
                     </>
                   ) : (
                     <>
-                      <p className="truncate text-sm font-medium text-ink-900">{r.name}</p>
+                      <p className="truncate text-sm font-medium text-ink-900 dark:text-ink-100">{r.name}</p>
                       {r.tags?.length > 0 && <TagPills tags={r.tags} />}
                     </>
                   )}
-                  <p className="truncate text-2xs text-ink-500">
+                  <p className="truncate text-2xs text-ink-500 dark:text-ink-400">
                     {r.filename || 'resume.pdf'} · {fmtSize(r.size)} · {fmtDate(r.createdAt)}
                   </p>
                 </div>

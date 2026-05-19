@@ -372,12 +372,12 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
     <div className="space-y-6">
       {/* ---------- Form card (full width) ---------- */}
       <form onSubmit={handleSubmit} className="card overflow-hidden">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200/60 px-6 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200/60 dark:border-ink-800/60 px-6 py-4">
           <div>
-            <h2 className="text-base font-semibold text-ink-900">Compose</h2>
-            <p className="text-xs text-ink-500">
+            <h2 className="text-base font-semibold text-ink-900 dark:text-white">Compose</h2>
+            <p className="text-xs text-ink-500 dark:text-ink-400">
               Write once, personalise per recipient with{' '}
-              <span className="rounded bg-ink-100 px-1 py-0.5 font-mono text-2xs">{`{{vars}}`}</span>.
+              <span className="rounded bg-ink-100 dark:bg-ink-800 px-1 py-0.5 font-mono text-2xs">{`{{vars}}`}</span>.
             </p>
           </div>
           <div className="tabs text-xs">
@@ -454,7 +454,7 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
                 {templateTagFilter.length > 0 && (
                   <button
                     type="button"
-                    className="text-2xs text-ink-500 underline hover:text-ink-700"
+                    className="text-2xs text-ink-500 dark:text-ink-400 underline hover:text-ink-700 dark:hover:text-ink-200"
                     onClick={() => setTemplateTagFilter([])}
                   >
                     Clear filter
@@ -499,7 +499,7 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
           <div>
             <div className="mb-1.5 flex items-end justify-between gap-3">
               <label className="label !mb-0" htmlFor="attachment-picker">
-                Attachment <span className="font-normal text-ink-500">(optional, max 1 PDF)</span>
+                Attachment <span className="font-normal text-ink-500 dark:text-ink-400">(optional, max 1 PDF)</span>
               </label>
               <span className="hint">
                 Saved in Gmail draft as <span className="font-mono">Sk_Sahil_Parvez_CV.pdf</span>
@@ -515,7 +515,7 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
                 {resumeTagFilter.length > 0 && (
                   <button
                     type="button"
-                    className="text-2xs text-ink-500 underline hover:text-ink-700"
+                    className="text-2xs text-ink-500 dark:text-ink-400 underline hover:text-ink-700 dark:hover:text-ink-200"
                     onClick={() => setResumeTagFilter([])}
                   >
                     Clear filter
@@ -543,7 +543,7 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
             </select>
 
             {attachmentSelectValue === ATTACH_DEVICE && (
-              <div className="mt-2 flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-ink-200 bg-ink-50/40 px-3 py-2">
+              <div className="mt-2 flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-ink-200 dark:border-ink-800 bg-ink-50/40 dark:bg-ink-800/30 px-3 py-2">
                 <input
                   id="attachment-device-file"
                   type="file"
@@ -552,7 +552,7 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
                   onChange={(e) => onDeviceFilePicked(e.target.files?.[0] || null)}
                 />
                 {attachment.deviceFile && (
-                  <span className="text-2xs text-ink-500">
+                  <span className="text-2xs text-ink-500 dark:text-ink-400">
                     {attachment.deviceFile.name} · {fmtSize(attachment.deviceFile.size)}
                   </span>
                 )}
@@ -563,7 +563,7 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
 
         {/* Save-as panel (collapsible) */}
         {saveOpen && (
-          <div className="anim-in border-t border-ink-200/60 bg-ink-50/50 px-6 py-4">
+          <div className="anim-in border-t border-ink-200/60 dark:border-ink-800/60 bg-ink-50/50 dark:bg-ink-800/30 px-6 py-4">
             <div className="flex flex-wrap items-end gap-2">
               <div className="grow">
                 <label className="label" htmlFor="save-name">Template name</label>
@@ -600,7 +600,7 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
         )}
 
         {/* Footer actions */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink-200/60 bg-ink-50/40 px-6 py-3.5">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink-200/60 dark:border-ink-800/60 bg-ink-50/40 dark:bg-ink-800/40 px-6 py-3.5">
           <button
             type="button"
             className="btn-ghost btn-xs"

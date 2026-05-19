@@ -8,8 +8,8 @@ const STATE_CLASS = {
 const DOT_CLASS = {
   ok: 'bg-emerald-500 animate-pulse-dot',
   down: 'bg-rose-500',
-  off: 'bg-ink-400',
-  loading: 'bg-ink-300 animate-pulse-dot',
+  off: 'bg-ink-400 dark:bg-ink-500',
+  loading: 'bg-ink-300 dark:bg-ink-600 animate-pulse-dot',
 };
 
 /**

@@ -59,7 +59,7 @@ export default function JDMatcher({ templates = [], resumes = [], aiEnabled = fa
   };
 
   return (
-    <section className="rounded-lg border border-ink-200/80 bg-gradient-to-br from-brand-50/40 to-white">
+    <section className="rounded-lg border border-ink-200/80 dark:border-ink-800 bg-gradient-to-br from-brand-50/40 to-white dark:from-brand-900/20 dark:to-ink-900">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -82,8 +82,8 @@ export default function JDMatcher({ templates = [], resumes = [], aiEnabled = fa
             </svg>
           </span>
           <div>
-            <p className="text-sm font-semibold text-ink-900">Match by JD</p>
-            <p className="text-2xs text-ink-500">
+            <p className="text-sm font-semibold text-ink-900 dark:text-white">Match by JD</p>
+            <p className="text-2xs text-ink-500 dark:text-ink-400">
               Paste a job description — AI picks the best template + resume from your library.
             </p>
           </div>
@@ -96,21 +96,21 @@ export default function JDMatcher({ templates = [], resumes = [], aiEnabled = fa
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className={`h-4 w-4 text-ink-500 transition-transform ${open ? 'rotate-180' : ''}`}
+          className={`h-4 w-4 text-ink-500 dark:text-ink-400 transition-transform ${open ? 'rotate-180' : ''}`}
         >
           <polyline points="6 9 12 15 18 9" />
         </svg>
       </button>
 
       {open && (
-        <div className="anim-in space-y-3 border-t border-ink-200/60 px-4 py-3">
+        <div className="anim-in space-y-3 border-t border-ink-200/60 dark:border-ink-800 px-4 py-3">
           {!aiEnabled && (
-            <p className="hint text-rose-600">
+            <p className="hint text-rose-600 dark:text-rose-400">
               AI is disabled on the server — set <span className="font-mono">GEMINI_API_KEY</span> to enable this.
             </p>
           )}
           {libraryEmpty && (
-            <p className="hint text-amber-600">
+            <p className="hint text-amber-600 dark:text-amber-400">
               Add at least one template or resume first, otherwise there's nothing to pick from.
             </p>
           )}

@@ -6,6 +6,7 @@ import TemplateLibrary from './components/TemplateLibrary.jsx';
 import ResumeLibrary from './components/ResumeLibrary.jsx';
 import SentLog from './components/SentLog.jsx';
 import StatusPill from './components/StatusPill.jsx';
+import ThemeToggle, { useTheme } from './components/ThemeToggle.jsx';
 
 const TABS = [
   { id: 'compose', label: 'Compose' },
@@ -17,6 +18,7 @@ const TABS = [
 export default function App() {
   const [tab, setTab] = useState('compose');
   const [activeTemplate, setActiveTemplate] = useState(null);
+  const [theme, setTheme] = useTheme();
   const [health, setHealth] = useState({
     loading: true,
     ok: false,
@@ -44,12 +46,15 @@ export default function App() {
     setTab('compose');
   };
 
+  const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
+
   return (
     <div className="min-h-full">
-      <header className="sticky top-0 z-30 border-b border-ink-200/70 bg-white/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-6 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+      <header className="sticky top-0 z-30 border-b border-ink-200/70 bg-white/80 backdrop-blur-md
+                         dark:border-ink-800 dark:bg-ink-950/70">
+        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-3.5">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-brand text-white shadow-md">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-brand text-white shadow-md">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
@@ -64,9 +69,11 @@ export default function App() {
                 <rect x="2.5" y="5" width="19" height="14" rx="2.5" />
               </svg>
             </div>
-            <div>
-              <h1 className="text-base font-semibold leading-tight text-ink-900">coldMail</h1>
-              <p className="text-xs text-ink-500">
+            <div className="min-w-0">
+              <h1 className="text-base font-semibold leading-tight text-ink-900 dark:text-white">
+                coldMail
+              </h1>
+              <p className="truncate text-xs text-ink-500 dark:text-ink-400">
                 Personalised email campaigns, sent right.
               </p>
             </div>
@@ -105,12 +112,13 @@ export default function App() {
                   : 'AI email finder disabled — set GEMINI_API_KEY in server/.env'
               }
             />
-            <nav className="tabs ml-1">
+            <ThemeToggle theme={theme} onToggle={toggleTheme} />
+            <nav className="tabs tabs-scroll ml-1 max-w-full">
               {TABS.map((t) => (
                 <button
                   key={t.id}
                   onClick={() => setTab(t.id)}
-                  className={['tab', tab === t.id && 'tab-active'].filter(Boolean).join(' ')}
+                  className={['tab', 'whitespace-nowrap', tab === t.id && 'tab-active'].filter(Boolean).join(' ')}
                 >
                   {t.label}
                 </button>
@@ -120,7 +128,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-6 py-8">
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
         {tab === 'compose' && (
           <EmailForm
             initialTemplate={activeTemplate}
@@ -133,7 +141,7 @@ export default function App() {
         {tab === 'log' && <SentLog />}
       </main>
 
-      <footer className="mx-auto max-w-6xl px-6 pb-10 text-center text-xs text-ink-400">
+      <footer className="mx-auto max-w-6xl px-4 pb-10 text-center text-xs text-ink-400 sm:px-6 dark:text-ink-500">
         coldMail · React + Express + Nodemailer · MongoDB Atlas
       </footer>
     </div>

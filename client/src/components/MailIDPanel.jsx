@@ -182,7 +182,7 @@ export default function MailIDPanel({
         {recipients.length > 0 && (
           <button
             type="button"
-            className="btn-ghost btn-xs text-rose-600 hover:bg-rose-50"
+            className="btn-ghost btn-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30"
             onClick={clearAll}
           >
             Clear all
@@ -196,26 +196,26 @@ export default function MailIDPanel({
       </div>
 
       {recipients.length > 0 && (
-        <div className="anim-in overflow-hidden rounded-lg border border-ink-200/70">
-          <div className="flex items-center justify-between bg-ink-50/60 px-4 py-2">
-            <span className="text-2xs font-semibold uppercase tracking-[0.08em] text-ink-500">
+        <div className="anim-in overflow-hidden rounded-lg border border-ink-200/70 dark:border-ink-800">
+          <div className="flex items-center justify-between bg-ink-50/60 dark:bg-ink-800/40 px-4 py-2">
+            <span className="text-2xs font-semibold uppercase tracking-[0.08em] text-ink-500 dark:text-ink-400">
               Recipients ({recipients.length})
             </span>
             <span className="hint">Edit names · drafts are saved 1-by-1 in Gmail</span>
           </div>
           <div className="max-h-[360px] overflow-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-white text-2xs uppercase tracking-[0.08em] text-ink-500">
+              <thead className="bg-white dark:bg-ink-900 text-2xs uppercase tracking-[0.08em] text-ink-500 dark:text-ink-400">
                 <tr>
                   <th className="px-4 py-2 font-semibold">Email</th>
                   <th className="px-4 py-2 font-semibold">Name (editable)</th>
                   <th className="px-4 py-2"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-ink-100">
+              <tbody className="divide-y divide-ink-100 dark:divide-ink-800">
                 {recipients.map((r, i) => (
-                  <tr key={r.email} className="transition hover:bg-ink-50/40">
-                    <td className="px-4 py-2 font-mono text-xs text-ink-700">{r.email}</td>
+                  <tr key={r.email} className="transition hover:bg-ink-50/40 dark:hover:bg-ink-800/60">
+                    <td className="px-4 py-2 font-mono text-xs text-ink-700 dark:text-ink-200">{r.email}</td>
                     <td className="px-4 py-2">
                       <input
                         type="text"
@@ -228,7 +228,7 @@ export default function MailIDPanel({
                     <td className="px-4 py-2 text-right">
                       <button
                         type="button"
-                        className="btn-ghost btn-xs text-rose-600 hover:bg-rose-50"
+                        className="btn-ghost btn-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/30"
                         onClick={() => removeRow(i)}
                       >
                         Remove

@@ -82,16 +82,16 @@ export function TagInput({ tags = [], onChange, placeholder = 'backend, java, go
   const removeTag = (t) => onChange(tags.filter((x) => x !== t));
 
   return (
-    <div className="flex flex-wrap items-center gap-1 rounded-lg border border-ink-200 bg-white px-2 py-1.5 focus-within:ring-2 focus-within:ring-brand-200">
+    <div className="flex flex-wrap items-center gap-1 rounded-lg border border-ink-200 dark:border-ink-800 bg-white dark:bg-ink-900 px-2 py-1.5 focus-within:ring-2 focus-within:ring-brand-200">
       {tags.map((t) => (
         <span
           key={t}
-          className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700"
+          className="inline-flex items-center gap-1 rounded-full bg-brand-50 dark:bg-brand-900/30 px-2 py-0.5 text-xs font-medium text-brand-700 dark:text-brand-300"
         >
           {t}
           <button
             type="button"
-            className="-mr-0.5 ml-0.5 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-brand-500 hover:bg-brand-100 hover:text-brand-800"
+            className="-mr-0.5 ml-0.5 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-brand-500 dark:text-brand-400 hover:bg-brand-100 dark:hover:bg-brand-800/50 hover:text-brand-800 dark:hover:text-brand-200"
             onClick={() => removeTag(t)}
             aria-label={`Remove tag ${t}`}
           >
@@ -101,7 +101,7 @@ export function TagInput({ tags = [], onChange, placeholder = 'backend, java, go
       ))}
       <input
         type="text"
-        className="min-w-[120px] flex-1 border-0 bg-transparent py-0.5 text-sm outline-none placeholder:text-ink-400"
+        className="min-w-[120px] flex-1 border-0 bg-transparent py-0.5 text-sm outline-none placeholder:text-ink-400 dark:placeholder:text-ink-500"
         placeholder={tags.length ? '' : placeholder}
         value={draft}
         onChange={handleChange}
@@ -143,8 +143,8 @@ export function TagPills({ tags = [], activeTags = [], onToggle, size = 'xs' }) 
               sizeClass,
               active
                 ? 'bg-brand-500 text-white'
-                : 'bg-ink-100 text-ink-700',
-              interactive ? 'cursor-pointer transition hover:bg-ink-200' : '',
+                : 'bg-ink-100 dark:bg-ink-800/60 text-ink-700 dark:text-ink-200',
+              interactive ? 'cursor-pointer transition hover:bg-ink-200 dark:hover:bg-ink-800' : '',
               interactive && active ? 'hover:bg-brand-600' : '',
             ]
               .filter(Boolean)

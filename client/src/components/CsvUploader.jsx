@@ -67,22 +67,22 @@ export default function CsvUploader({ recipients, onChange }) {
         onDragLeave={() => setDragOver(false)}
         onDrop={onDrop}
         className={[
-          'rounded-xl border-2 border-dashed bg-ink-50/40 px-5 py-6 transition',
-          dragOver ? 'border-brand-400 bg-brand-50/50' : 'border-ink-200',
+          'rounded-xl border-2 border-dashed bg-ink-50/40 dark:bg-ink-800/40 px-5 py-6 transition',
+          dragOver ? 'border-brand-400 bg-brand-50/50 dark:bg-brand-900/30' : 'border-ink-200 dark:border-ink-800',
         ].join(' ')}
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-sm font-medium text-ink-800">
+            <p className="text-sm font-medium text-ink-800 dark:text-ink-200">
               {recipients.length
                 ? `${recipients.length} recipient${recipients.length === 1 ? '' : 's'} loaded`
                 : 'Drop a CSV file here'}
             </p>
-            <p className="mt-0.5 text-xs text-ink-500">
-              Required column: <code className="rounded bg-ink-200/70 px-1 font-mono">email</code>.
-              Optional: <code className="rounded bg-ink-200/70 px-1 font-mono">name</code>,{' '}
-              <code className="rounded bg-ink-200/70 px-1 font-mono">company</code>, plus any custom
-              <code className="ml-1 rounded bg-ink-200/70 px-1 font-mono">{`{{column}}`}</code> tokens.
+            <p className="mt-0.5 text-xs text-ink-500 dark:text-ink-400">
+              Required column: <code className="rounded bg-ink-200/70 dark:bg-ink-800/60 px-1 font-mono">email</code>.
+              Optional: <code className="rounded bg-ink-200/70 dark:bg-ink-800/60 px-1 font-mono">name</code>,{' '}
+              <code className="rounded bg-ink-200/70 dark:bg-ink-800/60 px-1 font-mono">company</code>, plus any custom
+              <code className="ml-1 rounded bg-ink-200/70 dark:bg-ink-800/60 px-1 font-mono">{`{{column}}`}</code> tokens.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -111,13 +111,13 @@ export default function CsvUploader({ recipients, onChange }) {
 
       {recipients.length > 0 && (
         <div className="anim-in">
-          <p className="mb-2 text-2xs uppercase tracking-wider text-ink-500">
-            <span className="font-mono text-ink-700">{filename || 'recipients.csv'}</span> · {recipients.length} row
+          <p className="mb-2 text-2xs uppercase tracking-wider text-ink-500 dark:text-ink-400">
+            <span className="font-mono text-ink-700 dark:text-ink-200">{filename || 'recipients.csv'}</span> · {recipients.length} row
             {recipients.length === 1 ? '' : 's'}
           </p>
-          <div className="max-h-44 overflow-auto rounded-lg border border-ink-200 bg-white">
+          <div className="max-h-44 overflow-auto rounded-lg border border-ink-200 dark:border-ink-800 bg-white dark:bg-ink-900">
             <table className="w-full text-left text-xs">
-              <thead className="sticky top-0 bg-ink-50 text-ink-500">
+              <thead className="sticky top-0 bg-ink-50 dark:bg-ink-800/40 text-ink-500 dark:text-ink-400">
                 <tr>
                   {Object.keys(recipients[0]).map((k) => (
                     <th key={k} className="px-3 py-2 font-semibold uppercase tracking-wider text-2xs">
@@ -128,9 +128,9 @@ export default function CsvUploader({ recipients, onChange }) {
               </thead>
               <tbody>
                 {recipients.slice(0, 50).map((r, i) => (
-                  <tr key={i} className="border-t border-ink-100">
+                  <tr key={i} className="border-t border-ink-100 dark:border-ink-800">
                     {Object.keys(recipients[0]).map((k) => (
-                      <td key={k} className="px-3 py-1.5 text-ink-700">
+                      <td key={k} className="px-3 py-1.5 text-ink-700 dark:text-ink-200">
                         {r[k] ?? ''}
                       </td>
                     ))}
@@ -139,7 +139,7 @@ export default function CsvUploader({ recipients, onChange }) {
               </tbody>
             </table>
             {recipients.length > 50 && (
-              <p className="border-t border-ink-100 px-3 py-2 text-center text-2xs text-ink-400">
+              <p className="border-t border-ink-100 dark:border-ink-800 px-3 py-2 text-center text-2xs text-ink-400 dark:text-ink-500">
                 Showing first 50 of {recipients.length} rows
               </p>
             )}

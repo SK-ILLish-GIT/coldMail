@@ -86,10 +86,10 @@ export default function TemplateLibrary({ onUseTemplate }) {
   return (
     <div className="grid gap-6 lg:grid-cols-5">
       <section className="card overflow-hidden lg:col-span-3">
-        <header className="flex items-center justify-between border-b border-ink-200/60 px-6 py-4">
+        <header className="flex items-center justify-between border-b border-ink-200/60 dark:border-ink-800 px-6 py-4">
           <div>
-            <h2 className="text-base font-semibold text-ink-900">Saved templates</h2>
-            <p className="text-xs text-ink-500">
+            <h2 className="text-base font-semibold text-ink-900 dark:text-ink-100">Saved templates</h2>
+            <p className="text-xs text-ink-500 dark:text-ink-400">
               Reusable email bodies. Click <strong>Use</strong> to load one into Compose.
             </p>
           </div>
@@ -101,7 +101,7 @@ export default function TemplateLibrary({ onUseTemplate }) {
         {loading ? (
           <div className="space-y-2 p-6">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-16 animate-pulse rounded-lg bg-ink-100" />
+              <div key={i} className="h-16 animate-pulse rounded-lg bg-ink-100 dark:bg-ink-800" />
             ))}
           </div>
         ) : items.length === 0 ? (
@@ -111,21 +111,21 @@ export default function TemplateLibrary({ onUseTemplate }) {
             description="Save subject + body combos here for quick reuse across campaigns."
           />
         ) : (
-          <ul className="divide-y divide-ink-100">
+          <ul className="divide-y divide-ink-100 dark:divide-ink-800">
             {items.map((tpl) => (
               <li
                 key={tpl.id}
-                className="flex flex-wrap items-start justify-between gap-3 px-6 py-4 transition hover:bg-ink-50/40"
+                className="flex flex-wrap items-start justify-between gap-3 px-6 py-4 transition hover:bg-ink-50/40 dark:hover:bg-ink-800/60"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-ink-900">{tpl.name}</p>
-                  <p className="mt-0.5 truncate text-xs text-ink-500">{tpl.subject}</p>
+                  <p className="truncate text-sm font-semibold text-ink-900 dark:text-ink-100">{tpl.name}</p>
+                  <p className="mt-0.5 truncate text-xs text-ink-500 dark:text-ink-400">{tpl.subject}</p>
                   {tpl.tags?.length > 0 && (
                     <div className="mt-1.5">
                       <TagPills tags={tpl.tags} />
                     </div>
                   )}
-                  <p className="mt-1 text-2xs text-ink-400">
+                  <p className="mt-1 text-2xs text-ink-400 dark:text-ink-500">
                     Updated {fmtDate(tpl.updatedAt)}
                   </p>
                 </div>
@@ -159,11 +159,11 @@ export default function TemplateLibrary({ onUseTemplate }) {
       </section>
 
       <aside className="card overflow-hidden lg:col-span-2">
-        <header className="border-b border-ink-200/60 px-5 py-4">
-          <h3 className="text-sm font-semibold text-ink-900">
+        <header className="border-b border-ink-200/60 dark:border-ink-800 px-5 py-4">
+          <h3 className="text-sm font-semibold text-ink-900 dark:text-ink-100">
             {editingId ? 'Edit template' : 'New template'}
           </h3>
-          <p className="text-2xs text-ink-500">
+          <p className="text-2xs text-ink-500 dark:text-ink-400">
             {editingId
               ? 'Editing existing template. Cancel to keep the original.'
               : 'Create a template you can load into Compose anytime.'}
@@ -210,7 +210,7 @@ export default function TemplateLibrary({ onUseTemplate }) {
             </p>
           </div>
         </div>
-        <footer className="flex items-center justify-end gap-2 border-t border-ink-200/60 bg-ink-50/40 px-5 py-3">
+        <footer className="flex items-center justify-end gap-2 border-t border-ink-200/60 dark:border-ink-800 bg-ink-50/40 dark:bg-ink-800/40 px-5 py-3">
           {editingId && (
             <button type="button" className="btn-ghost btn-xs" onClick={cancelEdit}>
               Cancel

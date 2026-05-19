@@ -6,8 +6,6 @@ import { extractVariables } from '../lib/render.js';
 import PreviewModal from './PreviewModal.jsx';
 import CsvUploader from './CsvUploader.jsx';
 import MailIDPanel from './MailIDPanel.jsx';
-import LivePreview from './LivePreview.jsx';
-import TemplateEditor from './TemplateEditor.jsx';
 import VariableChips from './VariableChips.jsx';
 import AttachmentList from './AttachmentList.jsx';
 
@@ -57,10 +55,9 @@ const MODES = [
   { id: 'bulk', label: 'By CSV' },
 ];
 
-const BODY_TABS = [
-  { id: 'preview', label: 'Live preview' },
-  { id: 'editor', label: 'HTML editor' },
-];
+// Sentinel value for the "(Default)" choice in the template picker.
+// We can't use empty string because <select> will pick the placeholder.
+const DEFAULT_TEMPLATE_ID = '__default__';
 
 export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled = false }) {
   const [mode, setMode] = useState('mailid');
@@ -83,23 +80,56 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
 
   const [attachments, setAttachments] = useState([]);
 
-  const [bodyTab, setBodyTab] = useState('preview');
+  // Saved templates loaded from the API, plus which one is currently in use.
+  const [templates, setTemplates] = useState([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState(DEFAULT_TEMPLATE_ID);
 
   const subjectRef = useRef(null);
-  const templateRef = useRef(null);
 
   // Hydrate from a chosen saved template
   useEffect(() => {
     if (initialTemplate) {
       setSubject(initialTemplate.subject || '');
       setTemplate(initialTemplate.body || '');
+      setSelectedTemplateId(initialTemplate.id || DEFAULT_TEMPLATE_ID);
       toast.success(`Loaded template "${initialTemplate.name}"`);
-      // Jump to editor so user can review what just loaded
-      setBodyTab('editor');
       onClearTemplate?.();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialTemplate]);
+
+  // Pull the user's saved templates once for the in-compose picker.
+  const loadTemplates = async () => {
+    setTemplatesLoading(true);
+    try {
+      const data = await api.listTemplates();
+      setTemplates(Array.isArray(data) ? data : []);
+    } catch (err) {
+      // Non-fatal: the picker will just show "(Default)" only.
+      console.warn('Failed to load templates:', err.message);
+    } finally {
+      setTemplatesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTemplates();
+  }, []);
+
+  const onPickTemplate = (id) => {
+    setSelectedTemplateId(id);
+    if (id === DEFAULT_TEMPLATE_ID) {
+      setSubject(DEFAULT_SUBJECT);
+      setTemplate(DEFAULT_TEMPLATE);
+      return;
+    }
+    const tpl = templates.find((t) => t.id === id);
+    if (!tpl) return;
+    setSubject(tpl.subject || '');
+    setTemplate(tpl.body || '');
+    toast.success(`Loaded "${tpl.name}"`);
+  };
 
   // Clear the recipients table when the user switches mode so a stale list
   // from CSV doesn't bleed into MailID (or vice versa).
@@ -238,6 +268,33 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
 
           <div className="divider" />
 
+          {/* Template picker — body editing lives in the Templates tab */}
+          <div>
+            <div className="mb-1.5 flex items-end justify-between gap-3">
+              <label className="label !mb-0" htmlFor="template-picker">Template</label>
+              <span className="hint">
+                {templatesLoading
+                  ? 'Loading templates...'
+                  : templates.length
+                    ? `${templates.length} saved · edit bodies in the Templates tab`
+                    : 'No saved templates yet · using the built-in default'}
+              </span>
+            </div>
+            <select
+              id="template-picker"
+              className="input"
+              value={selectedTemplateId}
+              onChange={(e) => onPickTemplate(e.target.value)}
+            >
+              <option value={DEFAULT_TEMPLATE_ID}>(Default)</option>
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Subject */}
           <div>
             <div className="mb-1.5 flex items-end justify-between gap-3">
@@ -368,47 +425,6 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
           </div>
         </div>
       </form>
-
-      {/* ---------- Body: tabbed Preview / Editor (full width below) ---------- */}
-      <section className="card overflow-hidden">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200/60 px-6 py-3.5">
-          <div className="tabs">
-            {BODY_TABS.map((t) => (
-              <button
-                type="button"
-                key={t.id}
-                onClick={() => setBodyTab(t.id)}
-                className={['tab', bodyTab === t.id && 'tab-active'].filter(Boolean).join(' ')}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-          <div className="text-2xs text-ink-500">
-            {bodyTab === 'preview'
-              ? 'Renders with the form values above (or the first CSV row in bulk mode).'
-              : 'HTML email body. Use the chips to insert template variables.'}
-          </div>
-        </header>
-
-        {bodyTab === 'preview' ? (
-          <LivePreview
-            subject={subject}
-            template={template}
-            vars={previewVars}
-            to={previewTo}
-            attachmentCount={attachments.length}
-            onOpenFull={() => setPreviewOpen(true)}
-          />
-        ) : (
-          <TemplateEditor
-            ref={templateRef}
-            value={template}
-            onChange={setTemplate}
-            detectedVars={detectedVars}
-          />
-        )}
-      </section>
 
       <PreviewModal
         open={previewOpen}

@@ -1,254 +1,260 @@
 # coldMail
 
-A production-ready email campaign web app with a React frontend, a Node.js + Express backend, MongoDB Atlas for persistence, and Nodemailer for SMTP delivery. Compose Handlebars-style HTML templates, personalise per recipient, preview before sending, and ship single or CSV-driven bulk campaigns. Includes an optional GPT-powered email finder that proposes likely email addresses from a name + company.
+A personal cold-mail workbench. Compose personalised HTML emails from your own templates and resume library, let AI suggest the right addresses/template/resume per job, and have every send land in your Gmail Drafts (via IMAP) ready for a final read or scheduled send.
+
+Built as a React + Express monorepo, persisted in MongoDB Atlas, AI'd with Google Gemini, and shippable to Render's free tier in one click.
 
 ---
 
 ## Features
 
-**Core**
-- React + Vite + Tailwind UI
-- Single recipient: email / name / company inputs + large HTML editor
-- Template variables: `{{name}}`, `{{company}}`, `{{email}}` (plus any custom keys you reference)
-- Live preview modal (sandboxed iframe)
-- Toast notifications for success / error
-- Nodemailer SMTP transport, configured entirely via `.env`
+**Compose**
+- Three drafting modes with distinct colour cues:
+  - **By MailID** (rose) — paste any number of emails, AI extracts the recipient names, one company applies to all, save N personalised drafts.
+  - **By CSV** (emerald) — upload a CSV with `email,name,company,...` columns; every column becomes a `{{token}}` available in the template/subject.
+  - **By LinkedIn** (sky) — paste a `linkedin.com/in/<slug>` URL, the app parses the name, you fill the company, AI proposes 5 likely email addresses with confidence + MX checks, you save one as a draft.
+- **Match by JD** — paste a job description, Gemini reads your template + resume library (names + tags only) and auto-picks the best-fit pair.
+- Template variables: `{{name}}`, `{{company}}`, `{{email}}` plus any extra CSV columns.
+- Full-preview modal in a sandboxed iframe.
 
-**Bonuses**
-- CSV bulk upload (PapaParse) — any CSV column becomes a usable `{{column}}` token
-- Per-IP rate limiter on send + enrich endpoints (`express-rate-limit`)
-- Configurable inter-send delay to avoid SMTP throttling
-- Saved templates and a sent-email log persisted in MongoDB Atlas
-- AI email finder (optional): GPT proposes 5 likely email patterns for a company; UI shows each with confidence + MX status and a per-row Send button
-- Helmet, CORS, input validation
+**Library**
+- **Templates** — name + subject + body + tags. Edit in-place; pick from the Compose dropdown.
+- **Resumes** — PDF library stored inline in MongoDB. Upload, rename, tag, view, delete. Pick one as the attachment from Compose.
+- **Tags** filter both pickers (OR semantics) so the compose dropdowns only show what's relevant for the current channel.
+
+**Output**
+- Every send saves to Gmail Drafts via IMAP `APPEND` — works on hosts that block outbound SMTP (notably Render's free tier).
+- Whichever PDF the user chose is renamed server-side to a single canonical filename (`Sk_Sahil_Parvez_CV.pdf` by default — configurable).
+- Drafts Log records each draft with subject, recipient, status, timestamp, and "saved as draft" / "failed" pill.
+
+**Polish**
+- Light + dark theme with neutral grays (no slate-blue cast); persisted toggle.
+- Mobile-friendly header with horizontal tab scroll on narrow screens.
+- Toast notifications, helmet headers, CORS allowlist, per-IP rate limits on send + AI endpoints.
 
 ---
 
-## Project structure
+## Architecture
+
+```mermaid
+flowchart LR
+  Browser["Browser SPA<br/>(React + Vite + Tailwind)"]
+  API["Express API<br/>server/src/app.js"]
+  Mongo[("MongoDB Atlas<br/>templates · sent_log · resumes")]
+  Gemini[("Google Gemini API<br/>v1beta")]
+  Gmail[("Gmail IMAP<br/>imap.gmail.com:993")]
+
+  Browser -->|"/api/*"| API
+  Browser -->|"static SPA"| API
+
+  API -->|TLS| Mongo
+  API -->|"3 prompts:<br/>email patterns,<br/>name extract,<br/>JD match"| Gemini
+  API -->|"APPEND \\Draft"| Gmail
+```
+
+**Single-origin in production**: Express serves both the API under `/api/*` and the built React SPA for every other path — one URL, one process, one deploy.
+
+**Module map**
 
 ```
 coldMail/
-├── client/                  # React + Vite + Tailwind
-│   ├── src/
-│   │   ├── components/      # EmailForm, PreviewModal, CsvUploader,
-│   │   │                    # TemplateLibrary, SentLog, EnrichPanel
-│   │   ├── lib/             # axios client, template renderer
-│   │   ├── App.jsx
-│   │   ├── main.jsx
-│   │   └── index.css
-│   ├── index.html
-│   ├── vite.config.js
-│   ├── tailwind.config.js
-│   ├── postcss.config.js
-│   ├── eslint.config.js
-│   └── package.json
-├── server/                  # Express API
-│   ├── src/
-│   │   ├── routes/          # email, templates, log, enrich
-│   │   ├── services/        # mailer, db (Mongo client), store, enrich (OpenAI)
-│   │   ├── middleware/      # rateLimit, validate, error
-│   │   ├── utils/           # Handlebars renderer
-│   │   ├── app.js
-│   │   └── index.js
-│   ├── .env.example
-│   └── package.json
-├── package.json             # root scripts (concurrently)
-└── README.md
+├── client/                          # React 18 + Vite + Tailwind 3
+│   └── src/
+│       ├── App.jsx                  # tabs: Compose / Templates / Resumes / Drafts Log
+│       ├── main.jsx                 # syncs theme class on <html> before React mounts
+│       ├── lib/                     # axios client, template renderer
+│       └── components/
+│           ├── EmailForm.jsx        # parent of the three compose modes
+│           ├── MailIDPanel.jsx      # mode: by mail id  (rose tint)
+│           ├── CsvUploader.jsx      # mode: by csv      (emerald tint)
+│           ├── LinkedInPanel.jsx    # mode: by linkedin (sky tint)
+│           ├── EnrichPanel.jsx      # 5 email candidates with per-row Draft
+│           ├── JDMatcher.jsx        # collapsible JD → template+resume picker
+│           ├── TemplateLibrary.jsx  # CRUD + tags
+│           ├── ResumeLibrary.jsx    # CRUD + tags, PDF stored in mongo
+│           ├── SentLog.jsx          # drafts audit log
+│           ├── Tags.jsx             # TagInput + TagPills primitives
+│           ├── ThemeToggle.jsx      # light/dark, persisted in localStorage
+│           └── PreviewModal.jsx     # sandboxed iframe preview
+├── server/                          # Express 4 (ESM)
+│   └── src/
+│       ├── app.js                   # CORS, helmet, route mounting, SPA fallback
+│       ├── index.js                 # boot, mongo connect, graceful shutdown
+│       ├── routes/
+│       │   ├── email.js             # /api/send-email · /api/send-bulk (write drafts)
+│       │   ├── templates.js         # /api/templates  (CRUD + tags)
+│       │   ├── resumes.js           # /api/resumes    (CRUD, multipart PDF upload)
+│       │   ├── enrich.js            # /api/enrich/email · /names · /jd-match
+│       │   └── log.js               # /api/log
+│       ├── services/
+│       │   ├── db.js                # mongo client + index ensure
+│       │   ├── store.js             # generic CRUD wrapper (templates, sent_log)
+│       │   ├── resumeStore.js       # binary-safe resume CRUD
+│       │   ├── imapDrafts.js        # builds MIME, IMAP APPEND with \Draft flag
+│       │   ├── enrich.js            # 3 Gemini prompts (patterns / names / jd-match)
+│       │   └── mailer.js            # legacy SMTP path (only used if RESEND_API_KEY)
+│       ├── middleware/              # validate · rateLimit · upload · error
+│       └── utils/                   # render (handlebars) · tags (normalisation)
+├── render.yaml                      # blueprint for Render free tier
+└── package.json                     # root scripts: install:all · dev · build · start
 ```
+
+### Why drafts instead of sending?
+
+Render's free tier blocks outbound SMTP (ports 25/465/587) since Sept 2025. Three workable options were on the table:
+
+| Option | What it gives | Cost |
+|---|---|---|
+| Upgrade to Render Starter | SMTP unblocks; nodemailer keeps working | $7/mo |
+| Use an HTTPS email API (Resend / SendGrid / Mailgun) | Sends from a shared/onboarding domain unless you verify yours | Free, but with sender-domain caveats |
+| **IMAP `APPEND` to Gmail Drafts** | You review & send from Gmail itself, including its native "Schedule send" | Free, no extra account, no domain to verify |
+
+The app picked option 3 because cold mail benefits from the per-send review — and Gmail's scheduler is reliable. Resend remains supported as a fallback if you set `RESEND_API_KEY`.
+
+### What goes to Gemini
+
+`/api/enrich/*` only sends the minimum needed for the task:
+- **email** prompt: company name + optional domain → 5 ranked address patterns.
+- **names** prompt: list of emails + company → likely full name per email (falls back to an algorithmic local-part split if the model returns empty).
+- **jd-match** prompt: the JD text + each library item's `{id, name, tags}` triplet — **never** the template body or PDF bytes.
+
+The schema is enforced (`responseMimeType: 'application/json'` + `responseSchema`), bogus ids get filtered server-side, and quota errors map to a clean `429`.
 
 ---
 
-## Installation
+## Quick start
 
-Requires **Node.js 18+** (Node 20 LTS recommended) and a MongoDB Atlas account (free M0 tier is fine).
+Requires **Node.js 20 LTS+** and a free MongoDB Atlas cluster.
 
 ```bash
 git clone <this-repo> coldMail
 cd coldMail
-
-# Install root, server and client deps in one shot
 npm run install:all
-
-# Configure secrets
-cp server/.env.example server/.env
-# then edit server/.env — required: MONGODB_URI, SMTP_*  (see sections below)
+cp server/.env.example server/.env       # fill in MONGODB_URI, SMTP_USER/PASS, GEMINI_API_KEY
+npm run dev                              # API :4000  + Vite :5173 (proxies /api)
 ```
+
+The first request to `/api/health` should return `{"ok":true,"storage":"mongodb","features":{"aiEnrich":true}}`.
 
 ---
 
-## Run (development)
+## Configuration (`server/.env`)
 
-From the repo root:
-
-```bash
-npm run dev
-```
-
-That spawns both processes in parallel:
-- API → http://localhost:4000
-- Web → http://localhost:5173 (Vite proxies `/api` to the API)
-
-Or run them individually:
-
-```bash
-npm --prefix server run dev
-npm --prefix client run dev
-```
-
----
-
-## `.env.example`
-
-The server reads its config from `server/.env`. A full example lives at [`server/.env.example`](./server/.env.example):
+The full template lives in [`server/.env.example`](./server/.env.example). The essentials:
 
 ```env
-# --- Server ---
+# Server
 PORT=4000
 NODE_ENV=development
 CORS_ORIGIN=http://localhost:5173
 
-# --- Storage: MongoDB Atlas (REQUIRED) ---
+# MongoDB Atlas
 MONGODB_URI=mongodb+srv://USER:PASSWORD@cluster0.xxxxx.mongodb.net/?retryWrites=true&w=majority
 MONGODB_DB=coldmail
 
-# --- SMTP / Nodemailer (REQUIRED) ---
+# Gmail App Password — used by IMAP (always) and SMTP (local dev fallback)
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=your@gmail.com
+SMTP_USER=you@gmail.com
 SMTP_PASS=xxxx xxxx xxxx xxxx
-MAIL_FROM="Your Name <your@gmail.com>"
+IMAP_HOST=imap.gmail.com
+IMAP_PORT=993
+MAIL_FROM="Your Name <you@gmail.com>"
 
-# --- AI email finder: Google Gemini (OPTIONAL) ---
+# Server-side filename override — every draft attachment is renamed to this.
+DRAFT_ATTACHMENT_FILENAME=Sk_Sahil_Parvez_CV
+
+# Gemini (OPTIONAL — leave blank to disable all AI features)
 GEMINI_API_KEY=
-GEMINI_MODEL=gemini-2.0-flash
+GEMINI_MODEL=gemini-2.5-flash
 ENRICH_CONFIDENCE_THRESHOLD=0.5
 
-# --- Rate limiting ---
+# Rate limits
 RATE_LIMIT_WINDOW_MIN=1
 RATE_LIMIT_MAX=30
 BULK_SEND_DELAY_MS=250
 ```
 
-> **Never commit `server/.env`.** It is `.gitignore`d by default. `server/.env.example` is committed — keep it free of real secrets.
+> `server/.env` is gitignored. `server/.env.example` is committed — keep it free of real secrets.
+
+### Gmail App Password
+
+1. Enable 2-Step Verification on your Google account.
+2. Visit <https://myaccount.google.com/apppasswords> and generate one (16 chars, spaces fine).
+3. Paste it into `SMTP_PASS`. The same value authenticates IMAP, so nothing else to do.
+
+### Gemini API key
+
+1. <https://aistudio.google.com/app/apikey> → **Create API key**.
+2. Paste into `GEMINI_API_KEY`. No credit card required.
+3. Default model is `gemini-2.5-flash` — fast, free, schema-aware. Override via `GEMINI_MODEL` if you prefer a different one.
 
 ---
 
-## Storage setup (MongoDB Atlas)
+## Compose modes
 
-MongoDB is required — the server refuses to boot without `MONGODB_URI`.
+### By MailID (rose)
 
-1. Create a free Atlas account at <https://www.mongodb.com/cloud/atlas>.
-2. Create an **M0** (free tier) cluster — pick the region closest to your backend host.
-3. **Database Access** → add a user with read/write on the `coldmail` database (or "Read and write to any database" for a quick start).
-4. **Network Access** → add your current IP. For deployment, allow your host's egress IP, or `0.0.0.0/0` for prototyping (note the security tradeoff).
-5. **Connect** → "Drivers" → copy the `mongodb+srv://USER:<password>@cluster0.xxxxx.mongodb.net/...` connection string. URL-encode the password if it contains `@ : / ? # &`.
-6. Paste into `server/.env`:
-   ```env
-   MONGODB_URI=mongodb+srv://USER:PASS@cluster0.xxxxx.mongodb.net/?retryWrites=true&w=majority
-   MONGODB_DB=coldmail
-   ```
-7. Boot the server (`npm run dev`). You should see:
-   ```
-   [coldMail] storage: mongodb (db=coldmail)
-   [coldMail] API listening on http://localhost:4000
-   ```
-8. Confirm with `curl http://localhost:4000/api/health` — it returns `{"ok":true,"storage":"mongodb",...}` only if a live `db.ping` succeeds.
+Paste any number of emails (comma / space / newline separated). Type one company. Click **Extract names with AI** — Gemini infers a likely full name per email, falling back to an algorithmic local-part split if the model returns empty (or if AI is disabled). Edit any row inline, then **Save N drafts to Gmail**. Each draft is personalised with that row's name and the shared company.
 
-Atlas auto-creates the database and collections (`templates`, `sent_log`) on first write. Indexes are created on boot.
+### By CSV (emerald)
+
+Upload a CSV with `email,name,company,...`. Any extra columns become `{{column}}` tokens in the template/subject. Same submit path as MailID.
+
+### By LinkedIn (sky)
+
+Paste a LinkedIn profile URL. **Extract name** parses the slug (strips trailing alphanumeric hashes, drops job-title tokens like `software-engineer`, title-cases the rest). Fill the company manually (LinkedIn URLs don't carry it). Click **Find emails with AI** — Gemini returns 5 ranked patterns; each row has its own **Draft** button.
 
 ---
 
-## AI email finder (optional)
+## Library
 
-If `GEMINI_API_KEY` is set, the Compose tab gains a **"Find email with AI"** button. The flow:
+### Templates
 
-1. User enters the recipient's name + company.
-2. Server calls Google Gemini (`gemini-2.0-flash` by default) with a schema-constrained prompt that returns 5 ranked email patterns + the inferred company domain.
-3. Patterns are applied to the recipient (`{first}`, `{last}`, `{f}`, `{l}`, `{domain}`).
-4. The server runs an MX lookup on the resolved domain.
-5. UI shows all 5 candidates with confidence bars + an MX-OK badge. Each row has its own **Send** button.
+Subject + body + tags. Edit body HTML in the Templates tab; pick from the Compose dropdown. Default template ships baked-in as `(Default)` so it works without any setup.
 
-### Getting a Gemini API key
+### Resumes
 
-1. Go to <https://aistudio.google.com/app/apikey> and sign in with a Google account.
-2. Click **Create API key**. You can attach it to a new or existing Google Cloud project (a default one is fine).
-3. Copy the key into `server/.env` as `GEMINI_API_KEY`.
-4. Restart the server. The "Find email with AI" button will appear after the next `/api/health` poll (instant on page reload).
+Upload PDFs (≤10 MB), tag them, pick one as the attachment from Compose. Whichever you pick — saved library row or one-off device upload — is renamed server-side to `DRAFT_ATTACHMENT_FILENAME.pdf` so the recipient always sees a consistent file.
 
-The free tier is generous (15 requests/minute on Flash models) and **does not require a credit card**. See <https://ai.google.dev/pricing> for current limits.
+### Tags
 
-### Switching models
+Comma-separated chips on both resumes and templates. Tags are normalised (lower-case, deduped, alphanumeric + `+./-_`, capped at 10 per item × 24 chars). Above each picker in Compose, an OR-filter pill bar narrows the dropdown.
 
-Default is `gemini-2.0-flash` — fast, free, smart enough for this task. Override via `GEMINI_MODEL` in `server/.env`:
+### JD matcher
 
-- `gemini-2.5-flash` — newer, more capable
-- `gemini-1.5-flash` — older, still works
-- `gemini-2.0-flash-lite` — even cheaper / faster
-- `gemini-1.5-pro` / `gemini-2.5-pro` — best quality, tighter free-tier limits
-
-### Safety rails
-
-- **No auto-send.** Every send is one explicit click.
-- **MX-gated.** Per-row Send is disabled when the domain has no MX records (mail would bounce).
-- **One send per click.** We never send to multiple guesses for the same recipient (avoids duplicate emails and bounce-rate damage).
-- **Auditable.** Each AI-driven send tags the sent-log entry with `meta = { enriched, pattern, confidence, mxValid }` and is shown with an `AI` pill in the Sent Log tab.
-
-### Costs
-
-`gemini-2.0-flash` is free within the free-tier limits and cheap beyond them (~$0.10 per million input tokens, $0.40 per million output tokens). Results are cached in-memory for 10 minutes per `(company, domain)`, and `/api/enrich/email` is rate-limited per IP.
-
-### Caveats
-
-- LLM confidence is a hint, not deliverability. Gemini can confidently invent patterns for obscure companies.
-- Catch-all domains will accept any address; `mxValid: true` doesn't mean the mailbox exists.
-- Leave `GEMINI_API_KEY` blank to fully disable the feature — the UI button hides itself based on `/api/health`.
-
-### Switching back to OpenAI
-
-If you'd rather use OpenAI's GPT models, swap `@google/generative-ai` for `openai` in `server/package.json` and replace the `callGemini` function in [server/src/services/enrich.js](server/src/services/enrich.js). The schema and prompt translate near 1:1 since both providers support structured JSON output.
-
----
-
-## SMTP setup (Gmail)
-
-1. Enable **2-Step Verification** on your Google account.
-2. Visit <https://myaccount.google.com/apppasswords> and create an **App Password** (16 characters, spaces allowed).
-3. In `server/.env` set:
-   ```env
-   SMTP_HOST=smtp.gmail.com
-   SMTP_PORT=587
-   SMTP_USER=your@gmail.com
-   SMTP_PASS=the app password from step 2
-   MAIL_FROM="Your Name <your@gmail.com>"
-   ```
-4. Restart the server.
-
-Other providers (SendGrid, Mailgun, Resend SMTP, Postmark, AWS SES) work the same way — just swap host/port/user/pass.
-
-For **TLS on port 465**, set `SMTP_SECURE=true`.
+Collapsible card above the template picker. Paste a JD, click **Find best fit**, Gemini picks the best-fit `templateId` + `resumeId` from your library. Only `{id, name, tags}` is sent — never bodies or PDFs.
 
 ---
 
 ## API reference
 
-All endpoints are mounted under `/api`.
+All endpoints under `/api`.
 
-| Method | Path                  | Description                                                          |
-| ------ | --------------------- | -------------------------------------------------------------------- |
-| GET    | `/api/health`         | Liveness probe (runs a Mongo ping, reports `features.aiEnrich`)      |
-| POST   | `/api/preview`        | Render `{ subject, html }` server-side                               |
-| POST   | `/api/send-email`     | Send to a single recipient (rate-limited; accepts optional `meta`)   |
-| POST   | `/api/send-bulk`      | Send to an array of recipients (rate-limited)                        |
-| POST   | `/api/enrich/email`   | AI email finder: returns 5 candidate emails (rate-limited)           |
-| GET    | `/api/templates`      | List saved templates                                                 |
-| POST   | `/api/templates`      | Create a template                                                    |
-| PUT    | `/api/templates/:id`  | Update a template                                                    |
-| DELETE | `/api/templates/:id`  | Delete a template                                                    |
-| GET    | `/api/log`            | List sent / failed entries                                           |
-| DELETE | `/api/log`            | Clear the sent log                                                   |
+| Method | Path                  | Description                                                                       |
+| ------ | --------------------- | --------------------------------------------------------------------------------- |
+| GET    | `/health`             | Liveness + Mongo ping + `features.aiEnrich` flag                                  |
+| POST   | `/preview`            | Render `{ subject, html }` server-side                                            |
+| POST   | `/send-email`         | Save **one** Gmail draft (rate-limited; accepts optional `resumeId` or multipart) |
+| POST   | `/send-bulk`          | Save N drafts in order (rate-limited)                                             |
+| POST   | `/enrich/email`       | AI: 5 candidate addresses for `{firstName, lastName, company}`                    |
+| POST   | `/enrich/names`       | AI: infer `name` per email for a shared company                                   |
+| POST   | `/enrich/jd-match`    | AI: pick best-fit `{templateId, resumeId}` from a JD                              |
+| GET    | `/templates`          | List templates                                                                    |
+| POST   | `/templates`          | Create template (accepts `tags`)                                                  |
+| PUT    | `/templates/:id`      | Update template                                                                   |
+| DELETE | `/templates/:id`      | Delete template                                                                   |
+| GET    | `/resumes`            | List resume metadata (no PDF bytes)                                               |
+| GET    | `/resumes/:id`        | Stream the PDF inline                                                             |
+| POST   | `/resumes`            | Upload PDF (multipart: `file`, `name`, optional `tags`)                           |
+| PUT    | `/resumes/:id`        | Rename and/or update tags                                                         |
+| DELETE | `/resumes/:id`        | Delete the resume                                                                 |
+| GET    | `/log`                | List `drafted` / `failed` entries                                                 |
+| DELETE | `/log`                | Clear the drafts log                                                              |
 
-### `POST /api/send-email`
+A handful of representative payloads:
+
+`POST /send-email`:
 
 ```json
 {
@@ -256,7 +262,8 @@ All endpoints are mounted under `/api`.
   "name": "John",
   "company": "Acme",
   "subject": "Quick question for {{company}}",
-  "template": "<h1>Hello {{name}}</h1>"
+  "template": "<h1>Hello {{name}}</h1>",
+  "resumeId": "iops5MJTAc"
 }
 ```
 
@@ -268,164 +275,74 @@ Response:
   "id": "abc123",
   "to": "john@example.com",
   "subject": "Quick question for Acme",
-  "messageId": "<...@gmail.com>",
-  "status": "sent",
-  "sentAt": "2025-..."
+  "messageId": "imap-42",
+  "status": "drafted",
+  "sentAt": "2026-05-19T19:00:00.000Z",
+  "meta": { "attachments": [{ "name": "Sk_Sahil_Parvez_CV.pdf", "size": 184219 }] }
 }
 ```
 
-### `POST /api/send-bulk`
+`POST /enrich/jd-match`:
 
 ```json
 {
-  "subject": "Hi {{name}}!",
-  "template": "<p>Hello {{name}} from {{company}}.</p>",
-  "recipients": [
-    { "email": "a@example.com", "name": "Ada", "company": "Foo" },
-    { "email": "b@example.com", "name": "Ben", "company": "Bar" }
-  ]
+  "jobDescription": "Hiring a Backend Software Engineer with Java + Kafka...",
+  "templates": [{ "id": "t2", "name": "Backend pitch", "tags": ["backend","java"] }],
+  "resumes":   [{ "id": "r2", "name": "Backend role v2", "tags": ["backend","sre"] }]
 }
 ```
 
-Any extra fields on a recipient object are exposed to the template (e.g. `{{role}}` if your CSV has a `role` column).
-
-### `POST /api/enrich/email`
+Response:
 
 ```json
 {
-  "firstName": "John",
-  "lastName": "Doe",
-  "company": "Acme Inc",
-  "domain": "acme.com"
+  "templateId": "t2",
+  "resumeId": "r2",
+  "reasoning": "Both items are tagged 'backend' which matches the JD..."
 }
-```
-
-`domain` is optional; if omitted, the AI infers it. Response:
-
-```json
-{
-  "domain": "acme.com",
-  "mxValid": true,
-  "threshold": 0.5,
-  "candidates": [
-    {
-      "email": "john.doe@acme.com",
-      "pattern": "{first}.{last}@{domain}",
-      "confidence": 0.85,
-      "reasoning": "Most common B2B convention for mid-size companies.",
-      "mxValid": true
-    }
-  ]
-}
-```
-
-Returns `503` if `GEMINI_API_KEY` is not configured on the server.
-
----
-
-## Variable engine
-
-The server uses [Handlebars](https://handlebarsjs.com/) (`{{name}}`, `{{company}}`, `{{email}}`, etc.) with HTML escaping disabled so your template HTML renders as-is. Compiled templates are cached.
-
-The client uses a tiny lookalike substitution for the preview modal to keep the bundle small. Both engines agree on plain `{{var}}` tokens.
-
----
-
-## CSV format
-
-Required column: `email`. Recommended: `name`, `company`. Any additional columns become available as `{{column}}` in your template/subject.
-
-Example `recipients.csv`:
-
-```csv
-email,name,company,role
-ada@example.com,Ada,Foo,CTO
-ben@example.com,Ben,Bar,Founder
 ```
 
 ---
 
-## Deployment
+## Deployment (Render free tier)
 
-The project ships as a **single-origin** Node service: in production, Express serves both the API under `/api/*` and the built React SPA for everything else. One URL, one process, one deploy. Atlas (database), Gmail (SMTP), and Gemini (AI) stay where they are.
+A `render.yaml` blueprint lives at the repo root.
 
-### Recommended: Render free tier
+1. Push the repo to GitHub.
+2. Render dashboard → **New +** → **Blueprint** → select the repo.
+3. After Render parses `render.yaml`, set the secrets (`sync: false` ones) in the service's Environment tab: `MONGODB_URI`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`, `GEMINI_API_KEY`, optional `RESEND_API_KEY`.
+4. Atlas → Network Access → allow `0.0.0.0/0` (Render free's outbound IPs aren't stable).
+5. Deploy. First build ~3–5 min.
+6. Hit `/api/health` → `{"ok":true,"storage":"mongodb","features":{"aiEnrich":true}}` means everything's wired.
 
-A [`render.yaml`](./render.yaml) blueprint at the repo root tells Render exactly what to build and which env vars to expect. Non-secret values are baked into the blueprint; the five secrets are pasted into the dashboard once.
+The service is single-origin: the SPA is served at `/`, the API at `/api/*`.
 
-1. **Push to a private GitHub repo** (do **not** make it public — your `server/.env` is gitignored but the default template still contains personal info).
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit"
-   # Create a private repo on github.com, then:
-   git remote add origin git@github.com:<you>/coldMail.git
-   git branch -M main
-   git push -u origin main
-   ```
-2. **Open Render** ([render.com](https://render.com), sign in with GitHub).
-3. **New +** → **Blueprint** → select the `coldMail` repo. Render reads `render.yaml` and proposes the `coldmail` web service.
-4. **Apply**. Render creates the service and surfaces the five `sync: false` env vars as missing.
-5. **Set the secrets** in the service's Environment tab:
-   - `MONGODB_URI` — your Atlas `mongodb+srv://...` string
-   - `SMTP_USER` — your Gmail address
-   - `SMTP_PASS` — your Gmail App Password (16 chars)
-   - `MAIL_FROM` — e.g. `"Your Name <you@gmail.com>"`
-   - `GEMINI_API_KEY` — from <https://aistudio.google.com/app/apikey> (or leave blank to disable AI)
-6. **Atlas Network Access** → add `0.0.0.0/0`. Render's outbound IPs change, and free tier doesn't expose a fixed egress IP.
-7. **Deploy.** First build takes ~3–5 min (installs server + client deps, builds Vite bundle).
-8. **Verify**: visit `https://coldmail-<id>.onrender.com` — the SPA loads. Hit `https://coldmail-<id>.onrender.com/api/health` and you should see `{"ok":true,"storage":"mongodb",...}`.
-
-Render auto-redeploys on every push to the connected branch (default `main`).
-
-### Free-tier caveats to expect
-
-- **Sleeps after 15 min idle.** First request after sleep takes 30–60s while the container spins back up. Fine for a "send when I want" personal tool, painful for steady traffic — upgrade to the Starter plan ($7/mo) if it bothers you.
-- **Atlas M0 also sleeps**, adding a few more seconds to that first request. The Render health-check pings every few minutes during active use, which keeps both warm.
-- **No persistent disk** on free tier — we don't need one (all state lives in Atlas).
-- **Build cache is not retained** between deploys on free tier, so every push reinstalls everything. Acceptable on a small project.
-
-### Local sanity check before deploying
-
-Mirror the production setup locally to make sure the build works end-to-end:
+### Verify build locally
 
 ```bash
-npm run build                           # builds client/dist + installs deps
+npm run build
 NODE_ENV=production node server/src/index.js
-# then visit http://localhost:4000  (SPA)
-#   and    http://localhost:4000/api/health
+# http://localhost:4000           SPA
+# http://localhost:4000/api/health  liveness
 ```
 
-### Other hosts
+### Free-tier caveats
 
-The same single-origin setup works on any Node host (Fly.io, Railway, a VPS with PM2 + Nginx, Docker, etc.) — the only host-specific piece is `render.yaml`. The recipe is always:
-
-1. `npm run build` (or equivalent in your CI)
-2. Set the env vars from [server/.env.example](./server/.env.example)
-3. `npm start` (which runs `node server/src/index.js`)
-4. Allowlist the host's egress in Atlas Network Access
+- Service sleeps after 15 min idle; first request after that takes 30–60s to wake.
+- Atlas M0 also sleeps; same effect.
+- Outbound SMTP is blocked — that's why we use IMAP `APPEND` to Gmail Drafts. Sending the draft from Gmail itself (manually or via Gmail's Schedule send) sidesteps the block.
 
 ---
 
 ## Security notes
 
 - `helmet` sets sane HTTP security headers.
-- CORS is allowlist-based via `CORS_ORIGIN`.
+- CORS is allowlist-based via `CORS_ORIGIN` (set to the production URL on Render).
 - All send endpoints validate input (`validator`) and reject empty templates/subjects/emails.
-- `express-rate-limit` throttles outbound sends per IP.
-- SMTP credentials live only in `server/.env` and are never sent to the client.
-- The preview iframe uses `sandbox=""` so template HTML cannot execute scripts or navigate the parent page.
-
----
-
-## Scaling further
-
-- Upgrade Atlas past M0 — the free tier sleeps after inactivity, causing multi-second cold starts on the first request.
-- A queue (BullMQ / SQS) for bulk sends so SMTP failures retry independently.
-- Tracking pixels (`<img src="https://api.example.com/track/open/{{id}}.gif">`) and link-rewriting for click tracking.
-- Per-user auth + multi-tenant template/log scoping.
-- Outbound webhooks (e.g. SES / Postmark events) to mark bounces/complaints automatically.
-- For higher-quality email guesses, layer a real verification API (Hunter, NeverBounce, etc.) on top of the AI candidates before sending.
+- `express-rate-limit` throttles draft + AI endpoints per IP.
+- SMTP/IMAP credentials and the Gemini key live only in `server/.env` (or Render's encrypted env store), never sent to the client.
+- The preview iframe uses `sandbox=""` so template HTML can't execute scripts or navigate the parent.
+- The AI matcher only sees `{id, name, tags}` from your library — never resume PDFs or template bodies.
 
 ---
 

@@ -8,6 +8,7 @@ import CsvUploader from './CsvUploader.jsx';
 import MailIDPanel from './MailIDPanel.jsx';
 import LinkedInPanel from './LinkedInPanel.jsx';
 import VariableChips from './VariableChips.jsx';
+import { TagPills } from './Tags.jsx';
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const ATTACH_DEVICE = '__device__';
@@ -105,6 +106,8 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
   // or a one-shot device upload (deviceFile). Mutually exclusive.
   const [attachment, setAttachment] = useState({ resumeId: '', deviceFile: null });
   const [resumes, setResumes] = useState([]);
+  const [resumeTagFilter, setResumeTagFilter] = useState([]);
+  const [templateTagFilter, setTemplateTagFilter] = useState([]);
 
   // Saved templates loaded from the API, plus which one is currently in use.
   const [templates, setTemplates] = useState([]);
@@ -174,6 +177,38 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
     : attachment.deviceFile
       ? ATTACH_DEVICE
       : '';
+
+  // Unique tags across resumes / templates — drive the filter pill rows.
+  const allResumeTags = useMemo(
+    () => Array.from(new Set(resumes.flatMap((r) => r.tags || []))).sort(),
+    [resumes]
+  );
+  const allTemplateTags = useMemo(
+    () => Array.from(new Set(templates.flatMap((t) => t.tags || []))).sort(),
+    [templates]
+  );
+
+  // OR-semantics: an item passes the filter if ANY of its tags is selected.
+  // Empty filter = show everything.
+  const filteredResumes = useMemo(() => {
+    if (!resumeTagFilter.length) return resumes;
+    const wanted = new Set(resumeTagFilter);
+    return resumes.filter((r) => (r.tags || []).some((t) => wanted.has(t)));
+  }, [resumes, resumeTagFilter]);
+  const filteredTemplates = useMemo(() => {
+    if (!templateTagFilter.length) return templates;
+    const wanted = new Set(templateTagFilter);
+    return templates.filter((t) => (t.tags || []).some((x) => wanted.has(x)));
+  }, [templates, templateTagFilter]);
+
+  const toggleResumeTag = (t) =>
+    setResumeTagFilter((cur) =>
+      cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]
+    );
+  const toggleTemplateTag = (t) =>
+    setTemplateTagFilter((cur) =>
+      cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]
+    );
 
   const onAttachmentSelect = (value) => {
     if (!value) {
@@ -380,10 +415,28 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
                 {templatesLoading
                   ? 'Loading templates...'
                   : templates.length
-                    ? `${templates.length} saved · edit bodies in the Templates tab`
+                    ? `${filteredTemplates.length}/${templates.length} shown${templateTagFilter.length ? ' · filtered' : ''}`
                     : 'No saved templates yet · using the built-in default'}
               </span>
             </div>
+            {allTemplateTags.length > 0 && (
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <TagPills
+                  tags={allTemplateTags}
+                  activeTags={templateTagFilter}
+                  onToggle={toggleTemplateTag}
+                />
+                {templateTagFilter.length > 0 && (
+                  <button
+                    type="button"
+                    className="text-2xs text-ink-500 underline hover:text-ink-700"
+                    onClick={() => setTemplateTagFilter([])}
+                  >
+                    Clear filter
+                  </button>
+                )}
+              </div>
+            )}
             <select
               id="template-picker"
               className="input"
@@ -391,9 +444,9 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
               onChange={(e) => onPickTemplate(e.target.value)}
             >
               <option value={DEFAULT_TEMPLATE_ID}>(Default)</option>
-              {templates.map((t) => (
+              {filteredTemplates.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.name}
+                  {t.tags?.length ? `${t.name}  ·  ${t.tags.join(', ')}` : t.name}
                 </option>
               ))}
             </select>
@@ -427,6 +480,24 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
                 Saved in Gmail draft as <span className="font-mono">Sk_Sahil_Parvez_CV.pdf</span>
               </span>
             </div>
+            {allResumeTags.length > 0 && (
+              <div className="mb-2 flex flex-wrap items-center gap-2">
+                <TagPills
+                  tags={allResumeTags}
+                  activeTags={resumeTagFilter}
+                  onToggle={toggleResumeTag}
+                />
+                {resumeTagFilter.length > 0 && (
+                  <button
+                    type="button"
+                    className="text-2xs text-ink-500 underline hover:text-ink-700"
+                    onClick={() => setResumeTagFilter([])}
+                  >
+                    Clear filter
+                  </button>
+                )}
+              </div>
+            )}
             <select
               id="attachment-picker"
               className="input"
@@ -435,11 +506,11 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
             >
               <option value="">(None)</option>
               <option value={ATTACH_DEVICE}>Upload from device...</option>
-              {resumes.length > 0 && (
+              {filteredResumes.length > 0 && (
                 <optgroup label="Saved resumes">
-                  {resumes.map((r) => (
+                  {filteredResumes.map((r) => (
                     <option key={r.id} value={r.id}>
-                      {r.name}
+                      {r.tags?.length ? `${r.name}  ·  ${r.tags.join(', ')}` : r.name}
                     </option>
                   ))}
                 </optgroup>

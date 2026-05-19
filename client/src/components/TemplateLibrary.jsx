@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 
 import { api } from '../lib/api.js';
 import EmptyState from './EmptyState.jsx';
+import { TagInput, TagPills } from './Tags.jsx';
 
 function fmtDate(iso) {
   if (!iso) return '';
@@ -13,7 +14,7 @@ function fmtDate(iso) {
   }
 }
 
-const BLANK = { name: '', subject: '', body: '' };
+const BLANK = { name: '', subject: '', body: '', tags: [] };
 
 export default function TemplateLibrary({ onUseTemplate }) {
   const [items, setItems] = useState([]);
@@ -39,7 +40,12 @@ export default function TemplateLibrary({ onUseTemplate }) {
 
   const startEdit = (tpl) => {
     setEditingId(tpl.id);
-    setForm({ name: tpl.name, subject: tpl.subject, body: tpl.body });
+    setForm({
+      name: tpl.name,
+      subject: tpl.subject,
+      body: tpl.body,
+      tags: tpl.tags || [],
+    });
   };
 
   const cancelEdit = () => {
@@ -114,6 +120,11 @@ export default function TemplateLibrary({ onUseTemplate }) {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-ink-900">{tpl.name}</p>
                   <p className="mt-0.5 truncate text-xs text-ink-500">{tpl.subject}</p>
+                  {tpl.tags?.length > 0 && (
+                    <div className="mt-1.5">
+                      <TagPills tags={tpl.tags} />
+                    </div>
+                  )}
                   <p className="mt-1 text-2xs text-ink-400">
                     Updated {fmtDate(tpl.updatedAt)}
                   </p>
@@ -187,6 +198,16 @@ export default function TemplateLibrary({ onUseTemplate }) {
               onChange={(e) => setForm({ ...form, body: e.target.value })}
               placeholder="<h2>Hello {{name}}</h2>"
             />
+          </div>
+          <div>
+            <label className="label">Tags</label>
+            <TagInput
+              tags={form.tags}
+              onChange={(tags) => setForm({ ...form, tags })}
+            />
+            <p className="hint mt-1">
+              Filter templates by tag in Compose.
+            </p>
           </div>
         </div>
         <footer className="flex items-center justify-end gap-2 border-t border-ink-200/60 bg-ink-50/40 px-5 py-3">

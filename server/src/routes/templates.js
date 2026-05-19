@@ -4,6 +4,7 @@ import { nanoid } from 'nanoid';
 import { templatesStore } from '../services/store.js';
 import { HttpError } from '../middleware/error.js';
 import { validateTemplate } from '../middleware/validate.js';
+import { normalizeTags } from '../utils/tags.js';
 
 const router = Router();
 
@@ -20,13 +21,14 @@ router.get('/', async (_req, res, next) => {
 
 router.post('/', validateTemplate, async (req, res, next) => {
   try {
-    const { name, subject, body } = req.body;
+    const { name, subject, body, tags } = req.body;
     const now = new Date().toISOString();
     const item = {
       id: nanoid(10),
       name: name.trim(),
       subject: subject.trim(),
       body,
+      tags: normalizeTags(tags),
       createdAt: now,
       updatedAt: now,
     };
@@ -49,6 +51,9 @@ router.put('/:id', validateTemplate, async (req, res, next) => {
       name: req.body.name.trim(),
       subject: req.body.subject.trim(),
       body: req.body.body,
+      tags: normalizeTags(
+        req.body.tags !== undefined ? req.body.tags : existing.tags
+      ),
       updatedAt: new Date().toISOString(),
     };
     await templatesStore.upsert(updated);

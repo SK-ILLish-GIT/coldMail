@@ -70,12 +70,19 @@ router.post('/', (req, res, next) => {
       if (name.length > MAX_NAME) {
         throw new HttpError(400, `Name is too long (max ${MAX_NAME} chars).`);
       }
+      // Multipart bodies can't carry arrays natively. Accept either a
+      // comma-separated string or a JSON-stringified array.
+      let tags = req.body?.tags;
+      if (typeof tags === 'string' && tags.trim().startsWith('[')) {
+        try { tags = JSON.parse(tags); } catch { /* fall through */ }
+      }
       const meta = await resumeStore.create({
         name,
         filename: req.file.originalname,
         contentType: req.file.mimetype || 'application/pdf',
         size: req.file.size,
         content: req.file.buffer,
+        tags,
       });
       res.status(201).json(meta);
     } catch (err) {
@@ -84,15 +91,24 @@ router.post('/', (req, res, next) => {
   });
 });
 
-// PUT /api/resumes/:id — rename
+// PUT /api/resumes/:id — rename and/or update tags
 router.put('/:id', async (req, res, next) => {
   try {
-    const name = String(req.body?.name || '').trim();
-    if (!name) throw new HttpError(400, 'Name is required.');
-    if (name.length > MAX_NAME) {
-      throw new HttpError(400, `Name is too long (max ${MAX_NAME} chars).`);
+    const body = req.body || {};
+    const patch = {};
+    if (body.name !== undefined) {
+      const name = String(body.name || '').trim();
+      if (!name) throw new HttpError(400, 'Name cannot be empty.');
+      if (name.length > MAX_NAME) {
+        throw new HttpError(400, `Name is too long (max ${MAX_NAME} chars).`);
+      }
+      patch.name = name;
     }
-    const updated = await resumeStore.update(req.params.id, { name });
+    if (body.tags !== undefined) patch.tags = body.tags;
+    if (Object.keys(patch).length === 0) {
+      throw new HttpError(400, 'Nothing to update.');
+    }
+    const updated = await resumeStore.update(req.params.id, patch);
     if (!updated) throw new HttpError(404, 'Resume not found.');
     res.json(updated);
   } catch (err) {

@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 
 import { api } from '../lib/api.js';
 import EmptyState from './EmptyState.jsx';
+import { TagInput, TagPills } from './Tags.jsx';
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
@@ -33,9 +34,11 @@ export default function ResumeLibrary({ onChange }) {
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
   const [file, setFile] = useState(null);
+  const [tags, setTags] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
+  const [editTags, setEditTags] = useState([]);
   const fileInputRef = useRef(null);
 
   const refresh = async () => {
@@ -76,10 +79,11 @@ export default function ResumeLibrary({ onChange }) {
     if (!name.trim()) return toast.error('Give the resume a name.');
     setUploading(true);
     try {
-      await api.uploadResume(name.trim(), file);
+      await api.uploadResume(name.trim(), file, tags);
       toast.success(`Uploaded "${name.trim()}".`);
       setName('');
       setFile(null);
+      setTags([]);
       if (fileInputRef.current) fileInputRef.current.value = '';
       await refresh();
       onChange?.();
@@ -93,23 +97,25 @@ export default function ResumeLibrary({ onChange }) {
   const startEdit = (item) => {
     setEditingId(item.id);
     setEditName(item.name);
+    setEditTags(item.tags || []);
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setEditName('');
+    setEditTags([]);
   };
 
   const saveEdit = async (id) => {
     if (!editName.trim()) return toast.error('Name cannot be empty.');
     try {
-      await api.renameResume(id, editName.trim());
-      toast.success('Renamed.');
+      await api.updateResume(id, { name: editName.trim(), tags: editTags });
+      toast.success('Saved.');
       cancelEdit();
       await refresh();
       onChange?.();
     } catch (err) {
-      toast.error(err.message || 'Rename failed');
+      toast.error(err.message || 'Save failed');
     }
   };
 
@@ -167,6 +173,13 @@ export default function ResumeLibrary({ onChange }) {
             </div>
           </div>
           <div>
+            <label className="label">Tags</label>
+            <TagInput tags={tags} onChange={setTags} />
+            <p className="hint mt-1">
+              e.g. <span className="font-mono">backend, java, golang, sre</span> — used to filter pickers in Compose.
+            </p>
+          </div>
+          <div>
             <button
               type="button"
               className="btn-primary"
@@ -212,9 +225,9 @@ export default function ResumeLibrary({ onChange }) {
             {items.map((r) => (
               <li
                 key={r.id}
-                className="flex flex-wrap items-center gap-3 px-6 py-3 transition hover:bg-ink-50/40"
+                className="flex flex-wrap items-start gap-3 px-6 py-3 transition hover:bg-ink-50/40"
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-rose-50 text-rose-600">
+                <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-rose-50 text-rose-600">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 24 24"
@@ -230,17 +243,23 @@ export default function ResumeLibrary({ onChange }) {
                   </svg>
                 </span>
 
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 space-y-1.5">
                   {editingId === r.id ? (
-                    <input
-                      type="text"
-                      className="input !h-8 !py-1 text-sm"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      autoFocus
-                    />
+                    <>
+                      <input
+                        type="text"
+                        className="input !h-8 !py-1 text-sm"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        autoFocus
+                      />
+                      <TagInput tags={editTags} onChange={setEditTags} />
+                    </>
                   ) : (
-                    <p className="truncate text-sm font-medium text-ink-900">{r.name}</p>
+                    <>
+                      <p className="truncate text-sm font-medium text-ink-900">{r.name}</p>
+                      {r.tags?.length > 0 && <TagPills tags={r.tags} />}
+                    </>
                   )}
                   <p className="truncate text-2xs text-ink-500">
                     {r.filename || 'resume.pdf'} · {fmtSize(r.size)} · {fmtDate(r.createdAt)}
@@ -280,7 +299,7 @@ export default function ResumeLibrary({ onChange }) {
                         className="btn-ghost btn-xs"
                         onClick={() => startEdit(r)}
                       >
-                        Rename
+                        Edit
                       </button>
                       <button
                         type="button"

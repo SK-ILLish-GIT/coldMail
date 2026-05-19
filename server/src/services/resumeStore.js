@@ -2,6 +2,7 @@ import { Binary } from 'mongodb';
 import { nanoid } from 'nanoid';
 
 import { getDb } from './db.js';
+import { normalizeTags } from '../utils/tags.js';
 
 const COLLECTION = 'resumes';
 
@@ -38,25 +39,30 @@ export const resumeStore = {
     return { ...doc, content: toBuffer(doc.content) };
   },
 
-  async create({ name, filename, contentType, size, content }) {
+  async create({ name, filename, contentType, size, content, tags }) {
     const id = nanoid(10);
     const createdAt = new Date().toISOString();
+    const normTags = normalizeTags(tags);
     await col().insertOne({
       id,
       name: String(name || '').trim(),
       filename: String(filename || '').trim(),
       contentType: contentType || 'application/pdf',
       size: Number(size) || (content ? content.length : 0),
+      tags: normTags,
       content,
       createdAt,
     });
-    return { id, name, filename, contentType, size, createdAt };
+    return { id, name, filename, contentType, size, tags: normTags, createdAt };
   },
 
-  async update(id, { name }) {
+  async update(id, { name, tags }) {
+    const $set = { updatedAt: new Date().toISOString() };
+    if (typeof name === 'string') $set.name = name.trim();
+    if (tags !== undefined) $set.tags = normalizeTags(tags);
     const res = await col().findOneAndUpdate(
       { id },
-      { $set: { name: String(name || '').trim(), updatedAt: new Date().toISOString() } },
+      { $set },
       { returnDocument: 'after', projection: { content: 0 } }
     );
     return res?.value || res || null;

@@ -87,12 +87,16 @@ export const api = {
   extractNames: (payload) => call('post', '/enrich/names', payload),
 
   listResumes: () => call('get', '/resumes'),
-  uploadResume: (name, file) => {
+  uploadResume: (name, file, tags = []) => {
     const fd = new FormData();
     fd.append('name', name);
     fd.append('file', file, file.name);
+    if (tags && tags.length) fd.append('tags', JSON.stringify(tags));
     return callForm('post', '/resumes', fd);
   },
+  // PATCH-ish: name and/or tags. Either can be omitted to leave unchanged.
+  updateResume: (id, patch) => call('put', `/resumes/${id}`, patch),
+  // Back-compat shim for callers that only want to rename.
   renameResume: (id, name) => call('put', `/resumes/${id}`, { name }),
   deleteResume: (id) => call('delete', `/resumes/${id}`),
   resumeDownloadUrl: (id) => `${baseURL}/resumes/${id}`,

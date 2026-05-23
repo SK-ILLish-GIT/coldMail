@@ -58,3 +58,15 @@ Thumbs.db
 *.tmp
 *.temp
 *.bak
+
+# Resume Tailor session artifacts
+**/.tailor-sessions/
+*.tmp-*
+
+# LaTeX build artifacts (in case a local pdflatex is ever run)
+*.aux
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz

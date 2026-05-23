@@ -1,0 +1,101 @@
+%------------------------
+% Resume Template
+% Author : Sk Sahil Parvez
+%------------------------
+
+\documentclass[a4paper,20pt]{article}
+
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage[utf8]{inputenc}
+\usepackage{marvosym}
+\usepackage{fontawesome}
+\usepackage{setspace}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage[pdftex]{hyperref}
+\usepackage{fancyhdr}
+\usepackage{wasysym}
+\usepackage{amsmath} 
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\addtolength{\oddsidemargin}{-0.530in}
+\addtolength{\evensidemargin}{-0.375in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.45in}
+\addtolength{\textheight}{1in}
+
+\urlstyle{rm}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+\titleformat{\section}{
+  \vspace{-10pt}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule \vspace{-6pt}]
+
+%-------------------------
+% Custom commands
+
+\newcommand{\resumeItem}[2]{
+  \item\small{
+    \textbf{#1}{: #2 \vspace{-2pt}}
+  }
+}
+
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-1pt} \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & \hspace{0.5em} \text{#2} \\
+      \text{#3} & \hspace{0.5em} \text{#4} \\
+    \end{tabular*}\vspace{.5pt}
+}
+
+
+\newcommand{\ProjectItem}[1]{
+  \item\small{
+    {#1}
+    {\vspace{-3.5pt}}
+  }
+}
+
+\newcommand{\resumeSubItem}[2]{\resumeItem{#1}{#2}\vspace{-3pt}}
+
+\renewcommand\labelitemi{$\vcenter{\hbox{\tiny$\bullet$}}$}
+\renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.0in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+
+%-----------------------------
+%%%%%%  CV STARTS HERE  %%%%%%
+
+\newcommand{\name}{SK SAHIL PARVEZ}
+\newcommand{\wpnumber}{9874435806}
+\newcommand{\emaila}{sksahilparvez2000@gmail.com}
+
+\begin{document}
+\fontfamily{cmr}\selectfont
+
+\input{sections/header}
+\input{sections/summary}
+\input{sections/education}
+\input{sections/experience}
+\input{sections/projects}
+\input{sections/skills}
+% \input{sections/coursework}
+\input{sections/coding}
+\input{sections/certifications}
+
+\end{document}

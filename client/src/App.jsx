@@ -6,12 +6,14 @@ import TemplateLibrary from './components/TemplateLibrary.jsx';
 import ResumeLibrary from './components/ResumeLibrary.jsx';
 import SentLog from './components/SentLog.jsx';
 import StatusPill from './components/StatusPill.jsx';
+import TailorPage from './components/Tailor/TailorPage.jsx';
 import ThemeToggle, { useTheme } from './components/ThemeToggle.jsx';
 
 const TABS = [
   { id: 'compose', label: 'Compose' },
   { id: 'templates', label: 'Templates' },
   { id: 'resumes', label: 'Resumes' },
+  { id: 'tailor', label: 'Tailor' },
   { id: 'log', label: 'Drafts Log' },
 ];
 
@@ -138,6 +140,14 @@ export default function App() {
         )}
         {tab === 'templates' && <TemplateLibrary onUseTemplate={handleUseTemplate} />}
         {tab === 'resumes' && <ResumeLibrary />}
+        {tab === 'tailor' && (
+          <TailorPage
+            aiConfigured={
+              Boolean(health.features?.resumeTailor) ||
+              Boolean(health.features?.aiEnrich)
+            }
+          />
+        )}
         {tab === 'log' && <SentLog />}
       </main>
 

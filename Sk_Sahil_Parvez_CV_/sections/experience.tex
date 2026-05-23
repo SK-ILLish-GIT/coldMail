@@ -1,0 +1,67 @@
+\newcommand{\experienceItemListStart}{\begin{itemize}}
+\newcommand{\experienceItemListEnd}{\end{itemize}\vspace{-5pt}}
+\newcommand{\experienceDeatils}[5]{
+  \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+        \textbf{#1} \textbar\hspace{0.2em}\text{#2} & \text{#3} \\ 
+        \textbf{Tech Stack:} \text{#4} & \text{#5}\\
+    \end{tabular*}
+}
+\newcommand{\experienceDeatilsWithCert}[6]{
+  \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+        \textbf{#1} \textbar\hspace{0.2em}\href{#6}{#2} & \text{#3} \\ 
+        \textbf{Tech Stack:} \text{#4} & \text{#5}\\
+    \end{tabular*}
+}
+
+%=================================
+% 
+%=================================
+\vspace{-5pt}
+\section{\large \textbf{WORK EXPERIENCE}}
+    \resumeSubHeadingListStart
+        \experienceDeatils
+        {Highspot}
+        {Software Development Engineer}
+        {08/2025 – Present}
+        {React.js, GraphQL, TypeScript, Ruby, MongoDB}
+        {Hyderabad}
+        \vspace{-5pt}
+         \experienceItemListStart
+            \ProjectItem{Created 25+ tiles, charts, and tables with drilldowns, using React, GraphQL and Ruby for team analytics scorecard.} 
+            \ProjectItem{Implemented Blueprint-Based Visualizations to generate charts from reports, covering 90\% existing bar charts.}
+            \ProjectItem{Built end-to-end RolePlay Scorecard from scaffold to dataviews, featuring advanced CRM filter integration.}
+            \ProjectItem{Migrated 2 legacy scorecards to a new blueprint-based scorecard with charts and an enhanced People filter.}
+        \experienceItemListEnd
+       \vspace{4.5pt}
+        \experienceDeatilsWithCert
+        {Zscaler, Inc}
+        {Software Development Engineer Intern}
+        {02/2025 – 08/2025}
+        {Java Spring Boot, Python, Bash/Shell Scripting, OpenTelemetry, Pytest, CI/CD}
+        {Bangalore}
+        {https://www.credly.com/badges/6d8db15a-4bec-4729-855e-6faf7650847c}
+        \vspace{-5pt}
+         \experienceItemListStart
+            \ProjectItem{Architected a complete pytest automation framework integrated with GitLab CI/CD, covering 50+ test cases.} 
+            \ProjectItem{Developed a sampling mechanism using Java Spring Boot, OTELv0.128.0 to efficiently collect and monitor performance.}
+            \ProjectItem{Implemented PII masking for sensitive data in system logs, enhancing data processing security.}
+            \ProjectItem{Achieved 91\% data compression by evaluating 5 compression algorithms and implementing the most efficient one.} 
+        \experienceItemListEnd
+       \vspace{4.5pt}
+        \experienceDeatilsWithCert
+        {Fractal.ai}
+        {Software Development Engineer Intern}
+        {05/2024 – 07/2024}
+        {React.js, JavaScript, Node.js, MySQL}
+        {Remote}
+        {https://drive.google.com/file/d/1ZvOXi7rF7RsdwN81TFdBPw-0deks7ZIX/view}
+        \vspace{-5pt}
+        \experienceItemListStart
+            \ProjectItem{Architected automated test scripts using Codecept.js and Mocha.js to ensure a 100\% bug-free user experience.}
+            \ProjectItem{Contributed to 2 projects utilizing React.js, Node.js and MySQL, enhancing front-end interfaces.}
+            \ProjectItem{Tuned prompt engineering for 4 LLMs to achieve significant improvements in model outputs.}
+        \experienceItemListEnd
+       \vspace{3.5pt}
+    \resumeSubHeadingListEnd

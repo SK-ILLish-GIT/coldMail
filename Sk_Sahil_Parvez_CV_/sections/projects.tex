@@ -1,0 +1,52 @@
+\newcommand{\projectItemListStart}{\begin{itemize}}
+\newcommand{\projectItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+\newcommand{\projectSubheading}[5]{
+  \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \textbf{#1} \textbar\hspace{0.2em} {\href{#2}{#3}} & \text{#4} \\
+      \textbf{Tech Stack: }\text{#5} \\
+    \end{tabular*}
+}
+\newcommand{\projectSubheadingLink}[6]{
+  \item
+    \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+      \textbf{#1} \textbar\hspace{0.2em} {\href{#2}{#3}} \textbar\hspace{0.2em} {\href{#4}{Website}} & \text{#5} \\
+      \textbf{Tech Stack: }\text{#6} \\
+    \end{tabular*}
+}
+%=================================
+% 
+%=================================
+\section{\large \textbf{PROJECTS}}
+    \resumeSubHeadingListStart
+        \projectSubheading
+          {GameVault (Distributed Gaming Platform)}
+          {https://github.com/SK-ILLish-GIT/games_sk}
+          {/SK-ILLish-GIT/games\_sk}
+          {01/2026 – 04/2026}
+          {TypeScript, React.js, Express, PostgreSQL, Prisma, MongoDB, Redis, Observability}
+        \vspace{-5pt}
+        \projectItemListStart
+            \ProjectItem{Built a containerized gaming platform with 10-service Docker Compose core stack and 8-container observability overlay.}
+            \ProjectItem{Exposed the system through a React SPA and Nginx API gateway routing requests to 5 independent Express backend services for auth, leaderboards, and 3 games.}
+            \ProjectItem{Integrated 3 data stores: PostgreSQL for users/auth via Prisma, Redis for token rotation and leaderboard caching, and MongoDB for game-specific session and state data.}
+            \ProjectItem{Instrumented all backend services with OpenTelemetry, Prometheus, Loki, Tempo, and 6 Grafana dashboards for end-to-end metrics, logs, and traces correlation.}
+        \projectItemListEnd
+        \vspace{4.5pt}
+        \projectSubheadingLink
+          {PriceTrackEr}
+          {https://github.com/SK-ILLish-GIT/PriceTrackEr}
+          {/SK-ILLish-GIT/PriceTrackEr}     
+          {https://price-tracker-ebon.vercel.app/}
+          {11/2024 – 01/2025} 
+          {Next.js, Tailwind CSS, Node.js, MongoDB, Cron Jobs}
+        \vspace{-5pt}
+        \projectItemListStart
+          \ProjectItem{Developed a price tracking website with automated price drop alert functionality.}
+          \ProjectItem{Integrated cron jobs for scheduled (7am daily) data scraping from Amazon, providing users with morning alert.}
+          \ProjectItem{Implemented AI-generated product descriptions, keeping each under 200 words, enhancing clarity and consistency.}
+        \projectItemListEnd
+        \vspace{3.5pt}
+        
+    \resumeSubHeadingListEnd

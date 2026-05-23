@@ -1,4 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+
+// Lightweight check: don't hijack the keystroke if the user is typing into a
+// real input/textarea/contenteditable/select (or if a modifier is held).
+function shouldIgnoreShortcut(e) {
+  if (e.ctrlKey || e.metaKey || e.altKey) return true;
+  const t = e.target;
+  if (!t) return false;
+  const tag = (t.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+  if (t.isContentEditable) return true;
+  return false;
+}
 
 const SECTION_LABELS = {
   summary: 'Summary',
@@ -39,6 +51,29 @@ function SuggestionCard({ suggestion, busy, onDecide }) {
     setEditOpen(false);
     setEditText('');
   };
+
+  // Keyboard shortcuts on the active card: a = approve, r = reject, e = edit.
+  // Listener auto-cleans up when this card unmounts (i.e. as soon as the next
+  // suggestion takes its place).
+  useEffect(() => {
+    const onKey = (e) => {
+      if (shouldIgnoreShortcut(e)) return;
+      if (busy || editOpen) return;
+      const key = e.key.toLowerCase();
+      if (key === 'a') {
+        e.preventDefault();
+        onDecide('approve');
+      } else if (key === 'r') {
+        e.preventDefault();
+        onDecide('reject');
+      } else if (key === 'e') {
+        e.preventDefault();
+        setEditOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [busy, editOpen, onDecide]);
 
   return (
     <div className="surface anim-in p-4 shadow-soft">
@@ -119,29 +154,37 @@ function SuggestionCard({ suggestion, busy, onDecide }) {
           </div>
         </div>
       ) : (
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            className="btn-primary"
-            onClick={() => onDecide('approve')}
-            disabled={busy}
-          >
-            Approve &amp; apply
-          </button>
-          <button
-            className="btn-secondary"
-            onClick={() => setEditOpen(true)}
-            disabled={busy}
-          >
-            Edit
-          </button>
-          <button
-            className="btn-ghost"
-            onClick={() => onDecide('reject')}
-            disabled={busy}
-          >
-            Reject
-          </button>
-        </div>
+        <>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              className="btn-primary"
+              onClick={() => onDecide('approve')}
+              disabled={busy}
+              title="Approve & apply (A)"
+            >
+              Approve &amp; apply
+            </button>
+            <button
+              className="btn-secondary"
+              onClick={() => setEditOpen(true)}
+              disabled={busy}
+              title="Edit (E)"
+            >
+              Edit
+            </button>
+            <button
+              className="btn-ghost"
+              onClick={() => onDecide('reject')}
+              disabled={busy}
+              title="Reject (R)"
+            >
+              Reject
+            </button>
+          </div>
+          <p className="mt-2 text-2xs text-ink-400 dark:text-ink-500">
+            Shortcuts: <kbd className="rounded bg-ink-100 px-1 dark:bg-ink-800">A</kbd> approve · <kbd className="rounded bg-ink-100 px-1 dark:bg-ink-800">R</kbd> reject · <kbd className="rounded bg-ink-100 px-1 dark:bg-ink-800">E</kbd> edit
+          </p>
+        </>
       )}
     </div>
   );

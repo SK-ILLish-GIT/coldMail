@@ -122,6 +122,15 @@ export default function FinalActions({ session, onRollback, onCompileMessage }) 
     window.open(overleafImportUrl(abs), '_blank', 'noopener,noreferrer');
   };
 
+  // Overleaf imports work by fetching the zip URL from Overleaf's servers, so
+  // a localhost URL silently fails. Hide the button unless we're on a publicly
+  // reachable hostname.
+  const overleafReachable = (() => {
+    if (typeof window === 'undefined') return false;
+    const h = window.location.hostname;
+    return h && h !== 'localhost' && h !== '127.0.0.1' && !h.endsWith('.local');
+  })();
+
   return (
     <div className="surface p-4">
       <div className="flex items-start justify-between gap-3">
@@ -200,13 +209,15 @@ export default function FinalActions({ session, onRollback, onCompileMessage }) 
         <button className="btn-secondary" onClick={downloadZip}>
           Download .tex zip
         </button>
-        <button
-          className="btn-ghost"
-          onClick={openOverleaf}
-          title="Opens Overleaf and imports the zip (Overleaf needs to fetch the URL — works on a deployed instance)."
-        >
-          Open in Overleaf
-        </button>
+        {overleafReachable ? (
+          <button
+            className="btn-ghost"
+            onClick={openOverleaf}
+            title="Opens Overleaf and imports the zip from this app's public URL."
+          >
+            Open in Overleaf
+          </button>
+        ) : null}
         <button
           className="btn-danger ml-auto"
           onClick={onRollback}

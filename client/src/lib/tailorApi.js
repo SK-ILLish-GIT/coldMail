@@ -63,6 +63,17 @@ export const tailorApi = {
   report: (sessionId) => call('get', `/session/${sessionId}/report`),
 
   zipUrl: (sessionId) => `${baseURL}/tailor/session/${sessionId}/zip`,
+
+  // ---- Template tailoring -------------------------------------------------
+  startTemplateSession: (payload) => call('post', '/template-session', payload),
+
+  templateNext: (sessionId) => call('get', `/template-session/${sessionId}/next`),
+
+  templateDecide: (sessionId, payload) =>
+    call('post', `/template-session/${sessionId}/decide`, payload),
+
+  saveTemplateSession: (sessionId, { name, tags } = {}) =>
+    call('post', `/template-session/${sessionId}/save`, { name, tags }),
 };
 
 // Open the current CV folder zip in Overleaf via their "open snippet" deep link.

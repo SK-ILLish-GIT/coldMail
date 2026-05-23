@@ -39,11 +39,11 @@ export const resumeStore = {
     return { ...doc, content: toBuffer(doc.content) };
   },
 
-  async create({ name, filename, contentType, size, content, tags }) {
+  async create({ name, filename, contentType, size, content, tags, tailoredFor }) {
     const id = nanoid(10);
     const createdAt = new Date().toISOString();
     const normTags = normalizeTags(tags);
-    await col().insertOne({
+    const doc = {
       id,
       name: String(name || '').trim(),
       filename: String(filename || '').trim(),
@@ -52,8 +52,13 @@ export const resumeStore = {
       tags: normTags,
       content,
       createdAt,
-    });
-    return { id, name, filename, contentType, size, tags: normTags, createdAt };
+    };
+    if (tailoredFor && typeof tailoredFor === 'object') doc.tailoredFor = tailoredFor;
+    await col().insertOne(doc);
+    return {
+      id, name, filename, contentType, size, tags: normTags, createdAt,
+      ...(doc.tailoredFor ? { tailoredFor: doc.tailoredFor } : {}),
+    };
   },
 
   async update(id, { name, tags }) {

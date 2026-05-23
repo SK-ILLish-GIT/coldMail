@@ -15,6 +15,14 @@ import {
 import { compileResume, buildResumeZip } from '../services/tailor/compile.js';
 import { isGeminiConfigured } from '../services/tailor/gemini.js';
 import { extractAutoTags } from '../services/tailor/autoTags.js';
+import { buildTailoredForMeta } from '../services/tailor/tailoredFor.js';
+import {
+  createTemplateSession,
+  decideTemplateSuggestion,
+  nextTemplateSuggestion,
+  saveTemplateSession,
+  isTailorTemplateEnabled,
+} from '../services/tailor/templateTailor.js';
 import { resumeStore } from '../services/resumeStore.js';
 import { normalizeTags } from '../utils/tags.js';
 
@@ -156,6 +164,7 @@ router.post('/session/:id/compile', async (req, res, next) => {
         size: result.pdf.length,
         content: result.pdf,
         tags,
+        tailoredFor: buildTailoredForMeta(s),
       });
     }
 
@@ -200,6 +209,70 @@ router.post('/session/:id/rollback', async (req, res, next) => {
 router.get('/session/:id/report', (req, res, next) => {
   try {
     res.json(buildReport(req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Template Tailor endpoints (separate session pool from resume tailoring,
+// same chat-iterative pattern)
+// ---------------------------------------------------------------------------
+
+router.post('/template-session', async (req, res, next) => {
+  try {
+    if (!isTailorTemplateEnabled()) {
+      throw new HttpError(503, 'GEMINI_API_KEY is not configured on the server.');
+    }
+    const body = req.body || {};
+    if (!body.templateId) throw new HttpError(400, 'templateId is required.');
+    if (!body.jobDescription || !body.jobDescription.trim()) {
+      throw new HttpError(400, 'jobDescription is required.');
+    }
+    const result = await createTemplateSession({
+      templateId: body.templateId,
+      jobDescription: body.jobDescription,
+      targetRole: body.targetRole,
+      targetCompany: body.targetCompany,
+      seniority: body.seniority,
+    });
+    res.status(201).json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/template-session/:id/next', (req, res, next) => {
+  try {
+    res.json(nextTemplateSuggestion(req.params.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/template-session/:id/decide', async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    if (!body.suggestionId) throw new HttpError(400, 'suggestionId is required.');
+    if (!body.decision) throw new HttpError(400, 'decision is required.');
+    const result = await decideTemplateSuggestion(req.params.id, {
+      suggestionId: body.suggestionId,
+      decision: body.decision,
+      editInstruction: body.editInstruction,
+    });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/template-session/:id/save', async (req, res, next) => {
+  try {
+    const created = await saveTemplateSession(req.params.id, {
+      name: req.body?.name,
+      tags: req.body?.tags,
+    });
+    res.status(201).json(created);
   } catch (err) {
     next(err);
   }

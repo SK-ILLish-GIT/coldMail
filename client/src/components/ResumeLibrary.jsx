@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { api } from '../lib/api.js';
 import EmptyState from './EmptyState.jsx';
 import { TagInput, TagPills } from './Tags.jsx';
+import TailoredForPill from './TailoredForPill.jsx';
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
@@ -249,6 +250,11 @@ export default function ResumeLibrary({ onChange }) {
                   ) : (
                     <>
                       <p className="truncate text-sm font-medium text-ink-900 dark:text-ink-100">{r.name}</p>
+                      {r.tailoredFor ? (
+                        <div className="mt-1">
+                          <TailoredForPill tailoredFor={r.tailoredFor} />
+                        </div>
+                      ) : null}
                       {r.tags?.length > 0 && <TagPills tags={r.tags} />}
                     </>
                   )}

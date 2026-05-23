@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { Toaster } from 'react-hot-toast';
 
 import App from './App.jsx';
+import { JdProvider } from './lib/jdContext.jsx';
 import './index.css';
 
 // Sync the theme class on <html> BEFORE React mounts. This avoids the
@@ -21,7 +22,9 @@ import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    <JdProvider>
+      <App />
+    </JdProvider>
     <Toaster
       position="top-right"
       toastOptions={{

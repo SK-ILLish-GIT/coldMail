@@ -2,6 +2,8 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 
 import { api } from '../lib/api.js';
+import { useJd } from '../lib/jdContext.jsx';
+import TemplateTailorPanel from './Tailor/TemplateTailorPanel.jsx';
 
 /**
  * Collapsible panel that asks Gemini to pick the best template + resume for
@@ -15,14 +17,28 @@ import { api } from '../lib/api.js';
  *  - aiEnabled: boolean
  *  - onMatch:   ({ templateId, resumeId, reasoning }) => void
  */
-export default function JDMatcher({ templates = [], resumes = [], aiEnabled = false, onMatch }) {
-  const [open, setOpen] = useState(false);
-  const [jd, setJd] = useState('');
+export default function JDMatcher({
+  templates = [],
+  resumes = [],
+  aiEnabled = false,
+  onMatch,
+  activeTemplateId = '',
+  onTemplateSaved,
+}) {
+  const { jd, setJd } = useJd();
+  // Auto-open when there's already a JD waiting (e.g. user came from Tailor).
+  const [open, setOpen] = useState(() => jd.trim().length > 20);
   const [busy, setBusy] = useState(false);
   const [lastResult, setLastResult] = useState(null);
+  const [tailorTarget, setTailorTarget] = useState(null);
 
   const libraryEmpty = templates.length === 0 && resumes.length === 0;
   const canRun = aiEnabled && !libraryEmpty && jd.trim().length > 20 && !busy;
+  const activeTemplate = activeTemplateId
+    ? templates.find((t) => t.id === activeTemplateId)
+    : null;
+  const canTailor =
+    aiEnabled && Boolean(activeTemplate) && jd.trim().length > 20;
 
   const run = async () => {
     if (!canRun) return;
@@ -141,12 +157,40 @@ export default function JDMatcher({ templates = [], resumes = [], aiEnabled = fa
             >
               {busy ? 'Analysing...' : 'Find best fit'}
             </button>
+            <button
+              type="button"
+              className="btn-ghost btn-xs text-brand-700 hover:bg-brand-50 dark:text-brand-300 dark:ring-brand-800/50 dark:bg-brand-900/20 dark:hover:bg-brand-900/40"
+              onClick={() => setTailorTarget(activeTemplate)}
+              disabled={!canTailor}
+              title={
+                !aiEnabled
+                  ? 'AI disabled on the server'
+                  : !activeTemplate
+                    ? 'Pick a template below first'
+                    : jd.trim().length < 20
+                      ? 'Paste a longer JD'
+                      : 'Tailor the selected template against this JD'
+              }
+            >
+              Tailor template
+            </button>
             {lastResult?.reasoning && (
               <span className="hint italic">{lastResult.reasoning}</span>
             )}
           </div>
         </div>
       )}
+      {tailorTarget ? (
+        <TemplateTailorPanel
+          template={tailorTarget}
+          initialJobDescription={jd}
+          onClose={() => setTailorTarget(null)}
+          onSaved={(t) => {
+            toast.success(`Saved new template: ${t.name}`);
+            onTemplateSaved?.(t);
+          }}
+        />
+      ) : null}
     </section>
   );
 }

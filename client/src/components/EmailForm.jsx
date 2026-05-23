@@ -444,6 +444,14 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
             resumes={resumes}
             aiEnabled={aiEnabled}
             onMatch={applyJDMatch}
+            activeTemplateId={selectedTemplateId}
+            onTemplateSaved={() => {
+              // Re-fetch templates so the new tailored copy appears in the
+              // dropdown below the JDMatcher.
+              api.listTemplates().then((data) => {
+                setTemplates(Array.isArray(data) ? data : []);
+              }).catch(() => {});
+            }}
           />
 
           {/* Template picker — body editing lives in the Templates tab */}

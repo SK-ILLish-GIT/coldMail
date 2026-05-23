@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { tailorApi } from '../../lib/tailorApi.js';
+import { useJd } from '../../lib/jdContext.jsx';
 import Chat from './Chat.jsx';
 import FinalActions from './FinalActions.jsx';
 import ScorePanel from './ScorePanel.jsx';
 
-const DEFAULT_JD = '';
 const SENIORITY_OPTIONS = [
   'Entry Level (1 YOE)',
   'Junior (1-3 YOE)',
@@ -17,7 +17,7 @@ const DEFAULT_SENIORITY = SENIORITY_OPTIONS[0];
 
 export default function TailorPage({ aiConfigured }) {
   const [status, setStatus] = useState(null);
-  const [jd, setJd] = useState(DEFAULT_JD);
+  const { jd, setJd } = useJd();
   const [targetRole, setTargetRole] = useState('');
   const [targetCompany, setTargetCompany] = useState('');
   const [seniority, setSeniority] = useState(DEFAULT_SENIORITY);
@@ -264,6 +264,11 @@ export default function TailorPage({ aiConfigured }) {
                 onChange={(e) => setJd(e.target.value)}
                 disabled={Boolean(session)}
               />
+              {jd && !session ? (
+                <p className="mt-1 text-2xs text-ink-400 dark:text-ink-500">
+                  Same JD will pre-fill in Compose &amp; template AI Tailor.
+                </p>
+              ) : null}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

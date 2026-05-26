@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 
 import { api } from '../lib/api.js';
+import { confirmAsync } from '../lib/confirm.jsx';
 import EmptyState from './EmptyState.jsx';
 import { TagInput, TagPills } from './Tags.jsx';
 import TailoredForPill from './TailoredForPill.jsx';
@@ -121,7 +122,13 @@ export default function ResumeLibrary({ onChange }) {
   };
 
   const remove = async (item) => {
-    if (!confirm(`Delete "${item.name}"? This can't be undone.`)) return;
+    const ok = await confirmAsync({
+      title: `Delete "${item.name}"?`,
+      description: "This can't be undone.",
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await api.deleteResume(item.id);
       toast.success('Deleted.');

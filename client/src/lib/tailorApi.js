@@ -42,6 +42,9 @@ export const tailorApi = {
 
   next: (sessionId) => call('get', `/session/${sessionId}/next`),
 
+  // Full queue snapshot — drives the bulk-triage view.
+  queue: (sessionId) => call('get', `/session/${sessionId}/queue`),
+
   decide: (sessionId, payload) =>
     call('post', `/session/${sessionId}/decide`, payload),
 

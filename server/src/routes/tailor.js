@@ -64,13 +64,86 @@ async function ensureCvRoot(absPath) {
 
 const router = Router();
 
-router.get('/status', (_req, res) => {
+// Inspect the default CV folder. Returns total size, file count, last-modified.
+// Lets the Tailor tab show "what I'm about to operate on" before the user
+// commits to a session.
+async function inspectCvFolder(absPath) {
+  try {
+    const stat = await fs.stat(absPath);
+    if (!stat.isDirectory()) return { exists: false, error: 'Not a directory' };
+    let totalSize = 0;
+    let fileCount = 0;
+    let lastModified = stat.mtime.toISOString();
+    const walk = async (dir) => {
+      const entries = await fs.readdir(dir, { withFileTypes: true });
+      for (const ent of entries) {
+        // Skip the .bak/baseline files we create during sessions so the size
+        // reflects the actual CV, not our scratch state.
+        if (ent.name.endsWith('.bak')) continue;
+        if (ent.name.startsWith('.')) continue;
+        const full = path.join(dir, ent.name);
+        if (ent.isDirectory()) {
+          await walk(full);
+        } else if (ent.isFile()) {
+          const s = await fs.stat(full);
+          totalSize += s.size;
+          fileCount += 1;
+          if (s.mtime.toISOString() > lastModified) lastModified = s.mtime.toISOString();
+        }
+      }
+    };
+    await walk(absPath);
+    return { exists: true, totalSize, fileCount, lastModified, path: absPath };
+  } catch (err) {
+    return { exists: false, error: err.message };
+  }
+}
+
+router.get('/status', async (_req, res) => {
+  const defaultCvPath = process.env.CV_DEFAULT_PATH || './Sk_Sahil_Parvez_CV_';
+  let cvInfo = null;
+  try {
+    const abs = resolveCvRoot(defaultCvPath);
+    cvInfo = await inspectCvFolder(abs);
+  } catch (err) {
+    cvInfo = { exists: false, error: err.message };
+  }
   res.json({
     aiConfigured: isGeminiConfigured(),
-    defaultCvPath: process.env.CV_DEFAULT_PATH || './Sk_Sahil_Parvez_CV_',
+    defaultCvPath,
+    cvInfo,
     texliveUrl:
       process.env.TEXLIVE_NET_URL || 'https://texlive.net/cgi-bin/latexcgi',
   });
+});
+
+// Public list of every suggestion in the session — pending, approved,
+// rejected, failed. Powers the bulk-triage view in the Tailor tab.
+router.get('/session/:id/queue', (req, res, next) => {
+  try {
+    const s = getSession(req.params.id);
+    if (!s) throw new HttpError(404, 'Session not found or expired.');
+    res.json({
+      sessionId: s.id,
+      suggestions: s.queue.map((q) => ({
+        id: q.id,
+        section: q.section,
+        subheading: q.subheading,
+        action: q.action,
+        targetBulletText: q.targetBulletText,
+        targetSkillsCategory: q.targetSkillsCategory,
+        draftLatex: q.draftLatex,
+        previewText: q.previewText,
+        reason: q.reason,
+        atsKeywords: q.atsKeywords,
+        impact: q.impact,
+        status: q.status,
+        error: q.error,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.post('/session', async (req, res, next) => {

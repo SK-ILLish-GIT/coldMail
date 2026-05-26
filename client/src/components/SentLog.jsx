@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 
 import { api } from '../lib/api.js';
+import { confirmAsync } from '../lib/confirm.jsx';
 import EmptyState from './EmptyState.jsx';
 
 function fmtDate(iso) {
@@ -11,6 +12,19 @@ function fmtDate(iso) {
   } catch {
     return iso;
   }
+}
+
+// Build a Gmail web URL that searches the user's Drafts for this specific
+// row. We can't link to the IMAP UID directly (Gmail doesn't expose it in
+// URLs), but in:drafts + to: + subject: nails it for nearly every case.
+function gmailSearchUrl({ to, subject }) {
+  const parts = ['in:drafts'];
+  if (to) parts.push(`to:${to}`);
+  if (subject) {
+    const trimmed = subject.length > 80 ? subject.slice(0, 80) : subject;
+    parts.push(`subject:"${trimmed.replace(/"/g, '')}"`);
+  }
+  return `https://mail.google.com/mail/u/0/#search/${encodeURIComponent(parts.join(' '))}`;
 }
 
 const FILTERS = [
@@ -58,7 +72,13 @@ export default function SentLog() {
 
   const clearAll = async () => {
     if (!items.length) return;
-    if (!confirm('Clear the entire drafts log? This cannot be undone.')) return;
+    const ok = await confirmAsync({
+      title: 'Clear the entire drafts log?',
+      description: 'This cannot be undone. Gmail Drafts remain untouched.',
+      confirmLabel: 'Clear',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await api.clearLog();
       toast.success('Log cleared.');
@@ -137,6 +157,7 @@ export default function SentLog() {
                 <th className="px-6 py-3 font-semibold">Recipient</th>
                 <th className="px-6 py-3 font-semibold">Subject</th>
                 <th className="px-6 py-3 font-semibold">When</th>
+                <th className="px-6 py-3 font-semibold">Open</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-ink-100 dark:divide-ink-800">
@@ -181,6 +202,35 @@ export default function SentLog() {
                     {row.subject || <span className="italic text-ink-400 dark:text-ink-500">(no subject)</span>}
                   </td>
                   <td className="px-6 py-3 text-xs text-ink-500 dark:text-ink-400">{fmtDate(row.sentAt)}</td>
+                  <td className="px-6 py-3 text-xs">
+                    {isSuccess(row.status) ? (
+                      <a
+                        href={gmailSearchUrl({ to: row.to, subject: row.subject })}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-brand-700 hover:underline dark:text-brand-300"
+                        title="Open this draft in Gmail (search by recipient + subject)"
+                      >
+                        Gmail
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="h-3 w-3"
+                        >
+                          <path d="M15 3h6v6" />
+                          <path d="M10 14L21 3" />
+                          <path d="M21 14v7H3V3h7" />
+                        </svg>
+                      </a>
+                    ) : (
+                      <span className="text-ink-400 dark:text-ink-500">—</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

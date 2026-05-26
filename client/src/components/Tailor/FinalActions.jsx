@@ -35,7 +35,14 @@ function base64ToBuf(b64) {
   return buf;
 }
 
-export default function FinalActions({ session, onRollback, onCompileMessage }) {
+export default function FinalActions({
+  session,
+  onRollback,
+  onCompileMessage,
+  // When true, the user has opted out of sending content to texlive.net —
+  // hide compile actions and only allow local zip download.
+  texliveOptOut = false,
+}) {
   const [compiling, setCompiling] = useState(false);
   const [pdfUrl, setPdfUrl] = useState('');
   const [pdfBlobBuf, setPdfBlobBuf] = useState(null);
@@ -160,22 +167,30 @@ export default function FinalActions({ session, onRollback, onCompileMessage }) 
             placeholder="tailored-resume"
           />
         </div>
-        <div className="flex items-end gap-2">
-          <button
-            className="btn-gradient flex-1"
-            onClick={() => compile({ save: false })}
-            disabled={compiling}
-          >
-            {compiling ? 'Compiling...' : 'Compile PDF'}
-          </button>
-          <button
-            className="btn-primary"
-            onClick={() => compile({ save: true })}
-            disabled={compiling || !saveName.trim()}
-          >
-            Compile &amp; save
-          </button>
-        </div>
+        {texliveOptOut ? (
+          <div className="flex items-end">
+            <p className="rounded-md bg-amber-50/70 px-3 py-2 text-2xs text-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+              Compile disabled (texlive.net opt-out is on). Use Download .tex zip below and compile locally.
+            </p>
+          </div>
+        ) : (
+          <div className="flex items-end gap-2">
+            <button
+              className="btn-gradient flex-1"
+              onClick={() => compile({ save: false })}
+              disabled={compiling}
+            >
+              {compiling ? 'Compiling...' : 'Compile PDF'}
+            </button>
+            <button
+              className="btn-primary"
+              onClick={() => compile({ save: true })}
+              disabled={compiling || !saveName.trim()}
+            >
+              Compile &amp; save
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="mt-3">
@@ -199,17 +214,19 @@ export default function FinalActions({ session, onRollback, onCompileMessage }) 
       </p>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        <button
-          className="btn-secondary"
-          onClick={downloadPdf}
-          disabled={!pdfBlobBuf}
-        >
-          Download PDF
-        </button>
+        {!texliveOptOut && (
+          <button
+            className="btn-secondary"
+            onClick={downloadPdf}
+            disabled={!pdfBlobBuf}
+          >
+            Download PDF
+          </button>
+        )}
         <button className="btn-secondary" onClick={downloadZip}>
           Download .tex zip
         </button>
-        {overleafReachable ? (
+        {!texliveOptOut && overleafReachable ? (
           <button
             className="btn-ghost"
             onClick={openOverleaf}

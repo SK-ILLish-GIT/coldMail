@@ -1,13 +1,54 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import Papa from 'papaparse';
 import toast from 'react-hot-toast';
 
 const REQUIRED_COLUMN = 'email';
 
-export default function CsvUploader({ recipients, onChange }) {
+function StatusDot({ status }) {
+  if (!status) return null;
+  if (status.status === 'sending') {
+    return (
+      <svg
+        className="inline h-3 w-3 animate-spin text-ink-500 dark:text-ink-400"
+        viewBox="0 0 24 24"
+        fill="none"
+        aria-label="Sending"
+      >
+        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
+        <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (status.status === 'drafted') {
+    return (
+      <span className="status-dot bg-emerald-500" title="Saved to Gmail Drafts" aria-label="Drafted" />
+    );
+  }
+  if (status.status === 'failed') {
+    return (
+      <span className="status-dot bg-rose-500" title={status.error || 'Failed'} aria-label="Failed" />
+    );
+  }
+  if (status.status === 'pending') {
+    return (
+      <span className="status-dot bg-ink-300 dark:bg-ink-600" title="Queued" aria-label="Queued" />
+    );
+  }
+  return null;
+}
+
+export default function CsvUploader({ recipients, onChange, sendStatuses = {} }) {
   const inputRef = useRef(null);
   const [filename, setFilename] = useState('');
   const [dragOver, setDragOver] = useState(false);
+
+  // Stable column order derived from the first row. We keep this in state so
+  // the table layout doesn't reshuffle if a row briefly has fewer keys after
+  // an edit.
+  const columns = useMemo(() => {
+    if (!recipients.length) return [];
+    return Object.keys(recipients[0]);
+  }, [recipients]);
 
   const parse = (file) => {
     if (!file) return;
@@ -54,6 +95,16 @@ export default function CsvUploader({ recipients, onChange }) {
     setFilename('');
     onChange([]);
     if (inputRef.current) inputRef.current.value = '';
+  };
+
+  const updateCell = (rowIdx, key, value) => {
+    onChange(
+      recipients.map((r, i) => (i === rowIdx ? { ...r, [key]: value } : r))
+    );
+  };
+
+  const removeRow = (rowIdx) => {
+    onChange(recipients.filter((_, i) => i !== rowIdx));
   };
 
   return (
@@ -113,36 +164,56 @@ export default function CsvUploader({ recipients, onChange }) {
         <div className="anim-in">
           <p className="mb-2 text-2xs uppercase tracking-wider text-ink-500 dark:text-ink-400">
             <span className="font-mono text-ink-700 dark:text-ink-200">{filename || 'recipients.csv'}</span> · {recipients.length} row
-            {recipients.length === 1 ? '' : 's'}
+            {recipients.length === 1 ? '' : 's'} · click any cell to edit
           </p>
-          <div className="max-h-44 overflow-auto rounded-lg border border-ink-200 dark:border-ink-800 bg-white dark:bg-ink-900">
+          <div className="max-h-64 overflow-auto rounded-lg border border-ink-200 dark:border-ink-800 bg-white dark:bg-ink-900">
             <table className="w-full text-left text-xs">
               <thead className="sticky top-0 bg-ink-50 dark:bg-ink-800/40 text-ink-500 dark:text-ink-400">
                 <tr>
-                  {Object.keys(recipients[0]).map((k) => (
+                  <th className="px-2 py-2 w-6"></th>
+                  {columns.map((k) => (
                     <th key={k} className="px-3 py-2 font-semibold uppercase tracking-wider text-2xs">
                       {k}
                     </th>
                   ))}
+                  <th className="px-3 py-2 w-12"></th>
                 </tr>
               </thead>
               <tbody>
-                {recipients.slice(0, 50).map((r, i) => (
-                  <tr key={i} className="border-t border-ink-100 dark:border-ink-800">
-                    {Object.keys(recipients[0]).map((k) => (
-                      <td key={k} className="px-3 py-1.5 text-ink-700 dark:text-ink-200">
-                        {r[k] ?? ''}
+                {recipients.map((r, i) => {
+                  const status = r.email ? sendStatuses[String(r.email).toLowerCase()] : null;
+                  return (
+                    <tr key={i} className="border-t border-ink-100 dark:border-ink-800">
+                      <td className="px-2 py-1 text-center align-middle">
+                        <StatusDot status={status} />
                       </td>
-                    ))}
-                  </tr>
-                ))}
+                      {columns.map((k) => (
+                        <td key={k} className="px-1 py-1 text-ink-700 dark:text-ink-200">
+                          <input
+                            type="text"
+                            className="w-full rounded border border-transparent bg-transparent px-2 py-1 text-xs hover:border-ink-200 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-200 dark:hover:border-ink-700 dark:focus:border-brand-400 dark:focus:ring-brand-900/40"
+                            value={r[k] ?? ''}
+                            onChange={(e) => updateCell(i, k, e.target.value)}
+                            aria-label={`Row ${i + 1} ${k}`}
+                          />
+                        </td>
+                      ))}
+                      <td className="px-2 py-1 text-right">
+                        <button
+                          type="button"
+                          className="btn-ghost btn-xs text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:ring-rose-800/50 dark:bg-rose-900/20 dark:hover:bg-rose-900/40"
+                          onClick={() => removeRow(i)}
+                          title="Remove this row"
+                          aria-label={`Remove row ${i + 1}`}
+                        >
+                          ×
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
-            {recipients.length > 50 && (
-              <p className="border-t border-ink-100 dark:border-ink-800 px-3 py-2 text-center text-2xs text-ink-400 dark:text-ink-500">
-                Showing first 50 of {recipients.length} rows
-              </p>
-            )}
           </div>
         </div>
       )}

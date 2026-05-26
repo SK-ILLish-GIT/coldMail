@@ -32,15 +32,15 @@ export default function LivePreview({
     <div className="flex flex-col">
       <header className="flex flex-wrap items-start justify-between gap-3 px-5 py-3.5">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-ink-900">
+          <p className="truncate text-sm font-semibold text-ink-900 dark:text-white">
             {renderedSubject || (
-              <span className="font-normal italic text-ink-400">No subject</span>
+              <span className="font-normal italic text-ink-400 dark:text-ink-500">No subject</span>
             )}
           </p>
-          <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-ink-500">
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-ink-500 dark:text-ink-400">
             {to && (
               <span className="truncate">
-                To <span className="font-medium text-ink-700">{to}</span>
+                To <span className="font-medium text-ink-700 dark:text-ink-200">{to}</span>
               </span>
             )}
             {attachmentCount > 0 && (
@@ -88,11 +88,11 @@ export default function LivePreview({
         )}
       </header>
 
-      <div className="border-t border-ink-200/60 bg-ink-100/60 p-4">
+      <div className="border-t border-ink-200/60 dark:border-ink-800 bg-ink-100/60 dark:bg-ink-800/40 p-4">
         {empty ? (
-          <div className="grid h-[520px] place-items-center rounded-lg border border-dashed border-ink-300 bg-white text-center text-sm text-ink-500">
+          <div className="grid h-[520px] place-items-center rounded-lg border border-dashed border-ink-300 dark:border-ink-700 bg-white dark:bg-ink-900 text-center text-sm text-ink-500 dark:text-ink-400">
             <div className="max-w-xs">
-              <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-50 to-brand-100 text-brand-600">
+              <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-50 to-brand-100 text-brand-600 dark:from-brand-900/40 dark:to-brand-800/40 dark:text-brand-300">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"
@@ -107,10 +107,9 @@ export default function LivePreview({
                   <circle cx="12" cy="12" r="3" />
                 </svg>
               </div>
-              <p className="mt-3 font-medium text-ink-800">Nothing to preview yet</p>
+              <p className="mt-3 font-medium text-ink-800 dark:text-ink-100">Nothing to preview yet</p>
               <p className="mt-1 text-xs">
-                Switch to the <strong>HTML Editor</strong> tab and start typing — the preview
-                updates live.
+                Pick a template or edit the body — the preview updates live.
               </p>
             </div>
           </div>
@@ -119,7 +118,7 @@ export default function LivePreview({
             title="Live email preview"
             srcDoc={renderedHtml}
             sandbox=""
-            className="preview-frame h-[520px] w-full rounded-lg border border-ink-200 bg-white"
+            className="preview-frame h-[520px] w-full rounded-lg border border-ink-200 dark:border-ink-700 bg-white"
           />
         )}
       </div>

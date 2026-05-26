@@ -37,12 +37,53 @@ function parseEmails(raw) {
   return out;
 }
 
+function StatusDot({ status }) {
+  if (!status) return null;
+  if (status.status === 'sending') {
+    return (
+      <span className="inline-flex items-center gap-1 text-2xs text-ink-500 dark:text-ink-400">
+        <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
+          <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+        </svg>
+        Sending
+      </span>
+    );
+  }
+  if (status.status === 'drafted') {
+    return (
+      <span className="pill-emerald" title="Saved to Gmail Drafts">
+        <span className="status-dot bg-emerald-500" />
+        Drafted
+      </span>
+    );
+  }
+  if (status.status === 'failed') {
+    return (
+      <span className="pill-rose" title={status.error || 'Failed'}>
+        <span className="status-dot bg-rose-500" />
+        Failed
+      </span>
+    );
+  }
+  if (status.status === 'pending') {
+    return (
+      <span className="pill-ink" title="Queued">
+        <span className="status-dot bg-ink-300 dark:bg-ink-600" />
+        Queued
+      </span>
+    );
+  }
+  return null;
+}
+
 export default function MailIDPanel({
   company,
   setCompany,
   recipients,
   setRecipients,
   aiEnabled = false,
+  sendStatuses = {},
 }) {
   const [rawInput, setRawInput] = useState('');
   const [extracting, setExtracting] = useState(false);
@@ -203,33 +244,40 @@ export default function MailIDPanel({
                 <tr>
                   <th className="px-4 py-2 font-semibold">Email</th>
                   <th className="px-4 py-2 font-semibold">Name (editable)</th>
+                  <th className="px-4 py-2 font-semibold">Status</th>
                   <th className="px-4 py-2"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-ink-100 dark:divide-ink-800">
-                {recipients.map((r, i) => (
-                  <tr key={r.email} className="transition hover:bg-ink-50/40 dark:hover:bg-ink-800/60">
-                    <td className="px-4 py-2 font-mono text-xs text-ink-700 dark:text-ink-200">{r.email}</td>
-                    <td className="px-4 py-2">
-                      <input
-                        type="text"
-                        className="input !h-8 !py-1 text-sm"
-                        placeholder="(no name)"
-                        value={r.name}
-                        onChange={(e) => updateName(i, e.target.value)}
-                      />
-                    </td>
-                    <td className="px-4 py-2 text-right">
-                      <button
-                        type="button"
-                        className="btn-ghost btn-xs text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:ring-rose-800/50 dark:bg-rose-900/20 dark:hover:bg-rose-900/40"
-                        onClick={() => removeRow(i)}
-                      >
-                        Remove
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {recipients.map((r, i) => {
+                  const status = sendStatuses[r.email.toLowerCase()];
+                  return (
+                    <tr key={r.email} className="transition hover:bg-ink-50/40 dark:hover:bg-ink-800/60">
+                      <td className="px-4 py-2 font-mono text-xs text-ink-700 dark:text-ink-200">{r.email}</td>
+                      <td className="px-4 py-2">
+                        <input
+                          type="text"
+                          className="input !h-8 !py-1 text-sm"
+                          placeholder="(no name)"
+                          value={r.name}
+                          onChange={(e) => updateName(i, e.target.value)}
+                        />
+                      </td>
+                      <td className="px-4 py-2">
+                        <StatusDot status={status} />
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <button
+                          type="button"
+                          className="btn-ghost btn-xs text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:ring-rose-800/50 dark:bg-rose-900/20 dark:hover:bg-rose-900/40"
+                          onClick={() => removeRow(i)}
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

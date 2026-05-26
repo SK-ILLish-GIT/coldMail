@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 
 import { api } from '../lib/api.js';
+import { confirmAsync } from '../lib/confirm.jsx';
+import { useTailorTarget } from '../lib/tailorTarget.jsx';
 import EmptyState from './EmptyState.jsx';
 import { TagInput, TagPills } from './Tags.jsx';
 import TailoredForPill from './TailoredForPill.jsx';
-import TemplateTailorPanel from './Tailor/TemplateTailorPanel.jsx';
 
 function fmtDate(iso) {
   if (!iso) return '';
@@ -23,8 +24,9 @@ export default function TemplateLibrary({ onUseTemplate }) {
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(BLANK);
-  // Template currently open in the AI Tailor modal (null = closed).
-  const [tailorTarget, setTailorTarget] = useState(null);
+  // Tailoring is now a single canonical flow on the Tailor tab. Clicking
+  // "AI Tailor" here just stages the chosen template and switches tab.
+  const { requestTailorTemplate } = useTailorTarget();
 
   const refresh = async () => {
     setLoading(true);
@@ -77,7 +79,13 @@ export default function TemplateLibrary({ onUseTemplate }) {
   };
 
   const remove = async (tpl) => {
-    if (!confirm(`Delete template "${tpl.name}"?`)) return;
+    const ok = await confirmAsync({
+      title: `Delete template "${tpl.name}"?`,
+      description: 'This cannot be undone.',
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await api.deleteTemplate(tpl.id);
       toast.success('Template deleted.');
@@ -89,15 +97,6 @@ export default function TemplateLibrary({ onUseTemplate }) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-5">
-      {tailorTarget ? (
-        <TemplateTailorPanel
-          template={tailorTarget}
-          onClose={() => setTailorTarget(null)}
-          onSaved={() => {
-            refresh();
-          }}
-        />
-      ) : null}
       <section className="card overflow-hidden lg:col-span-3">
         <header className="flex items-center justify-between border-b border-ink-200/60 dark:border-ink-800 px-6 py-4">
           <h2 className="text-base font-semibold text-ink-900 dark:text-ink-100">Saved templates</h2>
@@ -153,10 +152,10 @@ export default function TemplateLibrary({ onUseTemplate }) {
                   <button
                     type="button"
                     className="btn-ghost btn-xs text-brand-700 hover:bg-brand-50 dark:text-brand-300 dark:ring-brand-800/50 dark:bg-brand-900/20 dark:hover:bg-brand-900/40"
-                    onClick={() => setTailorTarget(tpl)}
-                    title="Tailor this template against a job description using AI"
+                    onClick={() => requestTailorTemplate(tpl)}
+                    title="Open the Tailor tab with this template pre-selected"
                   >
-                    AI Tailor
+                    AI Tailor →
                   </button>
                   <button
                     type="button"

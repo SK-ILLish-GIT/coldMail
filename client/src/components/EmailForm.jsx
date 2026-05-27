@@ -9,12 +9,10 @@ import CsvUploader from './CsvUploader.jsx';
 import MailIDPanel from './MailIDPanel.jsx';
 import LinkedInPanel from './LinkedInPanel.jsx';
 import VariableChips from './VariableChips.jsx';
-import { TagPills } from './Tags.jsx';
 import JDMatcher from './JDMatcher.jsx';
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const ATTACH_DEVICE = '__device__';
-const TEST_EMAIL_KEY = 'coldmail.testEmail';
 
 function isPdf(file) {
   if (!file) return false;
@@ -70,7 +68,7 @@ const DEFAULT_TEMPLATE = `<div style="font-family:Inter,-apple-system,BlinkMacSy
 </div>`;
 
 const DEFAULT_SUBJECT =
-  'SK Sahil – IIIT Allahabad | Highspot | 1+ Year Exp | Interested in {{company}}';
+  'SK Sahil – IIIT Allahabad | Highspot | 1+ YoE | Interested in {{company}}';
 
 // Each mode carries a tone so the active tab gets a clear color cue:
 // email-ish = rose (red), csv = emerald (green), linkedin = sky (blue).
@@ -125,30 +123,13 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
   // Per-row status map for the current send. Keyed by lowercased email.
   const [sendStatuses, setSendStatuses] = useState({});
 
-  const [saveOpen, setSaveOpen] = useState(false);
-  const [savingAs, setSavingAs] = useState(false);
-  const [savedName, setSavedName] = useState('');
-
   // Inline body editor (collapsed by default so the existing flow is unchanged).
   const [bodyEditOpen, setBodyEditOpen] = useState(false);
-
-  // Test-to-me panel state.
-  const [testOpen, setTestOpen] = useState(false);
-  const [testEmail, setTestEmail] = useState(() => {
-    try {
-      return localStorage.getItem(TEST_EMAIL_KEY) || '';
-    } catch {
-      return '';
-    }
-  });
-  const [testSending, setTestSending] = useState(false);
 
   // Single attachment per draft: either a saved-library resume (resumeId)
   // or a one-shot device upload (deviceFile). Mutually exclusive.
   const [attachment, setAttachment] = useState({ resumeId: '', deviceFile: null });
   const [resumes, setResumes] = useState([]);
-  const [resumeTagFilter, setResumeTagFilter] = useState([]);
-  const [templateTagFilter, setTemplateTagFilter] = useState([]);
   // Type-to-filter inputs above each picker.
   const [templateSearch, setTemplateSearch] = useState('');
   const [resumeSearch, setResumeSearch] = useState('');
@@ -229,66 +210,32 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
       ? ATTACH_DEVICE
       : '';
 
-  const allResumeTags = useMemo(
-    () => Array.from(new Set(resumes.flatMap((r) => r.tags || []))).sort(),
-    [resumes]
-  );
-  const allTemplateTags = useMemo(
-    () => Array.from(new Set(templates.flatMap((t) => t.tags || []))).sort(),
-    [templates]
-  );
-
   const filteredResumes = useMemo(() => {
-    let list = resumes;
-    if (resumeTagFilter.length) {
-      const wanted = new Set(resumeTagFilter);
-      list = list.filter((r) => (r.tags || []).some((t) => wanted.has(t)));
-    }
-    if (resumeSearch.trim()) {
-      const q = resumeSearch.trim().toLowerCase();
-      list = list.filter(
-        (r) =>
-          r.name.toLowerCase().includes(q) ||
-          (r.tags || []).some((t) => t.toLowerCase().includes(q))
-      );
-    }
-    return list;
-  }, [resumes, resumeTagFilter, resumeSearch]);
+    if (!resumeSearch.trim()) return resumes;
+    const q = resumeSearch.trim().toLowerCase();
+    return resumes.filter(
+      (r) =>
+        r.name.toLowerCase().includes(q) ||
+        (r.tags || []).some((t) => t.toLowerCase().includes(q))
+    );
+  }, [resumes, resumeSearch]);
 
   const filteredTemplates = useMemo(() => {
-    let list = templates;
-    if (templateTagFilter.length) {
-      const wanted = new Set(templateTagFilter);
-      list = list.filter((t) => (t.tags || []).some((x) => wanted.has(x)));
-    }
-    if (templateSearch.trim()) {
-      const q = templateSearch.trim().toLowerCase();
-      list = list.filter(
-        (t) =>
-          t.name.toLowerCase().includes(q) ||
-          (t.tags || []).some((x) => x.toLowerCase().includes(q))
-      );
-    }
-    return list;
-  }, [templates, templateTagFilter, templateSearch]);
-
-  const toggleResumeTag = (t) =>
-    setResumeTagFilter((cur) =>
-      cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]
+    if (!templateSearch.trim()) return templates;
+    const q = templateSearch.trim().toLowerCase();
+    return templates.filter(
+      (t) =>
+        t.name.toLowerCase().includes(q) ||
+        (t.tags || []).some((x) => x.toLowerCase().includes(q))
     );
-  const toggleTemplateTag = (t) =>
-    setTemplateTagFilter((cur) =>
-      cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t]
-    );
+  }, [templates, templateSearch]);
 
   const applyJDMatch = ({ templateId, resumeId }) => {
     if (templateId) {
-      setTemplateTagFilter([]);
       setTemplateSearch('');
       onPickTemplate(templateId);
     }
     if (resumeId) {
-      setResumeTagFilter([]);
       setResumeSearch('');
       setAttachment({ resumeId, deviceFile: null });
     }
@@ -451,64 +398,6 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
     sendBulkSequential();
   };
 
-  // ----------------------- Test send -----------------------
-
-  const runTestSend = async () => {
-    const to = testEmail.trim();
-    if (!to) return toast.error('Enter your test email address.');
-    if (!subject.trim() || !template.trim()) {
-      return toast.error('Subject and template are required.');
-    }
-    try {
-      localStorage.setItem(TEST_EMAIL_KEY, to);
-    } catch {
-      /* non-fatal */
-    }
-    setTestSending(true);
-    try {
-      await toast.promise(
-        api.sendEmail(
-          {
-            email: to,
-            name: 'Test',
-            company: mailidCompany || linkedinCompany || 'Test Co',
-            subject,
-            template,
-            ...attachmentArgs.extraPayload,
-            meta: { test: true },
-          },
-          attachmentArgs.files
-        ),
-        {
-          loading: `Sending test draft to ${to}...`,
-          success: 'Test draft saved in Gmail.',
-          error: (err) => err.message || 'Test send failed',
-        }
-      );
-    } finally {
-      setTestSending(false);
-    }
-  };
-
-  // ----------------------- Save as template -----------------------
-
-  const saveAsTemplate = async () => {
-    const name = savedName.trim();
-    if (!name) return toast.error('Give the template a name.');
-    if (!subject.trim() || !template.trim()) return toast.error('Subject and body are required.');
-    setSavingAs(true);
-    try {
-      await api.createTemplate({ name, subject, body: template });
-      toast.success(`Saved "${name}" to your library.`);
-      setSavedName('');
-      setSaveOpen(false);
-    } catch (err) {
-      toast.error(err.message || 'Failed to save template.');
-    } finally {
-      setSavingAs(false);
-    }
-  };
-
   // ----------------------- Render -----------------------
 
   const renderedSubject = useMemo(
@@ -627,30 +516,12 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
           <div>
             <div className="mb-1.5 flex items-end justify-between gap-3">
               <label className="label !mb-0" htmlFor="template-picker">Template</label>
-              {templates.length > 0 && (templateTagFilter.length > 0 || templateSearch.trim()) && (
+              {templates.length > 0 && templateSearch.trim() && (
                 <span className="hint">
                   {filteredTemplates.length}/{templates.length} shown
                 </span>
               )}
             </div>
-            {allTemplateTags.length > 0 && (
-              <div className="mb-2 flex flex-wrap items-center gap-2">
-                <TagPills
-                  tags={allTemplateTags}
-                  activeTags={templateTagFilter}
-                  onToggle={toggleTemplateTag}
-                />
-                {templateTagFilter.length > 0 && (
-                  <button
-                    type="button"
-                    className="text-2xs text-ink-500 dark:text-ink-400 underline hover:text-ink-700 dark:hover:text-ink-200"
-                    onClick={() => setTemplateTagFilter([])}
-                  >
-                    Clear filter
-                  </button>
-                )}
-              </div>
-            )}
             {templates.length > 4 && (
               <input
                 type="search"
@@ -732,24 +603,6 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
             <div className="mb-1.5 flex items-end justify-between gap-3">
               <label className="label !mb-0" htmlFor="attachment-picker">Attachment</label>
             </div>
-            {allResumeTags.length > 0 && (
-              <div className="mb-2 flex flex-wrap items-center gap-2">
-                <TagPills
-                  tags={allResumeTags}
-                  activeTags={resumeTagFilter}
-                  onToggle={toggleResumeTag}
-                />
-                {resumeTagFilter.length > 0 && (
-                  <button
-                    type="button"
-                    className="text-2xs text-ink-500 dark:text-ink-400 underline hover:text-ink-700 dark:hover:text-ink-200"
-                    onClick={() => setResumeTagFilter([])}
-                  >
-                    Clear filter
-                  </button>
-                )}
-              </div>
-            )}
             {resumes.length > 4 && (
               <input
                 type="search"
@@ -814,132 +667,9 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
           </div>
         </div>
 
-        {/* Test-to-me panel (collapsible) */}
-        {testOpen && (
-          <div className="anim-in border-t border-ink-200/60 dark:border-ink-800/60 bg-sky-50/40 dark:bg-sky-900/10 px-6 py-4">
-            <div className="flex flex-wrap items-end gap-2">
-              <div className="grow">
-                <label className="label" htmlFor="test-email">Send a test draft to</label>
-                <input
-                  id="test-email"
-                  type="email"
-                  className="input"
-                  placeholder="me@example.com"
-                  value={testEmail}
-                  onChange={(e) => setTestEmail(e.target.value)}
-                  autoFocus
-                />
-              </div>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={runTestSend}
-                disabled={testSending || !testEmail.trim()}
-              >
-                {testSending ? 'Sending...' : 'Send test'}
-              </button>
-              <button
-                type="button"
-                className="btn-ghost"
-                onClick={() => setTestOpen(false)}
-              >
-                Close
-              </button>
-            </div>
-            <p className="mt-2 text-2xs text-ink-500 dark:text-ink-400">
-              Saves one Gmail draft addressed to this email using the current subject, body and attachment.
-              Variable tokens render as <code className="font-mono">Test</code> / your typed company.
-            </p>
-          </div>
-        )}
-
-        {/* Save-as panel (collapsible) */}
-        {saveOpen && (
-          <div className="anim-in border-t border-ink-200/60 dark:border-ink-800/60 bg-ink-50/50 dark:bg-ink-800/30 px-6 py-4">
-            <div className="flex flex-wrap items-end gap-2">
-              <div className="grow">
-                <label className="label" htmlFor="save-name">Template name</label>
-                <input
-                  id="save-name"
-                  type="text"
-                  className="input"
-                  placeholder="e.g. Cold outreach v1"
-                  value={savedName}
-                  onChange={(e) => setSavedName(e.target.value)}
-                  autoFocus
-                />
-              </div>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={saveAsTemplate}
-                disabled={savingAs}
-              >
-                {savingAs ? 'Saving...' : 'Save'}
-              </button>
-              <button
-                type="button"
-                className="btn-ghost"
-                onClick={() => {
-                  setSaveOpen(false);
-                  setSavedName('');
-                }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Footer actions */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-ink-200/60 dark:border-ink-800/60 bg-ink-50/40 dark:bg-ink-800/40 px-6 py-3.5">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <button
-              type="button"
-              className="btn-ghost btn-xs"
-              onClick={() => setSaveOpen((v) => !v)}
-              title="Save the current subject + body as a reusable template"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-3.5 w-3.5"
-              >
-                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-              </svg>
-              {saveOpen ? 'Hide save panel' : 'Save as template'}
-            </button>
-            <button
-              type="button"
-              className="btn-ghost btn-xs"
-              onClick={() => setTestOpen((v) => !v)}
-              title="Send a single draft to your own address to preview in Gmail"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-3.5 w-3.5"
-              >
-                <path d="M3 12l18-9-7 19-4-8-7-2z" />
-              </svg>
-              Test to me
-            </button>
-          </div>
-
+        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-ink-200/60 dark:border-ink-800/60 bg-ink-50/40 dark:bg-ink-800/40 px-6 py-3.5">
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" className="btn-secondary" onClick={() => setPreviewOpen(true)}>
-              Full preview
-            </button>
             <button
               type="submit"
               className="btn-gradient"

@@ -95,6 +95,12 @@ export const api = {
     if (tags && tags.length) fd.append('tags', JSON.stringify(tags));
     return callForm('post', '/resumes', fd);
   },
+  // AI: parse a PDF and return suggested resume tags (no upload, no storage).
+  suggestResumeTags: (file) => {
+    const fd = new FormData();
+    fd.append('file', file, file.name);
+    return callForm('post', '/resumes/suggest-tags', fd);
+  },
   // PATCH-ish: name and/or tags. Either can be omitted to leave unchanged.
   updateResume: (id, patch) => call('put', `/resumes/${id}`, patch),
   // Back-compat shim for callers that only want to rename.

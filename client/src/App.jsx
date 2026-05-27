@@ -216,7 +216,9 @@ export default function App() {
             />
           )}
           {tab === 'templates' && <TemplateLibrary onUseTemplate={handleUseTemplate} />}
-          {tab === 'resumes' && <ResumeLibrary />}
+          {tab === 'resumes' && (
+            <ResumeLibrary aiEnabled={Boolean(health.features?.aiEnrich)} />
+          )}
           {tab === 'tailor' && (
             <TailorPage
               aiConfigured={

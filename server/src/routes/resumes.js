@@ -3,6 +3,7 @@ import multer from 'multer';
 
 import { HttpError } from '../middleware/error.js';
 import { resumeStore } from '../services/resumeStore.js';
+import { suggestTagsFromPdf, isPdfTaggingEnabled } from '../services/pdfTags.js';
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
 const MAX_NAME = 200;
@@ -52,6 +53,38 @@ router.get('/:id', async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+// POST /api/resumes/suggest-tags — AI-generated tags from the uploaded PDF.
+// Stateless: the PDF is sent to Gemini, parsed for skills/tech/domain
+// signals, and a normalised tag list is returned. Nothing is stored.
+router.post('/suggest-tags', (req, res, next) => {
+  if (!isPdfTaggingEnabled()) {
+    return next(new HttpError(503, 'GEMINI_API_KEY is not configured on the server.'));
+  }
+  upload(req, res, async (uploadErr) => {
+    if (uploadErr) {
+      const status =
+        uploadErr.code === 'LIMIT_FILE_SIZE'
+          ? 413
+          : uploadErr.status || 400;
+      return next(new HttpError(status, uploadErr.message));
+    }
+    try {
+      if (!req.file) throw new HttpError(400, 'A PDF file is required.');
+      const tags = await suggestTagsFromPdf(req.file.buffer, req.file.mimetype);
+      res.json({ tags });
+    } catch (err) {
+      // Surface Gemini quota/auth issues as a clean 429/503 instead of 500.
+      if (err?.status) {
+        return next(new HttpError(err.status, err.message));
+      }
+      if (/quota|rate/i.test(err?.message || '')) {
+        return next(new HttpError(429, err.message));
+      }
+      next(err);
+    }
+  });
 });
 
 // POST /api/resumes — upload (multipart: field "file" + "name")

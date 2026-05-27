@@ -9,6 +9,7 @@ import Chat from './Chat.jsx';
 import FinalActions from './FinalActions.jsx';
 import ScorePanel from './ScorePanel.jsx';
 import TemplateTailorPanel from './TemplateTailorPanel.jsx';
+import TemplateLivePreview, { TemplateTailorSplit } from './TemplateLivePreview.jsx';
 
 const SENIORITY_OPTIONS = [
   'Entry Level (1 YOE)',
@@ -409,7 +410,13 @@ export default function TailorPage({ aiConfigured }) {
         ) : null}
       </header>
 
-      <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+      <div
+        className={
+          rightPane === 'template'
+            ? 'flex flex-1 min-h-0 flex-col overflow-hidden px-5 py-4'
+            : 'flex-1 space-y-4 overflow-y-auto px-5 py-4'
+        }
+      >
         {rightPane === 'resume' ? (
           resumeSessionActive ? (
             <>
@@ -474,7 +481,7 @@ export default function TailorPage({ aiConfigured }) {
             />
           )
         ) : templateSessionActive ? (
-          <>
+          <div className="flex min-h-0 flex-1 flex-col gap-2">
             <TemplateTailorPanel
               key={tailorTemplateTarget.id}
               template={tailorTemplateTarget}
@@ -488,7 +495,7 @@ export default function TailorPage({ aiConfigured }) {
               onClose={() => setTailorTemplateTarget(null)}
               onSaved={() => refreshTemplates()}
             />
-            <div className="pt-2">
+            <div className="shrink-0">
               <button
                 className="btn-secondary"
                 onClick={() => setTailorTemplateTarget(null)}
@@ -496,7 +503,7 @@ export default function TailorPage({ aiConfigured }) {
                 Pick a different template
               </button>
             </div>
-          </>
+          </div>
         ) : (
           <TemplateStartForm
             templates={templates}
@@ -680,8 +687,9 @@ function TemplateStartForm({ templates, onStart, initialSelectedId = '', ...rest
   const selected = templates.find((t) => t.id === selectedId);
   const jdReady = rest.jd.trim().length >= 20;
   const canStart = Boolean(selected) && jdReady;
-  return (
-    <div className="mx-auto max-w-2xl space-y-3">
+
+  const formColumn = (
+    <div className="max-w-xl space-y-3">
       <div>
         <h3 className="text-base font-semibold text-ink-900 dark:text-white">
           Tailor an email template
@@ -727,6 +735,24 @@ function TemplateStartForm({ templates, onStart, initialSelectedId = '', ...rest
         Start tailoring template
       </button>
     </div>
+  );
+
+  return (
+    <TemplateTailorSplit
+      left={formColumn}
+      preview={
+        <TemplateLivePreview
+          subject={selected?.subject}
+          body={selected?.body}
+          hint={selected ? 'Selected template before tailoring.' : null}
+          emptyMessage={
+            selected
+              ? '(empty body)'
+              : 'Pick a template to preview it here.'
+          }
+        />
+      }
+    />
   );
 }
 

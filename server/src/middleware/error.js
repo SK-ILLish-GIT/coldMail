@@ -1,4 +1,5 @@
 import multer from 'multer';
+import { mapGeminiError } from '../services/geminiErrors.js';
 
 export class HttpError extends Error {
   constructor(status, message, details) {
@@ -30,6 +31,9 @@ export function errorHandler(err, _req, res, _next) {
   let normalized = err;
   if (err instanceof multer.MulterError) {
     normalized = mapMulterError(err);
+  } else if (!(err instanceof HttpError)) {
+    const gemini = mapGeminiError(err);
+    if (gemini) normalized = gemini;
   }
   const status = normalized.status || 500;
   if (status >= 500) {

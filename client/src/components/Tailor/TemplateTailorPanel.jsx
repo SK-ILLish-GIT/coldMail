@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 
 import { api } from '../../lib/api.js';
+import { formatGeminiError, isGeminiQuotaError } from '../../lib/geminiError.js';
 import { tailorApi } from '../../lib/tailorApi.js';
 import { useJd } from '../../lib/jdContext.jsx';
 import AutoTagModal from '../AutoTagModal.jsx';
 import { TagInput } from '../Tags.jsx';
+import TemplateLivePreview, { TemplateTailorSplit } from './TemplateLivePreview.jsx';
 
 const TARGET_LABEL = (target) => {
   if (target === 'subject') return 'Subject line';
@@ -180,23 +182,21 @@ export default function TemplateTailorPanel({
   const [savedTemplate, setSavedTemplate] = useState(null);
   const [autoTagLoading, setAutoTagLoading] = useState(false);
   const [autoTagSession, setAutoTagSession] = useState(null);
-  // 'suggestions' = chat-iterative approval flow (default)
-  // 'preview'     = live snapshot of the working subject + body so the user
-  //                 can see what the saved template will look like.
-  const [view, setView] = useState('suggestions');
   const chatBottomRef = useRef(null);
+  const autoStartLaunchedRef = useRef(false);
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [history, current, done]);
 
   // Auto-start once when caller passes `autoStart` and the inputs are ready.
-  // Used by the Tailor tab where the right pane collects JD/role/company/seniority
-  // up front, then mounts the panel.
+  // Guard with a ref so a failed start (e.g. 429) does not re-fire endlessly.
   useEffect(() => {
-    if (autoStart && !session && !starting && jd.trim()) {
-      start();
+    if (!autoStart || autoStartLaunchedRef.current || session || starting || !jd.trim()) {
+      return;
     }
+    autoStartLaunchedRef.current = true;
+    start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStart, session, starting, jd]);
 
@@ -205,6 +205,7 @@ export default function TemplateTailorPanel({
       setError('Paste a job description first.');
       return;
     }
+    if (starting || session) return;
     setError('');
     setStarting(true);
     try {
@@ -232,7 +233,9 @@ export default function TemplateTailorPanel({
         setDone(true);
       }
     } catch (err) {
-      setError(err.message || 'Failed to start session.');
+      const message = formatGeminiError(err);
+      setError(message);
+      if (isGeminiQuotaError(err)) toast.error(message, { duration: 8000 });
     } finally {
       setStarting(false);
     }
@@ -262,7 +265,9 @@ export default function TemplateTailorPanel({
         if (result.result === 'failed') setError(result.error || 'Could not apply.');
       }
     } catch (err) {
-      setError(err.message || 'Failed to decide.');
+      const message = formatGeminiError(err);
+      setError(message);
+      if (isGeminiQuotaError(err)) toast.error(message, { duration: 8000 });
     } finally {
       setBusy(false);
     }
@@ -316,140 +321,175 @@ export default function TemplateTailorPanel({
     }
   };
 
-  const content = (
-    <>
-      {session ? (
-        <div className="mb-3 flex items-center gap-1 border-b border-ink-200/70 px-1 dark:border-ink-800">
-          <button
-            type="button"
-            className={`px-3 py-1.5 text-xs font-medium transition ${
-              view === 'suggestions'
-                ? 'border-b-2 border-brand-500 text-brand-700 dark:text-brand-300'
-                : 'text-ink-500 hover:text-ink-700 dark:text-ink-400 dark:hover:text-ink-200'
-            }`}
-            onClick={() => setView('suggestions')}
-          >
-            Suggestions ({session.pending} pending)
-          </button>
-          <button
-            type="button"
-            className={`px-3 py-1.5 text-xs font-medium transition ${
-              view === 'preview'
-                ? 'border-b-2 border-brand-500 text-brand-700 dark:text-brand-300'
-                : 'text-ink-500 hover:text-ink-700 dark:text-ink-400 dark:hover:text-ink-200'
-            }`}
-            onClick={() => setView('preview')}
-          >
-            Preview
-          </button>
-        </div>
+  const suggestionsColumn = (
+    <div className="space-y-3">
+      {history.map((h, i) => (
+        <HistoryItem key={`${h.suggestion?.id || 'h'}-${i}`} suggestion={h.suggestion} decision={h.decision} />
+      ))}
+      {current && !done ? (
+        <SuggestionCard suggestion={current} busy={busy} onDecide={decide} />
       ) : null}
-      <div className="flex-1 space-y-4 overflow-y-auto">
-        {view === 'preview' && session ? (
-          <PreviewView session={session} />
-        ) : !session && hideInputsForm ? (
-          <div className="surface p-4 text-xs text-ink-500 dark:text-ink-400">
-            {starting ? 'Starting template tailoring…' : error || 'Waiting to start.'}
+      {done ? (
+        savedTemplate ? (
+          <div className="surface p-4">
+            <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+              Saved as new template: {savedTemplate.name}
+            </p>
+            <button className="btn-primary mt-3" onClick={onClose}>
+              Done
+            </button>
           </div>
-        ) : !session ? (
-            <div className="space-y-3">
-              <div>
-                <label className="label">Job description</label>
-                <textarea
-                  className="input-mono h-44 resize-y"
-                  placeholder="Paste the JD here..."
-                  value={jd}
-                  onChange={(e) => setJd(e.target.value)}
-                />
+        ) : (
+          <div className="surface space-y-3 p-4">
+            <p className="text-sm font-semibold text-ink-900 dark:text-white">Save as a new template</p>
+            <div>
+              <label className="label">Name</label>
+              <input
+                className="input"
+                value={saveName}
+                onChange={(e) => setSaveName(e.target.value)}
+                placeholder="My template — Stripe SDE · 2026-05-23"
+              />
+            </div>
+            <div>
+              <div className="mb-1.5 flex flex-wrap items-end justify-between gap-2">
+                <label className="label !mb-0">Tags</label>
+                {aiEnabled && (
+                  <button
+                    type="button"
+                    className="btn-ghost btn-xs text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:ring-indigo-800/50 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40"
+                    onClick={onAutoTagSave}
+                    disabled={autoTagLoading || saving}
+                    title="Suggest tags from the tailored subject and body"
+                  >
+                    {autoTagLoading ? 'Tagging...' : 'Auto tag'}
+                  </button>
+                )}
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label">Role (optional)</label>
-                  <input className="input" value={targetRole} onChange={(e) => setTargetRole(e.target.value)} placeholder="e.g. SDE intern" />
-                </div>
-                <div>
-                  <label className="label">Company (optional)</label>
-                  <input className="input" value={targetCompany} onChange={(e) => setTargetCompany(e.target.value)} placeholder="e.g. Stripe" />
-                </div>
-                <div className="col-span-2">
-                  <label className="label">Seniority</label>
-                  <select className="input" value={seniority} onChange={(e) => setSeniority(e.target.value)}>
-                    {SENIORITY_OPTIONS.map((opt) => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <button className="btn-gradient w-full" onClick={start} disabled={starting || !jd.trim()}>
-                {starting ? 'Starting...' : 'Start tailoring'}
+              <TagInput tags={saveTags} onChange={setSaveTags} placeholder="backend, kubernetes..." />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button className="btn-ghost" onClick={onClose} disabled={saving}>
+                Cancel
               </button>
-              {error ? <p className="text-xs text-rose-600 dark:text-rose-300">{error}</p> : null}
+              <button className="btn-primary" onClick={save} disabled={saving || !saveName.trim()}>
+                {saving ? 'Saving...' : 'Save as new template'}
+              </button>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {history.map((h, i) => (
-                <HistoryItem key={`${h.suggestion?.id || 'h'}-${i}`} suggestion={h.suggestion} decision={h.decision} />
-              ))}
-              {current && !done ? (
-                <SuggestionCard suggestion={current} busy={busy} onDecide={decide} />
-              ) : null}
-              {done ? (
-                savedTemplate ? (
-                  <div className="surface p-4">
-                    <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-                      Saved as new template: {savedTemplate.name}
-                    </p>
-                    <p className="mt-1 text-xs text-ink-600 dark:text-ink-300">
-                      It now appears in your Templates library and can be auto-picked by JDMatcher on matching JDs.
-                    </p>
-                    <button className="btn-primary mt-3" onClick={onClose}>Done</button>
-                  </div>
-                ) : (
-                  <div className="surface p-4 space-y-3">
-                    <p className="text-sm font-semibold text-ink-900 dark:text-white">
-                      Save as a new template
-                    </p>
-                    <div>
-                      <label className="label">Name</label>
-                      <input className="input" value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="My template — Stripe SDE · 2026-05-23" />
-                    </div>
-                    <div>
-                      <div className="mb-1.5 flex flex-wrap items-end justify-between gap-2">
-                        <label className="label !mb-0">Tags</label>
-                        {aiEnabled && (
-                          <button
-                            type="button"
-                            className="btn-ghost btn-xs text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:ring-indigo-800/50 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40"
-                            onClick={onAutoTagSave}
-                            disabled={autoTagLoading || saving}
-                            title="Suggest tags from the tailored subject and body"
-                          >
-                            {autoTagLoading ? 'Tagging...' : 'Auto tag'}
-                          </button>
-                        )}
-                      </div>
-                      <TagInput tags={saveTags} onChange={setSaveTags} placeholder="backend, kubernetes..." />
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <button className="btn-ghost" onClick={onClose} disabled={saving}>Cancel</button>
-                      <button className="btn-primary" onClick={save} disabled={saving || !saveName.trim()}>
-                        {saving ? 'Saving...' : 'Save as new template'}
-                      </button>
-                    </div>
-                  </div>
-                )
-              ) : null}
-              {error ? <p className="text-xs text-rose-600 dark:text-rose-300">{error}</p> : null}
-            </div>
-          )}
-        <div ref={chatBottomRef} />
-      </div>
-      {session ? (
-        <p className="mt-3 border-t border-ink-200/70 pt-2 text-2xs text-ink-500 dark:border-ink-800 dark:text-ink-400">
-          {session.applied} applied · {session.pending} pending · {session.totalSuggestions} total
-        </p>
+          </div>
+        )
       ) : null}
-    </>
+      {error ? <p className="text-xs text-rose-600 dark:text-rose-300">{error}</p> : null}
+      <div ref={chatBottomRef} />
+    </div>
+  );
+
+  const previewSubject = session?.subject ?? template.subject ?? '';
+  const previewBody = session?.body ?? template.body ?? '';
+  const previewHint = session
+    ? 'Updates as you approve suggestions.'
+    : 'Original template — changes appear here after you start.';
+
+  const sessionHeader = session ? (
+    <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-ink-200/70 pb-2 dark:border-ink-800">
+      <p className="text-xs font-medium text-ink-700 dark:text-ink-200">
+        Suggestions ({session.pending} pending)
+      </p>
+      <p className="text-2xs text-ink-500 dark:text-ink-400">
+        {session.applied} applied · {session.pending} pending · {session.totalSuggestions} total
+      </p>
+    </div>
+  ) : null;
+
+  const quotaBlocked = Boolean(error && isGeminiQuotaError({ message: error }));
+
+  const leftColumn = !session && hideInputsForm ? (
+    <div className="surface space-y-3 p-4">
+      {starting ? (
+        <p className="text-xs text-ink-500 dark:text-ink-400">Starting template tailoring…</p>
+      ) : error ? (
+        <p className="text-xs leading-relaxed text-rose-700 dark:text-rose-300">{error}</p>
+      ) : (
+        <p className="text-xs text-ink-500 dark:text-ink-400">Waiting to start.</p>
+      )}
+      {error && !starting ? (
+        <button
+          type="button"
+          className="btn-secondary btn-xs"
+          onClick={() => start()}
+          disabled={quotaBlocked}
+          title={
+            quotaBlocked
+              ? 'Daily Gemini free-tier limit — wait for reset or change GEMINI_MODEL'
+              : undefined
+          }
+        >
+          {quotaBlocked ? 'Quota exhausted' : 'Try again'}
+        </button>
+      ) : null}
+    </div>
+  ) : !session ? (
+    <div className="max-w-xl space-y-3">
+      <div>
+        <label className="label">Job description</label>
+        <textarea
+          className="input-mono h-44 resize-y"
+          placeholder="Paste the JD here..."
+          value={jd}
+          onChange={(e) => setJd(e.target.value)}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="label">Role (optional)</label>
+          <input
+            className="input"
+            value={targetRole}
+            onChange={(e) => setTargetRole(e.target.value)}
+            placeholder="e.g. SDE intern"
+          />
+        </div>
+        <div>
+          <label className="label">Company (optional)</label>
+          <input
+            className="input"
+            value={targetCompany}
+            onChange={(e) => setTargetCompany(e.target.value)}
+            placeholder="e.g. Stripe"
+          />
+        </div>
+        <div className="col-span-2">
+          <label className="label">Seniority</label>
+          <select className="input" value={seniority} onChange={(e) => setSeniority(e.target.value)}>
+            {SENIORITY_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <button className="btn-gradient w-full" onClick={start} disabled={starting || !jd.trim()}>
+        {starting ? 'Starting...' : 'Start tailoring'}
+      </button>
+      {error ? <p className="text-xs text-rose-600 dark:text-rose-300">{error}</p> : null}
+    </div>
+  ) : (
+    suggestionsColumn
+  );
+
+  const content = (
+    <TemplateTailorSplit
+      header={sessionHeader}
+      left={leftColumn}
+      preview={
+        <TemplateLivePreview
+          subject={previewSubject}
+          body={previewBody}
+          hint={previewHint}
+        />
+      }
+    />
   );
 
   const autoTagModal = (
@@ -467,7 +507,7 @@ export default function TemplateTailorPanel({
   if (embedded) {
     return (
       <>
-        <div className="flex h-full flex-col">{content}</div>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{content}</div>
         {autoTagModal}
       </>
     );
@@ -476,8 +516,8 @@ export default function TemplateTailorPanel({
   return (
     <>
       <div className="fixed inset-0 z-40 flex items-start justify-center bg-ink-900/60 px-4 py-8 backdrop-blur-sm dark:bg-black/70">
-        <div className="card flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden">
-          <header className="flex items-center justify-between border-b border-ink-200/70 px-5 py-3 dark:border-ink-800">
+        <div className="card flex max-h-[90vh] min-h-[min(85vh,720px)] w-full max-w-7xl flex-col overflow-hidden">
+          <header className="flex shrink-0 items-center justify-between border-b border-ink-200/70 px-5 py-3 dark:border-ink-800">
             <div>
             <h2 className="text-base font-semibold text-ink-900 dark:text-white">
               Tailor template — {template.name}
@@ -487,52 +527,10 @@ export default function TemplateTailorPanel({
               Close
             </button>
           </header>
-          <div className="flex-1 overflow-y-auto px-5 py-4">{content}</div>
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-5 py-4">{content}</div>
         </div>
       </div>
       {autoTagModal}
     </>
-  );
-}
-
-// Wrap the body in a minimal HTML shell so the iframe has email-paper
-// styling (white background, sensible font) regardless of host theme. We
-// preserve placeholders like `{{firstName}}` verbatim (no var substitution)
-// so the user can see where personalization will land at send time.
-function buildPreviewSrcDoc(body) {
-  const safeBody = String(body || '');
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="color-scheme" content="light"><style>
-    html,body{margin:0;padding:0;background:#ffffff;color:#1f2937;}
-    body{font:15px/1.65 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:18px 20px;}
-    a{color:#2563eb;}
-    p{margin:0 0 14px;}
-  </style></head><body>${safeBody}</body></html>`;
-}
-
-function PreviewView({ session }) {
-  const empty = !session.body?.trim();
-  return (
-    <div className="surface p-4">
-      <p className="label">Subject</p>
-      <p className="rounded-md border border-ink-200/70 bg-white px-3 py-2 text-sm font-medium text-ink-900 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-100">
-        {session.subject || <em className="text-ink-400">(empty)</em>}
-      </p>
-      <p className="label mt-4">Body</p>
-      {empty ? (
-        <div className="rounded-md border border-ink-200/70 bg-white px-3 py-6 text-center text-xs text-ink-400 dark:border-ink-700 dark:bg-ink-900 dark:text-ink-500">
-          (empty body)
-        </div>
-      ) : (
-        <iframe
-          title="Template preview"
-          srcDoc={buildPreviewSrcDoc(session.body)}
-          sandbox=""
-          className="preview-frame h-[420px] w-full rounded-md border border-ink-200/70 bg-white dark:border-ink-700"
-        />
-      )}
-      <p className="mt-3 text-2xs text-ink-400 dark:text-ink-500">
-        Reflects approved edits so far. Placeholders like <code>{'{{firstName}}'}</code> stay intact and will be filled when you send.
-      </p>
-    </div>
   );
 }

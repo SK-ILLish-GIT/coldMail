@@ -14,19 +14,30 @@ const TailorTargetContext = createContext({
   pendingTemplate: null,
   requestTailorTemplate: () => {},
   consumePendingTemplate: () => null,
+  pendingResumeTailor: false,
+  requestTailorResume: () => {},
+  consumePendingResumeTailor: () => {},
 });
 
 export function TailorTargetProvider({ onRequestTab, children }) {
   const [pendingTemplate, setPendingTemplate] = useState(null);
+  const [pendingResumeTailor, setPendingResumeTailor] = useState(false);
 
   const requestTailorTemplate = useCallback(
     (template) => {
       if (!template) return;
       setPendingTemplate(template);
+      setPendingResumeTailor(false);
       onRequestTab?.('tailor');
     },
     [onRequestTab]
   );
+
+  const requestTailorResume = useCallback(() => {
+    setPendingTemplate(null);
+    setPendingResumeTailor(true);
+    onRequestTab?.('tailor');
+  }, [onRequestTab]);
 
   const consumePendingTemplate = useCallback(() => {
     const t = pendingTemplate;
@@ -34,9 +45,20 @@ export function TailorTargetProvider({ onRequestTab, children }) {
     return t;
   }, [pendingTemplate]);
 
+  const consumePendingResumeTailor = useCallback(() => {
+    setPendingResumeTailor(false);
+  }, []);
+
   return (
     <TailorTargetContext.Provider
-      value={{ pendingTemplate, requestTailorTemplate, consumePendingTemplate }}
+      value={{
+        pendingTemplate,
+        requestTailorTemplate,
+        consumePendingTemplate,
+        pendingResumeTailor,
+        requestTailorResume,
+        consumePendingResumeTailor,
+      }}
     >
       {children}
     </TailorTargetContext.Provider>

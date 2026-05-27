@@ -98,7 +98,13 @@ function mergeStatus(prev, email, patch) {
   return { ...prev, [email.toLowerCase()]: { ...(prev[email.toLowerCase()] || {}), ...patch } };
 }
 
-export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled = false }) {
+export default function EmailForm({
+  initialTemplate,
+  onClearTemplate,
+  initialResume,
+  onClearResume,
+  aiEnabled = false,
+}) {
   const [mode, setMode] = useState('mailid');
   const [subject, setSubject] = useState(DEFAULT_SUBJECT);
   const [template, setTemplate] = useState(DEFAULT_TEMPLATE);
@@ -154,6 +160,15 @@ export default function EmailForm({ initialTemplate, onClearTemplate, aiEnabled 
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialTemplate]);
+
+  // Hydrate attachment from a chosen saved resume (Resumes tab → Use).
+  useEffect(() => {
+    if (!initialResume?.id) return;
+    setAttachment({ resumeId: initialResume.id, deviceFile: null });
+    toast.success(`Attached "${initialResume.name || 'resume'}"`);
+    onClearResume?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialResume]);
 
   const loadTemplates = async () => {
     setTemplatesLoading(true);

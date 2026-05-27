@@ -39,6 +39,26 @@ router.get('/', async (_req, res, next) => {
   }
 });
 
+// POST /api/resumes/:id/suggest-tags — AI tags for a stored resume PDF.
+router.post('/:id/suggest-tags', async (req, res, next) => {
+  try {
+    if (!isPdfTaggingEnabled()) {
+      throw new HttpError(503, 'GEMINI_API_KEY is not configured on the server.');
+    }
+    const doc = await resumeStore.get(req.params.id);
+    if (!doc) throw new HttpError(404, 'Resume not found.');
+    const tags = await suggestTagsFromPdf(doc.content, doc.contentType || 'application/pdf');
+    res.json({ tags });
+  } catch (err) {
+    if (err instanceof HttpError) return next(err);
+    if (err?.status) return next(new HttpError(err.status, err.message));
+    if (/quota|rate/i.test(err?.message || '')) {
+      return next(new HttpError(429, err.message));
+    }
+    next(err);
+  }
+});
+
 // GET /api/resumes/:id — download the PDF
 router.get('/:id', async (req, res, next) => {
   try {

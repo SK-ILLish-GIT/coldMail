@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 
 import { api } from '../lib/api.js';
@@ -8,6 +8,7 @@ import { useTailorTarget } from '../lib/tailorTarget.jsx';
 import AutoTagModal from './AutoTagModal.jsx';
 import EmptyState from './EmptyState.jsx';
 import PreviewModal from './PreviewModal.jsx';
+import RowActionsMenu from './RowActionsMenu.jsx';
 import { TagInput, TagPills } from './Tags.jsx';
 import TailoredForPill from './TailoredForPill.jsx';
 
@@ -528,117 +529,3 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
   );
 }
 
-// Tone -> menu-item color classes. Kept in lockstep with the standalone
-// button styling used previously, so muscle memory carries over (Edit = amber,
-// Delete = rose, etc.).
-const TONE_CLASS = {
-  default: 'text-ink-700 dark:text-ink-200 hover:bg-ink-100 dark:hover:bg-ink-800/60',
-  brand:
-    'text-brand-700 dark:text-brand-300 hover:bg-brand-50 dark:hover:bg-brand-900/30',
-  indigo:
-    'text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30',
-  amber:
-    'text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/30',
-  rose:
-    'text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/30',
-};
-
-// Per-row overflow menu. Closes on outside-click, Escape, and after an item
-// is invoked. Renders above or below the trigger depending on viewport room.
-function RowActionsMenu({ items, label = 'More actions' }) {
-  const [open, setOpen] = useState(false);
-  const [placeAbove, setPlaceAbove] = useState(false);
-  const wrapperRef = useRef(null);
-  const buttonRef = useRef(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onPointer = (e) => {
-      if (!wrapperRef.current?.contains(e.target)) setOpen(false);
-    };
-    const onKey = (e) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('mousedown', onPointer);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onPointer);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [open]);
-
-  const handleToggle = () => {
-    // Decide vertical placement just before opening so the menu doesn't get
-    // clipped at the bottom of the list.
-    if (!open && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      const estimatedMenuHeight = Math.min(items.length * 36 + 12, 240);
-      const spaceBelow = window.innerHeight - rect.bottom;
-      setPlaceAbove(spaceBelow < estimatedMenuHeight + 16);
-    }
-    setOpen((v) => !v);
-  };
-
-  return (
-    <div ref={wrapperRef} className="relative">
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={handleToggle}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={label}
-        className="btn-ghost btn-xs px-2"
-        title={label}
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 24 24"
-          fill="currentColor"
-          className="h-3.5 w-3.5"
-        >
-          <circle cx="12" cy="5" r="1.6" />
-          <circle cx="12" cy="12" r="1.6" />
-          <circle cx="12" cy="19" r="1.6" />
-        </svg>
-      </button>
-      {open && (
-        <div
-          role="menu"
-          className={[
-            'absolute right-0 z-40 min-w-[10rem] overflow-hidden rounded-lg border border-ink-200/70 dark:border-ink-800 bg-white dark:bg-ink-900 shadow-lift anim-in',
-            placeAbove ? 'bottom-full mb-1' : 'top-full mt-1',
-          ].join(' ')}
-        >
-          <ul className="py-1">
-            {items.map((it, idx) => {
-              const tone = TONE_CLASS[it.tone || 'default'];
-              return (
-                <li key={`${it.label}-${idx}`}>
-                  {it.separated && idx > 0 ? (
-                    <div className="my-1 h-px bg-ink-100 dark:bg-ink-800" />
-                  ) : null}
-                  <button
-                    type="button"
-                    role="menuitem"
-                    disabled={it.disabled}
-                    onClick={() => {
-                      setOpen(false);
-                      it.onClick?.();
-                    }}
-                    className={[
-                      'flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs font-medium transition disabled:opacity-50',
-                      tone,
-                    ].join(' ')}
-                  >
-                    {it.label}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-}

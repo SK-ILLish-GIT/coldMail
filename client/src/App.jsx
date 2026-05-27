@@ -32,6 +32,7 @@ function readTabFromHash() {
 export default function App() {
   const [tab, setTabState] = useState(readTabFromHash);
   const [activeTemplate, setActiveTemplate] = useState(null);
+  const [activeResume, setActiveResume] = useState(null);
   const [theme, setTheme] = useTheme();
   const [health, setHealth] = useState({
     loading: true,
@@ -89,6 +90,12 @@ export default function App() {
 
   const handleUseTemplate = (tpl) => {
     setActiveTemplate(tpl);
+    setTab('compose');
+  };
+
+  const handleUseResume = (resume) => {
+    if (!resume?.id) return;
+    setActiveResume(resume);
     setTab('compose');
   };
 
@@ -212,6 +219,8 @@ export default function App() {
             <EmailForm
               initialTemplate={activeTemplate}
               onClearTemplate={() => setActiveTemplate(null)}
+              initialResume={activeResume}
+              onClearResume={() => setActiveResume(null)}
               aiEnabled={Boolean(health.features?.aiEnrich)}
             />
           )}
@@ -222,7 +231,10 @@ export default function App() {
             />
           )}
           {tab === 'resumes' && (
-            <ResumeLibrary aiEnabled={Boolean(health.features?.aiEnrich)} />
+            <ResumeLibrary
+              onUseResume={handleUseResume}
+              aiEnabled={Boolean(health.features?.aiEnrich)}
+            />
           )}
           {tab === 'tailor' && (
             <TailorPage

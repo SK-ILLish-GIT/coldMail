@@ -39,7 +39,12 @@ function fmtDate(iso) {
 export default function TailorPage({ aiConfigured }) {
   const [status, setStatus] = useState(null);
   const { jd, setJd } = useJd();
-  const { pendingTemplate, consumePendingTemplate } = useTailorTarget();
+  const {
+    pendingTemplate,
+    consumePendingTemplate,
+    pendingResumeTailor,
+    consumePendingResumeTailor,
+  } = useTailorTarget();
 
   const [targetRole, setTargetRole] = useState('');
   const [targetCompany, setTargetCompany] = useState('');
@@ -93,6 +98,15 @@ export default function TailorPage({ aiConfigured }) {
     setTailorTemplateTarget(null);
     consumePendingTemplate();
   }, [pendingTemplate, consumePendingTemplate]);
+
+  // ResumeLibrary "AI Tailor" → open the resume tailoring start form.
+  useEffect(() => {
+    if (!pendingResumeTailor) return;
+    setRightPane('resume');
+    setTailorTemplateTarget(null);
+    setPrefilledTemplateId('');
+    consumePendingResumeTailor();
+  }, [pendingResumeTailor, consumePendingResumeTailor]);
 
   const refreshTemplates = () => {
     api.listTemplates().then((data) => {

@@ -105,6 +105,8 @@ export const api = {
     fd.append('file', file, file.name);
     return callForm('post', '/resumes/suggest-tags', fd);
   },
+  // AI: suggest tags for an already-stored resume by id.
+  suggestStoredResumeTags: (id) => call('post', `/resumes/${id}/suggest-tags`),
   // PATCH-ish: name and/or tags. Either can be omitted to leave unchanged.
   updateResume: (id, patch) => call('put', `/resumes/${id}`, patch),
   // Back-compat shim for callers that only want to rename.

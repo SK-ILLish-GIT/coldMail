@@ -3,7 +3,10 @@ import toast from 'react-hot-toast';
 
 import { api } from '../lib/api.js';
 import { confirmAsync } from '../lib/confirm.jsx';
+import { useTailorTarget } from '../lib/tailorTarget.jsx';
+import AutoTagModal from './AutoTagModal.jsx';
 import EmptyState from './EmptyState.jsx';
+import RowActionsMenu from './RowActionsMenu.jsx';
 import { TagInput, TagPills } from './Tags.jsx';
 import TailoredForPill from './TailoredForPill.jsx';
 
@@ -33,7 +36,7 @@ function isPdf(file) {
 
 const AUTO_TAG_KEY = 'coldmail.autoTagOnUpload';
 
-export default function ResumeLibrary({ onChange, aiEnabled = false }) {
+export default function ResumeLibrary({ onChange, onUseResume, aiEnabled = false }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
@@ -53,7 +56,14 @@ export default function ResumeLibrary({ onChange, aiEnabled = false }) {
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
   const [editTags, setEditTags] = useState([]);
+  // Upload form is a modal now — only mounted when the user opens it from
+  // the "+ Upload resume" button. List stays full-width otherwise.
+  const [uploadOpen, setUploadOpen] = useState(false);
   const fileInputRef = useRef(null);
+  const { requestTailorResume } = useTailorTarget();
+  const [autoTagLoading, setAutoTagLoading] = useState(false);
+  const [autoTagApplying, setAutoTagApplying] = useState(false);
+  const [autoTagSession, setAutoTagSession] = useState(null);
 
   const persistAutoTag = (value) => {
     setAutoTagOnUpload(value);
@@ -127,6 +137,37 @@ export default function ResumeLibrary({ onChange, aiEnabled = false }) {
     refresh();
   }, []);
 
+  // Escape closes the upload modal + body scroll lock. Mirrors the modal
+  // pattern used elsewhere so the overlay UX is consistent.
+  useEffect(() => {
+    if (!uploadOpen) return;
+    const onKey = (e) => e.key === 'Escape' && !uploading && setUploadOpen(false);
+    document.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [uploadOpen, uploading]);
+
+  const resetUploadForm = () => {
+    setName('');
+    setFile(null);
+    setTags([]);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const openUploadModal = () => {
+    resetUploadForm();
+    setUploadOpen(true);
+  };
+
+  const closeUploadModal = () => {
+    if (uploading) return;
+    setUploadOpen(false);
+    resetUploadForm();
+  };
+
   const onPickFile = (f) => {
     if (!f) {
       setFile(null);
@@ -166,10 +207,8 @@ export default function ResumeLibrary({ onChange, aiEnabled = false }) {
       }
       await api.uploadResume(name.trim(), file, finalTags);
       toast.success(`Uploaded "${name.trim()}".`);
-      setName('');
-      setFile(null);
-      setTags([]);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      resetUploadForm();
+      setUploadOpen(false);
       await refresh();
       onChange?.();
     } catch (err) {
@@ -204,6 +243,46 @@ export default function ResumeLibrary({ onChange, aiEnabled = false }) {
     }
   };
 
+  const onAutoTagRow = async (item) => {
+    if (!aiEnabled) {
+      return toast.error('AI is disabled on the server — set GEMINI_API_KEY to enable.');
+    }
+    setAutoTagLoading(true);
+    try {
+      const res = await api.suggestStoredResumeTags(item.id);
+      const proposed = Array.isArray(res?.tags) ? res.tags : [];
+      setAutoTagSession({
+        target: item,
+        existingTags: item.tags || [],
+        proposed,
+      });
+    } catch (err) {
+      toast.error(err.message || 'Auto-tag failed.');
+    } finally {
+      setAutoTagLoading(false);
+    }
+  };
+
+  const applyAutoTags = async (finalTags) => {
+    const item = autoTagSession?.target;
+    if (!item) {
+      setAutoTagSession(null);
+      return;
+    }
+    setAutoTagApplying(true);
+    try {
+      await api.updateResume(item.id, { name: item.name, tags: finalTags });
+      toast.success(`Tags updated on "${item.name}".`);
+      setAutoTagSession(null);
+      await refresh();
+      onChange?.();
+    } catch (err) {
+      toast.error(err.message || 'Failed to save tags.');
+    } finally {
+      setAutoTagApplying(false);
+    }
+  };
+
   const remove = async (item) => {
     const ok = await confirmAsync({
       title: `Delete "${item.name}"?`,
@@ -223,113 +302,23 @@ export default function ResumeLibrary({ onChange, aiEnabled = false }) {
   };
 
   return (
-    <div className="space-y-6">
-      <section className="card overflow-hidden">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200/60 dark:border-ink-800 px-6 py-4">
-          <div>
-            <h2 className="text-base font-semibold text-ink-900 dark:text-ink-100">Upload a resume</h2>
-            <p className="text-xs text-ink-500 dark:text-ink-400">PDF · max 10 MB</p>
-          </div>
-        </header>
-        <div className="space-y-4 px-6 py-5">
-          <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
-            <div>
-              <label className="label" htmlFor="resume-name">Name (your label)</label>
-              <input
-                id="resume-name"
-                type="text"
-                className="input"
-                placeholder="e.g. Frontend role v3"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col">
-              <label className="label">PDF file</label>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="application/pdf,.pdf"
-                className="input !p-1.5"
-                onChange={(e) => onPickFile(e.target.files?.[0] || null)}
-              />
-              {file && (
-                <p className="hint mt-1">
-                  {file.name} · {fmtSize(file.size)}
-                </p>
-              )}
-            </div>
-          </div>
-          <div>
-            <div className="mb-1.5 flex flex-wrap items-end justify-between gap-2">
-              <label className="label !mb-0">Tags</label>
-              <button
-                type="button"
-                className="btn-ghost btn-xs text-brand-700 hover:bg-brand-50 dark:text-brand-300 dark:ring-brand-800/50 dark:bg-brand-900/20 dark:hover:bg-brand-900/40"
-                onClick={handleSuggestClick}
-                disabled={!aiEnabled || !file || suggesting || uploading}
-                title={
-                  !aiEnabled
-                    ? 'AI is disabled on the server — set GEMINI_API_KEY'
-                    : !file
-                      ? 'Pick a PDF first'
-                      : 'Read the PDF and propose tags (merged with what you already have)'
-                }
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-3.5 w-3.5"
-                >
-                  <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
-                </svg>
-                {suggesting ? 'Asking AI...' : 'Suggest from PDF'}
-              </button>
-            </div>
-            <TagInput tags={tags} onChange={setTags} />
-            <label className="mt-2 flex items-center gap-2 text-2xs text-ink-500 dark:text-ink-400">
-              <input
-                type="checkbox"
-                className="h-3.5 w-3.5"
-                checked={autoTagOnUpload}
-                onChange={(e) => persistAutoTag(e.target.checked)}
-                disabled={!aiEnabled}
-              />
-              Auto-tag from PDF when I upload
-              {!aiEnabled && (
-                <span className="text-rose-600 dark:text-rose-400">
-                  (AI off — set GEMINI_API_KEY)
-                </span>
-              )}
-            </label>
-          </div>
-          <div>
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={upload}
-              disabled={uploading || suggesting || !file || !name.trim()}
-            >
-              {uploading ? 'Uploading...' : 'Upload PDF'}
-            </button>
-          </div>
-        </div>
-      </section>
-
+    <>
       <section className="card overflow-hidden">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200/60 dark:border-ink-800 px-6 py-4">
           <div>
             <h2 className="text-base font-semibold text-ink-900 dark:text-ink-100">Your resumes</h2>
-            <p className="text-xs text-ink-500 dark:text-ink-400">{items.length} stored</p>
+            <p className="text-xs text-ink-500 dark:text-ink-400">
+              {items.length} stored · PDF, max 10 MB
+            </p>
           </div>
-          <button type="button" className="btn-ghost btn-xs" onClick={refresh}>
-            Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <button type="button" className="btn-ghost btn-xs" onClick={refresh}>
+              Refresh
+            </button>
+            <button type="button" className="btn-primary btn-xs" onClick={openUploadModal}>
+              + Upload resume
+            </button>
+          </div>
         </header>
 
         {loading ? (
@@ -398,14 +387,6 @@ export default function ResumeLibrary({ onChange, aiEnabled = false }) {
                 </div>
 
                 <div className="flex items-center gap-1.5">
-                  <a
-                    className="btn-ghost btn-xs text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:ring-emerald-800/50 dark:bg-emerald-900/20 dark:hover:bg-emerald-900/40"
-                    href={api.resumeDownloadUrl(r.id)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    View
-                  </a>
                   {editingId === r.id ? (
                     <>
                       <button
@@ -427,18 +408,48 @@ export default function ResumeLibrary({ onChange, aiEnabled = false }) {
                     <>
                       <button
                         type="button"
-                        className="btn-ghost btn-xs text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:ring-amber-800/50 dark:bg-amber-900/20 dark:hover:bg-amber-900/40"
-                        onClick={() => startEdit(r)}
+                        className="btn-primary btn-xs"
+                        onClick={() => onUseResume?.(r)}
+                        disabled={!onUseResume}
+                        title="Attach this resume in Compose"
                       >
-                        Edit
+                        Use
                       </button>
-                      <button
-                        type="button"
-                        className="btn-ghost btn-xs text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:ring-rose-800/50 dark:bg-rose-900/20 dark:hover:bg-rose-900/40"
-                        onClick={() => remove(r)}
-                      >
-                        Delete
-                      </button>
+                      <RowActionsMenu
+                        items={[
+                          {
+                            label: 'View',
+                            href: api.resumeDownloadUrl(r.id),
+                            target: '_blank',
+                            tone: 'emerald',
+                          },
+                          {
+                            label: 'AI Tailor',
+                            onClick: () => requestTailorResume(),
+                            tone: 'brand',
+                          },
+                          aiEnabled && {
+                            label:
+                              autoTagLoading && autoTagSession?.target?.id === r.id
+                                ? 'Tagging...'
+                                : 'Auto tag',
+                            onClick: () => onAutoTagRow(r),
+                            disabled: autoTagLoading,
+                            tone: 'indigo',
+                          },
+                          {
+                            label: 'Edit',
+                            onClick: () => startEdit(r),
+                            tone: 'amber',
+                          },
+                          {
+                            label: 'Delete',
+                            onClick: () => remove(r),
+                            tone: 'rose',
+                            separated: true,
+                          },
+                        ].filter(Boolean)}
+                      />
                     </>
                   )}
                 </div>
@@ -447,6 +458,161 @@ export default function ResumeLibrary({ onChange, aiEnabled = false }) {
           </ul>
         )}
       </section>
-    </div>
+
+      {/* Upload-resume modal. Backdrop click + Escape close (unless mid-upload). */}
+      {uploadOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/55 p-4 backdrop-blur-sm anim-in"
+          onClick={closeUploadModal}
+        >
+          <div
+            className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white dark:bg-ink-900 shadow-lift"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="flex items-start justify-between gap-4 border-b border-ink-200/60 dark:border-ink-800 px-5 py-4">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold text-ink-900 dark:text-ink-100">
+                  Upload a resume
+                </h3>
+                <p className="mt-0.5 text-xs text-ink-500 dark:text-ink-400">
+                  PDF · max 10 MB
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeUploadModal}
+                disabled={uploading}
+                className="rounded-md p-1.5 text-ink-400 dark:text-ink-500 hover:bg-ink-100 dark:hover:bg-ink-800/60 hover:text-ink-700 dark:hover:text-ink-200 disabled:opacity-50"
+                aria-label="Close"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </header>
+
+            <div className="flex-1 space-y-4 overflow-auto px-5 py-4">
+              <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+                <div>
+                  <label className="label" htmlFor="resume-name">Name (your label)</label>
+                  <input
+                    id="resume-name"
+                    type="text"
+                    className="input"
+                    placeholder="e.g. Frontend role v3"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label className="label">PDF file</label>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    className="input !p-1.5"
+                    onChange={(e) => onPickFile(e.target.files?.[0] || null)}
+                  />
+                  {file && (
+                    <p className="hint mt-1">
+                      {file.name} · {fmtSize(file.size)}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div>
+                <div className="mb-1.5 flex flex-wrap items-end justify-between gap-2">
+                  <label className="label !mb-0">Tags</label>
+                  <button
+                    type="button"
+                    className="btn-ghost btn-xs text-brand-700 hover:bg-brand-50 dark:text-brand-300 dark:ring-brand-800/50 dark:bg-brand-900/20 dark:hover:bg-brand-900/40"
+                    onClick={handleSuggestClick}
+                    disabled={!aiEnabled || !file || suggesting || uploading}
+                    title={
+                      !aiEnabled
+                        ? 'AI is disabled on the server — set GEMINI_API_KEY'
+                        : !file
+                          ? 'Pick a PDF first'
+                          : 'Read the PDF and propose tags (merged with what you already have)'
+                    }
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-3.5 w-3.5"
+                    >
+                      <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+                    </svg>
+                    {suggesting ? 'Asking AI...' : 'Suggest from PDF'}
+                  </button>
+                </div>
+                <TagInput tags={tags} onChange={setTags} />
+                <label className="mt-2 flex items-center gap-2 text-2xs text-ink-500 dark:text-ink-400">
+                  <input
+                    type="checkbox"
+                    className="h-3.5 w-3.5"
+                    checked={autoTagOnUpload}
+                    onChange={(e) => persistAutoTag(e.target.checked)}
+                    disabled={!aiEnabled}
+                  />
+                  Auto-tag from PDF when I upload
+                  {!aiEnabled && (
+                    <span className="text-rose-600 dark:text-rose-400">
+                      (AI off — set GEMINI_API_KEY)
+                    </span>
+                  )}
+                </label>
+              </div>
+            </div>
+
+            <footer className="flex items-center justify-end gap-2 border-t border-ink-200/60 dark:border-ink-800 bg-ink-50/40 dark:bg-ink-800/40 px-5 py-3">
+              <button
+                type="button"
+                className="btn-ghost btn-xs"
+                onClick={closeUploadModal}
+                disabled={uploading}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={upload}
+                disabled={uploading || suggesting || !file || !name.trim()}
+              >
+                {uploading ? 'Uploading...' : 'Upload PDF'}
+              </button>
+            </footer>
+          </div>
+        </div>
+      )}
+
+      <AutoTagModal
+        open={!!autoTagSession}
+        onClose={() => (autoTagApplying ? null : setAutoTagSession(null))}
+        onApply={applyAutoTags}
+        existingTags={autoTagSession?.existingTags || []}
+        proposed={autoTagSession?.proposed || []}
+        title={`Auto-tag "${autoTagSession?.target?.name || ''}"`}
+        subtitle="Selected tags will be saved to this resume immediately."
+        applying={autoTagApplying}
+      />
+    </>
   );
 }

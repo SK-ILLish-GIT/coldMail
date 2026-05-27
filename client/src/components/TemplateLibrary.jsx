@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 
 import { api } from '../lib/api.js';
 import { confirmAsync } from '../lib/confirm.jsx';
+import { renderTemplate } from '../lib/render.js';
 import { useTailorTarget } from '../lib/tailorTarget.jsx';
+import AutoTagModal from './AutoTagModal.jsx';
 import EmptyState from './EmptyState.jsx';
+import PreviewModal from './PreviewModal.jsx';
 import { TagInput, TagPills } from './Tags.jsx';
 import TailoredForPill from './TailoredForPill.jsx';
 
@@ -19,11 +22,45 @@ function fmtDate(iso) {
 
 const BLANK = { name: '', subject: '', body: '', tags: [] };
 
-export default function TemplateLibrary({ onUseTemplate }) {
+// Sample merge values used purely for the preview modal so {{name}} /
+// {{company}} / {{email}} render as something readable instead of empty
+// strings. These never leave the client.
+const PREVIEW_SAMPLE_VARS = {
+  name: 'Sample Recipient',
+  company: 'Sample Co',
+  email: 'sample@example.com',
+};
+
+export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(BLANK);
+  // Form is a modal now — only mounted/visible when the user explicitly opens
+  // it via "New template" or by editing an existing row.
+  const [formOpen, setFormOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  // The template currently being previewed in the read-only modal.
+  const [previewing, setPreviewing] = useState(null);
+
+  // Auto-tag flow state.
+  //   autoTagSession.mode = 'row'  → applying to a saved template (has id)
+  //   autoTagSession.mode = 'form' → applying to the in-progress form state
+  // existingTags + proposed are what the AutoTagModal renders.
+  const [autoTagLoading, setAutoTagLoading] = useState(false);
+  const [autoTagApplying, setAutoTagApplying] = useState(false);
+  const [autoTagSession, setAutoTagSession] = useState(null);
+
+  // Live preview of the in-progress form, rendered with sample merge vars so
+  // {{name}} / {{company}} / {{email}} read as something concrete.
+  const livePreviewSubject = useMemo(
+    () => renderTemplate(form.subject || '', PREVIEW_SAMPLE_VARS),
+    [form.subject]
+  );
+  const livePreviewHtml = useMemo(
+    () => renderTemplate(form.body || '', PREVIEW_SAMPLE_VARS),
+    [form.body]
+  );
   // Tailoring is now a single canonical flow on the Tailor tab. Clicking
   // "AI Tailor" here just stages the chosen template and switches tab.
   const { requestTailorTemplate } = useTailorTarget();
@@ -44,6 +81,12 @@ export default function TemplateLibrary({ onUseTemplate }) {
     refresh();
   }, []);
 
+  const openCreate = () => {
+    setEditingId(null);
+    setForm(BLANK);
+    setFormOpen(true);
+  };
+
   const startEdit = (tpl) => {
     setEditingId(tpl.id);
     setForm({
@@ -52,9 +95,12 @@ export default function TemplateLibrary({ onUseTemplate }) {
       body: tpl.body,
       tags: tpl.tags || [],
     });
+    setFormOpen(true);
   };
 
-  const cancelEdit = () => {
+  const closeForm = () => {
+    if (saving) return;
+    setFormOpen(false);
     setEditingId(null);
     setForm(BLANK);
   };
@@ -63,6 +109,7 @@ export default function TemplateLibrary({ onUseTemplate }) {
     if (!form.name.trim() || !form.subject.trim() || !form.body.trim()) {
       return toast.error('Name, subject and body are required.');
     }
+    setSaving(true);
     try {
       if (editingId) {
         await api.updateTemplate(editingId, form);
@@ -71,10 +118,14 @@ export default function TemplateLibrary({ onUseTemplate }) {
         await api.createTemplate(form);
         toast.success('Template created.');
       }
-      cancelEdit();
+      setFormOpen(false);
+      setEditingId(null);
+      setForm(BLANK);
       refresh();
     } catch (err) {
       toast.error(err.message || 'Save failed');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -95,14 +146,112 @@ export default function TemplateLibrary({ onUseTemplate }) {
     }
   };
 
+  // ----------------------- Auto-tag flow -----------------------
+  // Shared helper: fetch AI suggestions for arbitrary subject/body/tags and
+  // stage them into AutoTagModal. mode controls how Apply behaves.
+  const requestAutoTags = async ({ mode, subject, body, tags, target }) => {
+    if (!aiEnabled) {
+      return toast.error('AI is disabled on the server — set GEMINI_API_KEY to enable.');
+    }
+    if (!subject.trim() && !body.trim()) {
+      return toast.error('Add a subject or body before auto-tagging.');
+    }
+    setAutoTagLoading(true);
+    try {
+      const res = await api.suggestTemplateTags({ subject, body, tags });
+      const proposed = Array.isArray(res?.tags) ? res.tags : [];
+      setAutoTagSession({
+        mode,
+        target,
+        existingTags: Array.isArray(tags) ? tags : [],
+        proposed,
+      });
+    } catch (err) {
+      toast.error(err.message || 'Auto-tag failed.');
+    } finally {
+      setAutoTagLoading(false);
+    }
+  };
+
+  const onAutoTagRow = (tpl) =>
+    requestAutoTags({
+      mode: 'row',
+      subject: tpl.subject || '',
+      body: tpl.body || '',
+      tags: tpl.tags || [],
+      target: tpl,
+    });
+
+  const onAutoTagForm = () =>
+    requestAutoTags({
+      mode: 'form',
+      subject: form.subject || '',
+      body: form.body || '',
+      tags: form.tags || [],
+      target: null,
+    });
+
+  const applyAutoTags = async (finalTags) => {
+    if (!autoTagSession) return;
+    if (autoTagSession.mode === 'form') {
+      // Edit/New modal: just patch local form state; the user still has to
+      // click Save/Update to persist the template.
+      setForm((f) => ({ ...f, tags: finalTags }));
+      setAutoTagSession(null);
+      toast.success('Tags applied to the form. Save to persist.');
+      return;
+    }
+    // 'row' mode: persist directly via PUT.
+    const tpl = autoTagSession.target;
+    if (!tpl) {
+      setAutoTagSession(null);
+      return;
+    }
+    setAutoTagApplying(true);
+    try {
+      await api.updateTemplate(tpl.id, {
+        name: tpl.name,
+        subject: tpl.subject,
+        body: tpl.body,
+        tags: finalTags,
+      });
+      toast.success(`Tags updated on "${tpl.name}".`);
+      setAutoTagSession(null);
+      refresh();
+    } catch (err) {
+      toast.error(err.message || 'Failed to save tags.');
+    } finally {
+      setAutoTagApplying(false);
+    }
+  };
+
+  // Escape closes, body scroll-lock while open. Mirrors PreviewModal so
+  // overlay behaviour is consistent across the app.
+  useEffect(() => {
+    if (!formOpen) return;
+    const onKey = (e) => e.key === 'Escape' && closeForm();
+    document.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formOpen]);
+
   return (
-    <div className="grid gap-6 lg:grid-cols-5">
-      <section className="card overflow-hidden lg:col-span-3">
+    <>
+      <section className="card overflow-hidden">
         <header className="flex items-center justify-between border-b border-ink-200/60 dark:border-ink-800 px-6 py-4">
           <h2 className="text-base font-semibold text-ink-900 dark:text-ink-100">Saved templates</h2>
-          <button type="button" className="btn-ghost btn-xs" onClick={refresh}>
-            Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <button type="button" className="btn-ghost btn-xs" onClick={refresh}>
+              Refresh
+            </button>
+            <button type="button" className="btn-primary btn-xs" onClick={openCreate}>
+              + New template
+            </button>
+          </div>
         </header>
 
         {loading ? (
@@ -141,7 +290,7 @@ export default function TemplateLibrary({ onUseTemplate }) {
                     Updated {fmtDate(tpl.updatedAt)}
                   </p>
                 </div>
-                <div className="flex shrink-0 gap-1">
+                <div className="flex shrink-0 items-center gap-1">
                   <button
                     type="button"
                     className="btn-primary btn-xs"
@@ -149,28 +298,39 @@ export default function TemplateLibrary({ onUseTemplate }) {
                   >
                     Use
                   </button>
-                  <button
-                    type="button"
-                    className="btn-ghost btn-xs text-brand-700 hover:bg-brand-50 dark:text-brand-300 dark:ring-brand-800/50 dark:bg-brand-900/20 dark:hover:bg-brand-900/40"
-                    onClick={() => requestTailorTemplate(tpl)}
-                    title="Open the Tailor tab with this template pre-selected"
-                  >
-                    AI Tailor →
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-ghost btn-xs text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:ring-amber-800/50 dark:bg-amber-900/20 dark:hover:bg-amber-900/40"
-                    onClick={() => startEdit(tpl)}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-ghost btn-xs text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:ring-rose-800/50 dark:bg-rose-900/20 dark:hover:bg-rose-900/40"
-                    onClick={() => remove(tpl)}
-                  >
-                    Delete
-                  </button>
+                  <RowActionsMenu
+                    items={[
+                      {
+                        label: 'Preview',
+                        onClick: () => setPreviewing(tpl),
+                      },
+                      {
+                        label: 'AI Tailor',
+                        onClick: () => requestTailorTemplate(tpl),
+                        tone: 'brand',
+                      },
+                      aiEnabled && {
+                        label:
+                          autoTagLoading && autoTagSession?.target?.id === tpl.id
+                            ? 'Tagging...'
+                            : 'Auto tag',
+                        onClick: () => onAutoTagRow(tpl),
+                        disabled: autoTagLoading,
+                        tone: 'indigo',
+                      },
+                      {
+                        label: 'Edit',
+                        onClick: () => startEdit(tpl),
+                        tone: 'amber',
+                      },
+                      {
+                        label: 'Delete',
+                        onClick: () => remove(tpl),
+                        tone: 'rose',
+                        separated: true,
+                      },
+                    ].filter(Boolean)}
+                  />
                 </div>
               </li>
             ))}
@@ -178,61 +338,307 @@ export default function TemplateLibrary({ onUseTemplate }) {
         )}
       </section>
 
-      <aside className="card overflow-hidden lg:col-span-2">
-        <header className="border-b border-ink-200/60 dark:border-ink-800 px-5 py-4">
-          <h3 className="text-sm font-semibold text-ink-900 dark:text-ink-100">
-            {editingId ? 'Edit template' : 'New template'}
-          </h3>
-        </header>
-        <div className="space-y-3 px-5 py-4">
-          <div>
-            <label className="label">Name</label>
-            <input
-              type="text"
-              className="input"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="Cold outreach v1"
-            />
-          </div>
-          <div>
-            <label className="label">Subject</label>
-            <input
-              type="text"
-              className="input"
-              value={form.subject}
-              onChange={(e) => setForm({ ...form, subject: e.target.value })}
-              placeholder="Quick question for {{company}}"
-            />
-          </div>
-          <div>
-            <label className="label">Body (HTML)</label>
-            <textarea
-              className="input-mono min-h-[200px]"
-              value={form.body}
-              onChange={(e) => setForm({ ...form, body: e.target.value })}
-              placeholder="<h2>Hello {{name}}</h2>"
-            />
-          </div>
-          <div>
-            <label className="label">Tags</label>
-            <TagInput
-              tags={form.tags}
-              onChange={(tags) => setForm({ ...form, tags })}
-            />
+      {/* Create / edit modal — backdrop click + Escape both close. */}
+      {formOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/55 p-4 backdrop-blur-sm anim-in"
+          onClick={closeForm}
+        >
+          <div
+            className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white dark:bg-ink-900 shadow-lift"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="flex items-center justify-between gap-4 border-b border-ink-200/60 dark:border-ink-800 px-5 py-4">
+              <h3 className="text-sm font-semibold text-ink-900 dark:text-ink-100">
+                {editingId ? 'Edit template' : 'New template'}
+              </h3>
+              <button
+                type="button"
+                onClick={closeForm}
+                className="rounded-md p-1.5 text-ink-400 dark:text-ink-500 hover:bg-ink-100 dark:hover:bg-ink-800/60 hover:text-ink-700 dark:hover:text-ink-200"
+                aria-label="Close"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </header>
+
+            {/* Two-column body: form on the left, live preview on the right.
+                Each column scrolls independently so a long body doesn't push
+                the preview out of view. Stacks vertically on smaller screens. */}
+            <div className="grid flex-1 min-h-0 grid-cols-1 md:grid-cols-2 divide-ink-200/60 dark:divide-ink-800 md:divide-x">
+              <div className="flex-1 space-y-3 overflow-auto px-5 py-4">
+                <div>
+                  <label className="label">Name</label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="Cold outreach v1"
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="label">Subject</label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={form.subject}
+                    onChange={(e) => setForm({ ...form, subject: e.target.value })}
+                    placeholder="Quick question for {{company}}"
+                  />
+                </div>
+                <div>
+                  <label className="label">Body (HTML)</label>
+                  <textarea
+                    className="input-mono min-h-[260px]"
+                    value={form.body}
+                    onChange={(e) => setForm({ ...form, body: e.target.value })}
+                    placeholder="<h2>Hello {{name}}</h2>"
+                  />
+                </div>
+                <div>
+                  <div className="mb-1.5 flex items-end justify-between gap-3">
+                    <label className="label !mb-0">Tags</label>
+                    {aiEnabled && (
+                      <button
+                        type="button"
+                        className="btn-ghost btn-xs text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:ring-indigo-800/50 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40"
+                        onClick={onAutoTagForm}
+                        disabled={autoTagLoading}
+                        title="Ask AI for tag suggestions based on the current subject + body"
+                      >
+                        {autoTagLoading && autoTagSession?.mode === 'form'
+                          ? 'Tagging...'
+                          : 'Auto tag'}
+                      </button>
+                    )}
+                  </div>
+                  <TagInput
+                    tags={form.tags}
+                    onChange={(tags) => setForm({ ...form, tags })}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col overflow-hidden bg-ink-50/40 dark:bg-ink-800/30">
+                <div className="flex items-start justify-between gap-3 border-b border-ink-200/60 dark:border-ink-800 px-5 py-3">
+                  <div className="min-w-0">
+                    <p className="text-2xs font-semibold uppercase tracking-[0.08em] text-ink-500 dark:text-ink-400">
+                      Live preview
+                    </p>
+                    <p className="mt-0.5 truncate text-sm font-medium text-ink-800 dark:text-ink-100">
+                      {livePreviewSubject || (
+                        <span className="italic text-ink-400 dark:text-ink-500">(no subject)</span>
+                      )}
+                    </p>
+                    <p className="mt-0.5 text-2xs text-ink-400 dark:text-ink-500">
+                      Tokens rendered with sample values
+                    </p>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-auto p-4">
+                  {form.body?.trim() ? (
+                    <iframe
+                      title="Template live preview"
+                      srcDoc={livePreviewHtml}
+                      sandbox=""
+                      className="preview-frame h-full min-h-[420px] w-full rounded-lg border border-ink-200 dark:border-ink-700 bg-white"
+                    />
+                  ) : (
+                    <div className="grid h-full min-h-[420px] place-items-center rounded-lg border border-dashed border-ink-300 dark:border-ink-700 bg-white/60 dark:bg-ink-900/40 px-4 text-center text-xs text-ink-500 dark:text-ink-400">
+                      Start typing the body — the preview updates live.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <footer className="flex items-center justify-end gap-2 border-t border-ink-200/60 dark:border-ink-800 bg-ink-50/40 dark:bg-ink-800/40 px-5 py-3">
+              <button
+                type="button"
+                className="btn-ghost btn-xs"
+                onClick={closeForm}
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={save}
+                disabled={saving}
+              >
+                {saving ? 'Saving...' : editingId ? 'Update template' : 'Create template'}
+              </button>
+            </footer>
           </div>
         </div>
-        <footer className="flex items-center justify-end gap-2 border-t border-ink-200/60 dark:border-ink-800 bg-ink-50/40 dark:bg-ink-800/40 px-5 py-3">
-          {editingId && (
-            <button type="button" className="btn-ghost btn-xs" onClick={cancelEdit}>
-              Cancel
-            </button>
-          )}
-          <button type="button" className="btn-primary" onClick={save}>
-            {editingId ? 'Update template' : 'Create template'}
-          </button>
-        </footer>
-      </aside>
+      )}
+
+      <PreviewModal
+        open={!!previewing}
+        onClose={() => setPreviewing(null)}
+        subject={previewing ? renderTemplate(previewing.subject || '', PREVIEW_SAMPLE_VARS) : ''}
+        html={previewing ? renderTemplate(previewing.body || '', PREVIEW_SAMPLE_VARS) : ''}
+        to=""
+        editLabel="Edit template"
+        onEdit={
+          previewing
+            ? () => {
+                const tpl = previewing;
+                setPreviewing(null);
+                startEdit(tpl);
+              }
+            : undefined
+        }
+      />
+
+      <AutoTagModal
+        open={!!autoTagSession}
+        onClose={() => (autoTagApplying ? null : setAutoTagSession(null))}
+        onApply={applyAutoTags}
+        existingTags={autoTagSession?.existingTags || []}
+        proposed={autoTagSession?.proposed || []}
+        title={
+          autoTagSession?.mode === 'form'
+            ? (editingId ? 'Auto-tag this template' : 'Auto-tag the new template')
+            : `Auto-tag "${autoTagSession?.target?.name || ''}"`
+        }
+        subtitle={
+          autoTagSession?.mode === 'form'
+            ? 'Selected tags will fill the Tags field — save the template to persist.'
+            : 'Selected tags will be saved to this template immediately.'
+        }
+        applying={autoTagApplying}
+      />
+    </>
+  );
+}
+
+// Tone -> menu-item color classes. Kept in lockstep with the standalone
+// button styling used previously, so muscle memory carries over (Edit = amber,
+// Delete = rose, etc.).
+const TONE_CLASS = {
+  default: 'text-ink-700 dark:text-ink-200 hover:bg-ink-100 dark:hover:bg-ink-800/60',
+  brand:
+    'text-brand-700 dark:text-brand-300 hover:bg-brand-50 dark:hover:bg-brand-900/30',
+  indigo:
+    'text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30',
+  amber:
+    'text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/30',
+  rose:
+    'text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/30',
+};
+
+// Per-row overflow menu. Closes on outside-click, Escape, and after an item
+// is invoked. Renders above or below the trigger depending on viewport room.
+function RowActionsMenu({ items, label = 'More actions' }) {
+  const [open, setOpen] = useState(false);
+  const [placeAbove, setPlaceAbove] = useState(false);
+  const wrapperRef = useRef(null);
+  const buttonRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (e) => {
+      if (!wrapperRef.current?.contains(e.target)) setOpen(false);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const handleToggle = () => {
+    // Decide vertical placement just before opening so the menu doesn't get
+    // clipped at the bottom of the list.
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const estimatedMenuHeight = Math.min(items.length * 36 + 12, 240);
+      const spaceBelow = window.innerHeight - rect.bottom;
+      setPlaceAbove(spaceBelow < estimatedMenuHeight + 16);
+    }
+    setOpen((v) => !v);
+  };
+
+  return (
+    <div ref={wrapperRef} className="relative">
+      <button
+        ref={buttonRef}
+        type="button"
+        onClick={handleToggle}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={label}
+        className="btn-ghost btn-xs px-2"
+        title={label}
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+          className="h-3.5 w-3.5"
+        >
+          <circle cx="12" cy="5" r="1.6" />
+          <circle cx="12" cy="12" r="1.6" />
+          <circle cx="12" cy="19" r="1.6" />
+        </svg>
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className={[
+            'absolute right-0 z-40 min-w-[10rem] overflow-hidden rounded-lg border border-ink-200/70 dark:border-ink-800 bg-white dark:bg-ink-900 shadow-lift anim-in',
+            placeAbove ? 'bottom-full mb-1' : 'top-full mt-1',
+          ].join(' ')}
+        >
+          <ul className="py-1">
+            {items.map((it, idx) => {
+              const tone = TONE_CLASS[it.tone || 'default'];
+              return (
+                <li key={`${it.label}-${idx}`}>
+                  {it.separated && idx > 0 ? (
+                    <div className="my-1 h-px bg-ink-100 dark:bg-ink-800" />
+                  ) : null}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={it.disabled}
+                    onClick={() => {
+                      setOpen(false);
+                      it.onClick?.();
+                    }}
+                    className={[
+                      'flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs font-medium transition disabled:opacity-50',
+                      tone,
+                    ].join(' ')}
+                  >
+                    {it.label}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

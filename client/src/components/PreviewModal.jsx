@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-export default function PreviewModal({ open, onClose, subject, html, to }) {
+export default function PreviewModal({ open, onClose, subject, html, to, onEdit, editLabel = 'Edit' }) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => e.key === 'Escape' && onClose();
@@ -69,6 +69,11 @@ export default function PreviewModal({ open, onClose, subject, html, to }) {
         </div>
 
         <footer className="flex items-center justify-end gap-2 border-t border-ink-200/60 dark:border-ink-800 bg-white dark:bg-ink-900 px-5 py-3">
+          {onEdit && (
+            <button type="button" className="btn-ghost btn-xs" onClick={onEdit}>
+              {editLabel}
+            </button>
+          )}
           <button type="button" className="btn-secondary" onClick={onClose}>
             Close
           </button>

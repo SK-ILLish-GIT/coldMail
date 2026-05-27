@@ -79,6 +79,10 @@ export const api = {
   createTemplate: (payload) => call('post', '/templates', payload),
   updateTemplate: (id, payload) => call('put', `/templates/${id}`, payload),
   deleteTemplate: (id) => call('delete', `/templates/${id}`),
+  // AI: ask Gemini for tag suggestions based on a template's subject + body.
+  // Stateless; the caller decides whether to merge/replace existing tags.
+  suggestTemplateTags: ({ subject, body, tags }) =>
+    call('post', '/templates/suggest-tags', { subject, body, tags }),
 
   listLog: () => call('get', '/log'),
   clearLog: () => call('delete', '/log'),

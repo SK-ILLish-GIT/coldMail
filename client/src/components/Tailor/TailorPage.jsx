@@ -69,6 +69,10 @@ export default function TailorPage({ aiConfigured }) {
   const [templates, setTemplates] = useState([]);
   const [tailorTemplateTarget, setTailorTemplateTarget] = useState(null);
   const [rightPane, setRightPane] = useState('resume');
+  // Set when a caller (TemplateLibrary's "AI Tailor", JDMatcher) deep-links
+  // a specific template — pre-selects it in TemplateStartForm so the user
+  // still gets to paste JD / targeting before kicking off the session.
+  const [prefilledTemplateId, setPrefilledTemplateId] = useState('');
 
   const chatBottomRef = useRef(null);
 
@@ -80,11 +84,13 @@ export default function TailorPage({ aiConfigured }) {
   }, []);
 
   // Consume a deep-link request from JDMatcher / TemplateLibrary: switch
-  // to template mode and pre-select the target template.
+  // to template mode and pre-select the target template in the start form
+  // (so the user still gets to paste JD / role / company before starting).
   useEffect(() => {
     if (!pendingTemplate) return;
     setRightPane('template');
-    setTailorTemplateTarget(pendingTemplate);
+    setPrefilledTemplateId(pendingTemplate.id);
+    setTailorTemplateTarget(null);
     consumePendingTemplate();
   }, [pendingTemplate, consumePendingTemplate]);
 
@@ -487,7 +493,11 @@ export default function TailorPage({ aiConfigured }) {
             setTargetCompany={setTargetCompany}
             seniority={seniority}
             setSeniority={setSeniority}
-            onStart={(tpl) => setTailorTemplateTarget(tpl)}
+            initialSelectedId={prefilledTemplateId}
+            onStart={(tpl) => {
+              setPrefilledTemplateId('');
+              setTailorTemplateTarget(tpl);
+            }}
           />
         )}
       </div>
@@ -645,8 +655,13 @@ function ResumeStartForm({
   );
 }
 
-function TemplateStartForm({ templates, onStart, ...rest }) {
-  const [selectedId, setSelectedId] = useState('');
+function TemplateStartForm({ templates, onStart, initialSelectedId = '', ...rest }) {
+  const [selectedId, setSelectedId] = useState(initialSelectedId);
+  // Honour a fresh deep-link from JDMatcher / TemplateLibrary mid-mount —
+  // overwrite the dropdown selection when the caller pre-selects a template.
+  useEffect(() => {
+    if (initialSelectedId) setSelectedId(initialSelectedId);
+  }, [initialSelectedId]);
   const selected = templates.find((t) => t.id === selectedId);
   const jdReady = rest.jd.trim().length >= 20;
   const canStart = Boolean(selected) && jdReady;

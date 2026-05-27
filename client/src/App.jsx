@@ -215,7 +215,12 @@ export default function App() {
               aiEnabled={Boolean(health.features?.aiEnrich)}
             />
           )}
-          {tab === 'templates' && <TemplateLibrary onUseTemplate={handleUseTemplate} />}
+          {tab === 'templates' && (
+            <TemplateLibrary
+              onUseTemplate={handleUseTemplate}
+              aiEnabled={Boolean(health.features?.aiEnrich)}
+            />
+          )}
           {tab === 'resumes' && (
             <ResumeLibrary aiEnabled={Boolean(health.features?.aiEnrich)} />
           )}

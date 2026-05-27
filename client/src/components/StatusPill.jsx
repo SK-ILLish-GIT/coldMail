@@ -1,25 +1,27 @@
 const STATE_CLASS = {
-  ok: 'pill-emerald',
-  down: 'pill-rose',
-  off: 'pill-ink',
-  loading: 'pill-ink',
+  ok: "pill-emerald",
+  down: "pill-rose",
+  off: "pill-ink",
+  loading: "pill-ink",
 };
 
 const DOT_CLASS = {
-  ok: 'bg-emerald-500 animate-pulse-dot',
-  down: 'bg-rose-500',
-  off: 'bg-ink-400 dark:bg-ink-500',
-  loading: 'bg-ink-300 dark:bg-ink-600 animate-pulse-dot',
+  ok: "bg-emerald-500 animate-pulse-dot",
+  down: "bg-rose-500",
+  off: "bg-ui-fg-subtle/50",
+  loading: "bg-ui-fg-muted/60 animate-pulse-dot",
 };
 
 /**
- * Tiny "DB" / "AI" health pill for the app header.
+ * Tiny"DB" /"AI" health pill for the app header.
  */
-export default function StatusPill({ label, state = 'loading', title }) {
+export default function StatusPill({ label, state = "loading", title }) {
   return (
-    <span className={STATE_CLASS[state] || 'pill-ink'} title={title}>
+    <span className={STATE_CLASS[state] || "pill-ink"} title={title}>
       <span className={`status-dot ${DOT_CLASS[state] || DOT_CLASS.loading}`} />
-      <span className="font-mono text-[10px] uppercase tracking-wider">{label}</span>
+      <span className="font-mono text-[10px] uppercase tracking-wider">
+        {label}
+      </span>
     </span>
   );
 }

@@ -1,45 +1,73 @@
-import { useMemo, useRef, useState } from 'react';
-import Papa from 'papaparse';
-import toast from 'react-hot-toast';
+import { useMemo, useRef, useState } from "react";
+import Papa from "papaparse";
+import toast from "react-hot-toast";
 
-const REQUIRED_COLUMN = 'email';
+const REQUIRED_COLUMN = "email";
 
 function StatusDot({ status }) {
   if (!status) return null;
-  if (status.status === 'sending') {
+  if (status.status === "sending") {
     return (
       <svg
-        className="inline h-3 w-3 animate-spin text-ink-500 dark:text-ink-400"
+        className="inline h-3 w-3 animate-spin text-ui-fg-muted"
         viewBox="0 0 24 24"
         fill="none"
         aria-label="Sending"
       >
-        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
-        <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+        <circle
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          strokeOpacity="0.25"
+          strokeWidth="3"
+        />
+        <path
+          d="M22 12a10 10 0 0 1-10 10"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
       </svg>
     );
   }
-  if (status.status === 'drafted') {
+  if (status.status === "drafted") {
     return (
-      <span className="status-dot bg-emerald-500" title="Saved to Gmail Drafts" aria-label="Drafted" />
+      <span
+        className="status-dot bg-emerald-500"
+        title="Saved to Gmail Drafts"
+        aria-label="Drafted"
+      />
     );
   }
-  if (status.status === 'failed') {
+  if (status.status === "failed") {
     return (
-      <span className="status-dot bg-rose-500" title={status.error || 'Failed'} aria-label="Failed" />
+      <span
+        className="status-dot bg-rose-500"
+        title={status.error || "Failed"}
+        aria-label="Failed"
+      />
     );
   }
-  if (status.status === 'pending') {
+  if (status.status === "pending") {
     return (
-      <span className="status-dot bg-ink-300 dark:bg-ink-600" title="Queued" aria-label="Queued" />
+      <span
+        className="status-dot bg-ink-300 dark:bg-ink-600"
+        title="Queued"
+        aria-label="Queued"
+      />
     );
   }
   return null;
 }
 
-export default function CsvUploader({ recipients, onChange, sendStatuses = {} }) {
+export default function CsvUploader({
+  recipients,
+  onChange,
+  sendStatuses = {},
+}) {
   const inputRef = useRef(null);
-  const [filename, setFilename] = useState('');
+  const [filename, setFilename] = useState("");
   const [dragOver, setDragOver] = useState(false);
 
   // Stable column order derived from the first row. We keep this in state so
@@ -59,26 +87,28 @@ export default function CsvUploader({ recipients, onChange, sendStatuses = {} })
       complete: (results) => {
         const headers = results.meta.fields || [];
         if (!headers.includes(REQUIRED_COLUMN)) {
-          toast.error(`CSV must include an "${REQUIRED_COLUMN}" column.`);
+          toast.error(`CSV must include an"${REQUIRED_COLUMN}" column.`);
           return;
         }
         const rows = (results.data || [])
           .map((r) => {
             const out = {};
             for (const k of Object.keys(r)) {
-              out[k] = typeof r[k] === 'string' ? r[k].trim() : r[k];
+              out[k] = typeof r[k] === "string" ? r[k].trim() : r[k];
             }
             return out;
           })
           .filter((r) => r.email);
 
         if (!rows.length) {
-          toast.error('No rows with an email address were found.');
+          toast.error("No rows with an email address were found.");
           return;
         }
         setFilename(file.name);
         onChange(rows);
-        toast.success(`Loaded ${rows.length} recipient${rows.length === 1 ? '' : 's'}.`);
+        toast.success(
+          `Loaded ${rows.length} recipient${rows.length === 1 ? "" : "s"}.`,
+        );
       },
       error: (err) => toast.error(`CSV parse error: ${err.message}`),
     });
@@ -92,14 +122,14 @@ export default function CsvUploader({ recipients, onChange, sendStatuses = {} })
   };
 
   const clear = () => {
-    setFilename('');
+    setFilename("");
     onChange([]);
-    if (inputRef.current) inputRef.current.value = '';
+    if (inputRef.current) inputRef.current.value = "";
   };
 
   const updateCell = (rowIdx, key, value) => {
     onChange(
-      recipients.map((r, i) => (i === rowIdx ? { ...r, [key]: value } : r))
+      recipients.map((r, i) => (i === rowIdx ? { ...r, [key]: value } : r)),
     );
   };
 
@@ -118,22 +148,34 @@ export default function CsvUploader({ recipients, onChange, sendStatuses = {} })
         onDragLeave={() => setDragOver(false)}
         onDrop={onDrop}
         className={[
-          'rounded-xl border-2 border-dashed bg-ink-50/40 dark:bg-ink-800/40 px-5 py-6 transition',
-          dragOver ? 'border-brand-400 bg-brand-50/50 dark:bg-brand-900/30' : 'border-ink-200 dark:border-ink-800',
-        ].join(' ')}
+          "rounded-xl border-2 border-dashed bg-ui-inset/50 px-5 py-6 transition",
+          dragOver
+            ? "border-brand-400 bg-brand-50/50 dark:bg-brand-900/30"
+            : "border-ui-border",
+        ].join("")}
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-sm font-medium text-ink-800 dark:text-ink-200">
+            <p className="text-sm font-medium text-ui-fg">
               {recipients.length
-                ? `${recipients.length} recipient${recipients.length === 1 ? '' : 's'} loaded`
-                : 'Drop a CSV file here'}
+                ? `${recipients.length} recipient${recipients.length === 1 ? "" : "s"} loaded`
+                : "Drop a CSV file here"}
             </p>
-            <p className="mt-0.5 text-xs text-ink-500 dark:text-ink-400">
-              Required column: <code className="rounded bg-ink-200/70 dark:bg-ink-800/60 px-1 font-mono">email</code>.
-              Optional: <code className="rounded bg-ink-200/70 dark:bg-ink-800/60 px-1 font-mono">name</code>,{' '}
-              <code className="rounded bg-ink-200/70 dark:bg-ink-800/60 px-1 font-mono">company</code>, plus any custom
-              <code className="ml-1 rounded bg-ink-200/70 dark:bg-ink-800/60 px-1 font-mono">{`{{column}}`}</code> tokens.
+            <p className="mt-0.5 text-xs text-ui-fg-muted">
+              Required column:{""}
+              <code className="rounded bg-ink-200/70 px-1 font-mono">
+                email
+              </code>
+              . Optional:{""}
+              <code className="rounded bg-ink-200/70 px-1 font-mono">name</code>
+              ,{""}
+              <code className="rounded bg-ink-200/70 px-1 font-mono">
+                company
+              </code>
+              , plus any custom
+              <code className="ml-1 rounded bg-ink-200/70 px-1 font-mono">{`{{column}}`}</code>
+              {""}
+              tokens.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -149,10 +191,14 @@ export default function CsvUploader({ recipients, onChange, sendStatuses = {} })
               className="btn-secondary btn-xs"
               onClick={() => inputRef.current?.click()}
             >
-              {recipients.length ? 'Replace CSV' : 'Browse files'}
+              {recipients.length ? "Replace CSV" : "Browse files"}
             </button>
             {recipients.length > 0 && (
-              <button type="button" className="btn-ghost btn-xs" onClick={clear}>
+              <button
+                type="button"
+                className="btn-ghost btn-xs"
+                onClick={clear}
+              >
                 Clear
               </button>
             )}
@@ -162,17 +208,23 @@ export default function CsvUploader({ recipients, onChange, sendStatuses = {} })
 
       {recipients.length > 0 && (
         <div className="anim-in">
-          <p className="mb-2 text-2xs uppercase tracking-wider text-ink-500 dark:text-ink-400">
-            <span className="font-mono text-ink-700 dark:text-ink-200">{filename || 'recipients.csv'}</span> · {recipients.length} row
-            {recipients.length === 1 ? '' : 's'} · click any cell to edit
+          <p className="mb-2 text-2xs uppercase tracking-wider text-ui-fg-muted">
+            <span className="font-mono text-ui-fg">
+              {filename || "recipients.csv"}
+            </span>
+            {""}· {recipients.length} row
+            {recipients.length === 1 ? "" : "s"} · click any cell to edit
           </p>
-          <div className="max-h-64 overflow-auto rounded-lg border border-ink-200 dark:border-ink-800 bg-white dark:bg-ink-900">
+          <div className="max-h-64 overflow-auto rounded-lg border border-ui-border bg-ui-panel">
             <table className="w-full text-left text-xs">
-              <thead className="sticky top-0 bg-ink-50 dark:bg-ink-800/40 text-ink-500 dark:text-ink-400">
+              <thead className="sticky top-0 bg-ink-50 text-ui-fg-muted">
                 <tr>
                   <th className="px-2 py-2 w-6"></th>
                   {columns.map((k) => (
-                    <th key={k} className="px-3 py-2 font-semibold uppercase tracking-wider text-2xs">
+                    <th
+                      key={k}
+                      className="px-3 py-2 font-semibold uppercase tracking-wider text-2xs"
+                    >
                       {k}
                     </th>
                   ))}
@@ -181,18 +233,20 @@ export default function CsvUploader({ recipients, onChange, sendStatuses = {} })
               </thead>
               <tbody>
                 {recipients.map((r, i) => {
-                  const status = r.email ? sendStatuses[String(r.email).toLowerCase()] : null;
+                  const status = r.email
+                    ? sendStatuses[String(r.email).toLowerCase()]
+                    : null;
                   return (
-                    <tr key={i} className="border-t border-ink-100 dark:border-ink-800">
+                    <tr key={i} className="border-t border-ink-100">
                       <td className="px-2 py-1 text-center align-middle">
                         <StatusDot status={status} />
                       </td>
                       {columns.map((k) => (
-                        <td key={k} className="px-1 py-1 text-ink-700 dark:text-ink-200">
+                        <td key={k} className="px-1 py-1 text-ui-fg">
                           <input
                             type="text"
-                            className="w-full rounded border border-transparent bg-transparent px-2 py-1 text-xs hover:border-ink-200 focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-200 dark:hover:border-ink-700 dark:focus:border-brand-400 dark:focus:ring-brand-900/40"
-                            value={r[k] ?? ''}
+                            className="w-full rounded border border-transparent bg-transparent px-2 py-1 text-xs hover:border-ui-border focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-200 dark:hover:border-ink-700 dark:focus:border-brand-400 dark:focus:ring-brand-900/40"
+                            value={r[k] ?? ""}
                             onChange={(e) => updateCell(i, k, e.target.value)}
                             aria-label={`Row ${i + 1} ${k}`}
                           />

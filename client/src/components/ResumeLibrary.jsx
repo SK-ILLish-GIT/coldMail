@@ -1,26 +1,26 @@
-import { useEffect, useRef, useState } from 'react';
-import toast from 'react-hot-toast';
+import { useEffect, useRef, useState } from "react";
+import toast from "react-hot-toast";
 
-import { api } from '../lib/api.js';
-import { confirmAsync } from '../lib/confirm.jsx';
-import { useTailorTarget } from '../lib/tailorTarget.jsx';
-import AutoTagModal from './AutoTagModal.jsx';
-import EmptyState from './EmptyState.jsx';
-import RowActionsMenu from './RowActionsMenu.jsx';
-import { TagInput, TagPills } from './Tags.jsx';
-import TailoredForPill from './TailoredForPill.jsx';
+import { api } from "../lib/api.js";
+import { confirmAsync } from "../lib/confirm.jsx";
+import { useTailorTarget } from "../lib/tailorTarget.jsx";
+import AutoTagModal from "./AutoTagModal.jsx";
+import EmptyState from "./EmptyState.jsx";
+import RowActionsMenu from "./RowActionsMenu.jsx";
+import { TagInput, TagPills } from "./Tags.jsx";
+import TailoredForPill from "./TailoredForPill.jsx";
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
 function fmtSize(bytes) {
-  if (!bytes) return '';
+  if (!bytes) return "";
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function fmtDate(iso) {
-  if (!iso) return '';
+  if (!iso) return "";
   try {
     return new Date(iso).toLocaleString();
   } catch {
@@ -30,16 +30,20 @@ function fmtDate(iso) {
 
 function isPdf(file) {
   if (!file) return false;
-  if (file.type === 'application/pdf') return true;
-  return /\.pdf$/i.test(file.name || '');
+  if (file.type === "application/pdf") return true;
+  return /\.pdf$/i.test(file.name || "");
 }
 
-const AUTO_TAG_KEY = 'coldmail.autoTagOnUpload';
+const AUTO_TAG_KEY = "coldmail.autoTagOnUpload";
 
-export default function ResumeLibrary({ onChange, onUseResume, aiEnabled = false }) {
+export default function ResumeLibrary({
+  onChange,
+  onUseResume,
+  aiEnabled = false,
+}) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [name, setName] = useState('');
+  const [name, setName] = useState("");
   const [file, setFile] = useState(null);
   const [tags, setTags] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -48,16 +52,16 @@ export default function ResumeLibrary({ onChange, onUseResume, aiEnabled = false
   // and merges results into the tag list before saving.
   const [autoTagOnUpload, setAutoTagOnUpload] = useState(() => {
     try {
-      return localStorage.getItem(AUTO_TAG_KEY) !== '0';
+      return localStorage.getItem(AUTO_TAG_KEY) !== "0";
     } catch {
       return true;
     }
   });
   const [editingId, setEditingId] = useState(null);
-  const [editName, setEditName] = useState('');
+  const [editName, setEditName] = useState("");
   const [editTags, setEditTags] = useState([]);
   // Upload form is a modal now — only mounted when the user opens it from
-  // the "+ Upload resume" button. List stays full-width otherwise.
+  // the"+ Upload resume" button. List stays full-width otherwise.
   const [uploadOpen, setUploadOpen] = useState(false);
   const fileInputRef = useRef(null);
   const { requestTailorResume } = useTailorTarget();
@@ -68,7 +72,7 @@ export default function ResumeLibrary({ onChange, onUseResume, aiEnabled = false
   const persistAutoTag = (value) => {
     setAutoTagOnUpload(value);
     try {
-      localStorage.setItem(AUTO_TAG_KEY, value ? '1' : '0');
+      localStorage.setItem(AUTO_TAG_KEY, value ? "1" : "0");
     } catch {
       /* non-fatal */
     }
@@ -89,11 +93,11 @@ export default function ResumeLibrary({ onChange, onUseResume, aiEnabled = false
 
   const suggestTags = async (forFile = file) => {
     if (!forFile) {
-      toast.error('Choose a PDF first.');
+      toast.error("Choose a PDF first.");
       return null;
     }
     if (!aiEnabled) {
-      toast.error('AI is disabled. Set GEMINI_API_KEY on the server.');
+      toast.error("AI is disabled. Set GEMINI_API_KEY on the server.");
       return null;
     }
     setSuggesting(true);
@@ -101,13 +105,15 @@ export default function ResumeLibrary({ onChange, onUseResume, aiEnabled = false
       const res = await api.suggestResumeTags(forFile);
       const suggested = Array.isArray(res?.tags) ? res.tags : [];
       if (!suggested.length) {
-        toast('No tags inferred from the PDF.', { icon: 'ℹ️' });
+        toast("No tags inferred from the PDF.", { icon: "ℹ️" });
       } else {
-        toast.success(`Suggested ${suggested.length} tag${suggested.length === 1 ? '' : 's'} from the PDF.`);
+        toast.success(
+          `Suggested ${suggested.length} tag${suggested.length === 1 ? "" : "s"} from the PDF.`,
+        );
       }
       return suggested;
     } catch (err) {
-      toast.error(err.message || 'Tag suggestion failed');
+      toast.error(err.message || "Tag suggestion failed");
       return null;
     } finally {
       setSuggesting(false);
@@ -127,7 +133,7 @@ export default function ResumeLibrary({ onChange, onUseResume, aiEnabled = false
       const data = await api.listResumes();
       setItems(Array.isArray(data) ? data : []);
     } catch (err) {
-      toast.error(err.message || 'Failed to load resumes');
+      toast.error(err.message || "Failed to load resumes");
     } finally {
       setLoading(false);
     }
@@ -141,20 +147,21 @@ export default function ResumeLibrary({ onChange, onUseResume, aiEnabled = false
   // pattern used elsewhere so the overlay UX is consistent.
   useEffect(() => {
     if (!uploadOpen) return;
-    const onKey = (e) => e.key === 'Escape' && !uploading && setUploadOpen(false);
-    document.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
+    const onKey = (e) =>
+      e.key === "Escape" && !uploading && setUploadOpen(false);
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
     return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
     };
   }, [uploadOpen, uploading]);
 
   const resetUploadForm = () => {
-    setName('');
+    setName("");
     setFile(null);
     setTags([]);
-    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const openUploadModal = () => {
@@ -182,12 +189,12 @@ export default function ResumeLibrary({ onChange, onUseResume, aiEnabled = false
       return;
     }
     setFile(f);
-    if (!name.trim()) setName(f.name.replace(/\.pdf$/i, ''));
+    if (!name.trim()) setName(f.name.replace(/\.pdf$/i, ""));
   };
 
   const upload = async () => {
-    if (!file) return toast.error('Choose a PDF first.');
-    if (!name.trim()) return toast.error('Give the resume a name.');
+    if (!file) return toast.error("Choose a PDF first.");
+    if (!name.trim()) return toast.error("Give the resume a name.");
     setUploading(true);
     try {
       // If auto-tag is on (and AI is configured), call the suggest endpoint
@@ -202,17 +209,19 @@ export default function ResumeLibrary({ onChange, onUseResume, aiEnabled = false
             setTags(finalTags);
           }
         } catch (err) {
-          toast(`Auto-tag skipped: ${err.message || 'AI error'}`, { icon: '⚠️' });
+          toast(`Auto-tag skipped: ${err.message || "AI error"}`, {
+            icon: "⚠️",
+          });
         }
       }
       await api.uploadResume(name.trim(), file, finalTags);
-      toast.success(`Uploaded "${name.trim()}".`);
+      toast.success(`Uploaded"${name.trim()}".`);
       resetUploadForm();
       setUploadOpen(false);
       await refresh();
       onChange?.();
     } catch (err) {
-      toast.error(err.message || 'Upload failed');
+      toast.error(err.message || "Upload failed");
     } finally {
       setUploading(false);
     }
@@ -226,26 +235,28 @@ export default function ResumeLibrary({ onChange, onUseResume, aiEnabled = false
 
   const cancelEdit = () => {
     setEditingId(null);
-    setEditName('');
+    setEditName("");
     setEditTags([]);
   };
 
   const saveEdit = async (id) => {
-    if (!editName.trim()) return toast.error('Name cannot be empty.');
+    if (!editName.trim()) return toast.error("Name cannot be empty.");
     try {
       await api.updateResume(id, { name: editName.trim(), tags: editTags });
-      toast.success('Saved.');
+      toast.success("Saved.");
       cancelEdit();
       await refresh();
       onChange?.();
     } catch (err) {
-      toast.error(err.message || 'Save failed');
+      toast.error(err.message || "Save failed");
     }
   };
 
   const onAutoTagRow = async (item) => {
     if (!aiEnabled) {
-      return toast.error('AI is disabled on the server — set GEMINI_API_KEY to enable.');
+      return toast.error(
+        "AI is disabled on the server — set GEMINI_API_KEY to enable.",
+      );
     }
     setAutoTagLoading(true);
     try {
@@ -257,7 +268,7 @@ export default function ResumeLibrary({ onChange, onUseResume, aiEnabled = false
         proposed,
       });
     } catch (err) {
-      toast.error(err.message || 'Auto-tag failed.');
+      toast.error(err.message || "Auto-tag failed.");
     } finally {
       setAutoTagLoading(false);
     }
@@ -272,12 +283,12 @@ export default function ResumeLibrary({ onChange, onUseResume, aiEnabled = false
     setAutoTagApplying(true);
     try {
       await api.updateResume(item.id, { name: item.name, tags: finalTags });
-      toast.success(`Tags updated on "${item.name}".`);
+      toast.success(`Tags updated on"${item.name}".`);
       setAutoTagSession(null);
       await refresh();
       onChange?.();
     } catch (err) {
-      toast.error(err.message || 'Failed to save tags.');
+      toast.error(err.message || "Failed to save tags.");
     } finally {
       setAutoTagApplying(false);
     }
@@ -285,37 +296,45 @@ export default function ResumeLibrary({ onChange, onUseResume, aiEnabled = false
 
   const remove = async (item) => {
     const ok = await confirmAsync({
-      title: `Delete "${item.name}"?`,
+      title: `Delete"${item.name}"?`,
       description: "This can't be undone.",
-      confirmLabel: 'Delete',
+      confirmLabel: "Delete",
       danger: true,
     });
     if (!ok) return;
     try {
       await api.deleteResume(item.id);
-      toast.success('Deleted.');
+      toast.success("Deleted.");
       await refresh();
       onChange?.();
     } catch (err) {
-      toast.error(err.message || 'Delete failed');
+      toast.error(err.message || "Delete failed");
     }
   };
 
   return (
     <>
       <section className="card overflow-hidden">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200/60 dark:border-ink-800 px-6 py-4">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-ui-border/70 px-6 py-4">
           <div>
-            <h2 className="text-base font-semibold text-ink-900 dark:text-ink-100">Your resumes</h2>
-            <p className="text-xs text-ink-500 dark:text-ink-400">
+            <h2 className="text-base font-semibold text-ui-fg">Your resumes</h2>
+            <p className="text-xs text-ui-fg-muted">
               {items.length} stored · PDF, max 10 MB
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <button type="button" className="btn-ghost btn-xs" onClick={refresh}>
+            <button
+              type="button"
+              className="btn-ghost btn-xs"
+              onClick={refresh}
+            >
               Refresh
             </button>
-            <button type="button" className="btn-primary btn-xs" onClick={openUploadModal}>
+            <button
+              type="button"
+              className="btn-primary btn-xs"
+              onClick={openUploadModal}
+            >
               + Upload resume
             </button>
           </div>
@@ -325,7 +344,10 @@ export default function ResumeLibrary({ onChange, onUseResume, aiEnabled = false
           <div className="p-6">
             <div className="space-y-2">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-14 animate-pulse rounded-lg bg-ink-100 dark:bg-ink-800" />
+                <div
+                  key={i}
+                  className="h-14 animate-pulse rounded-lg bg-ui-inset"
+                />
               ))}
             </div>
           </div>
@@ -340,7 +362,7 @@ export default function ResumeLibrary({ onChange, onUseResume, aiEnabled = false
             {items.map((r) => (
               <li
                 key={r.id}
-                className="flex flex-wrap items-start gap-3 px-6 py-3 transition hover:bg-ink-50/40 dark:hover:bg-ink-800/60"
+                className="flex flex-wrap items-start gap-3 px-6 py-3 transition hover:bg-ui-inset/50"
               >
                 <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-300">
                   <svg
@@ -372,7 +394,9 @@ export default function ResumeLibrary({ onChange, onUseResume, aiEnabled = false
                     </>
                   ) : (
                     <>
-                      <p className="truncate text-sm font-medium text-ink-900 dark:text-ink-100">{r.name}</p>
+                      <p className="truncate text-sm font-medium text-ui-fg">
+                        {r.name}
+                      </p>
                       {r.tailoredFor ? (
                         <div className="mt-1">
                           <TailoredForPill tailoredFor={r.tailoredFor} />
@@ -381,8 +405,9 @@ export default function ResumeLibrary({ onChange, onUseResume, aiEnabled = false
                       {r.tags?.length > 0 && <TagPills tags={r.tags} />}
                     </>
                   )}
-                  <p className="truncate text-2xs text-ink-500 dark:text-ink-400">
-                    {r.filename || 'resume.pdf'} · {fmtSize(r.size)} · {fmtDate(r.createdAt)}
+                  <p className="truncate text-2xs text-ui-fg-muted">
+                    {r.filename || "resume.pdf"} · {fmtSize(r.size)} ·{""}
+                    {fmtDate(r.createdAt)}
                   </p>
                 </div>
 
@@ -418,34 +443,35 @@ export default function ResumeLibrary({ onChange, onUseResume, aiEnabled = false
                       <RowActionsMenu
                         items={[
                           {
-                            label: 'View',
+                            label: "View",
                             href: api.resumeDownloadUrl(r.id),
-                            target: '_blank',
-                            tone: 'emerald',
+                            target: "_blank",
+                            tone: "emerald",
                           },
                           {
-                            label: 'AI Tailor',
+                            label: "AI Tailor",
                             onClick: () => requestTailorResume(),
-                            tone: 'brand',
+                            tone: "brand",
                           },
                           aiEnabled && {
                             label:
-                              autoTagLoading && autoTagSession?.target?.id === r.id
-                                ? 'Tagging...'
-                                : 'Auto tag',
+                              autoTagLoading &&
+                              autoTagSession?.target?.id === r.id
+                                ? "Tagging..."
+                                : "Auto tag",
                             onClick: () => onAutoTagRow(r),
                             disabled: autoTagLoading,
-                            tone: 'indigo',
+                            tone: "indigo",
                           },
                           {
-                            label: 'Edit',
+                            label: "Edit",
                             onClick: () => startEdit(r),
-                            tone: 'amber',
+                            tone: "amber",
                           },
                           {
-                            label: 'Delete',
+                            label: "Delete",
                             onClick: () => remove(r),
-                            tone: 'rose',
+                            tone: "rose",
                             separated: true,
                           },
                         ].filter(Boolean)}
@@ -462,19 +488,19 @@ export default function ResumeLibrary({ onChange, onUseResume, aiEnabled = false
       {/* Upload-resume modal. Backdrop click + Escape close (unless mid-upload). */}
       {uploadOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/55 p-4 backdrop-blur-sm anim-in"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ui-overlay/50 p-4 backdrop-blur-sm anim-in"
           onClick={closeUploadModal}
         >
           <div
-            className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white dark:bg-ink-900 shadow-lift"
+            className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-ui-panel shadow-lift"
             onClick={(e) => e.stopPropagation()}
           >
-            <header className="flex items-start justify-between gap-4 border-b border-ink-200/60 dark:border-ink-800 px-5 py-4">
+            <header className="flex items-start justify-between gap-4 border-b border-ui-border/70 px-5 py-4">
               <div className="min-w-0">
-                <h3 className="text-sm font-semibold text-ink-900 dark:text-ink-100">
+                <h3 className="text-sm font-semibold text-ui-fg">
                   Upload a resume
                 </h3>
-                <p className="mt-0.5 text-xs text-ink-500 dark:text-ink-400">
+                <p className="mt-0.5 text-xs text-ui-fg-muted">
                   PDF · max 10 MB
                 </p>
               </div>
@@ -482,7 +508,7 @@ export default function ResumeLibrary({ onChange, onUseResume, aiEnabled = false
                 type="button"
                 onClick={closeUploadModal}
                 disabled={uploading}
-                className="rounded-md p-1.5 text-ink-400 dark:text-ink-500 hover:bg-ink-100 dark:hover:bg-ink-800/60 hover:text-ink-700 dark:hover:text-ink-200 disabled:opacity-50"
+                className="rounded-md p-1.5 text-ui-fg-muted hover:bg-ui-inset/60 hover:text-ui-fg disabled:opacity-50"
                 aria-label="Close"
               >
                 <svg
@@ -504,7 +530,9 @@ export default function ResumeLibrary({ onChange, onUseResume, aiEnabled = false
             <div className="flex-1 space-y-4 overflow-auto px-5 py-4">
               <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
                 <div>
-                  <label className="label" htmlFor="resume-name">Name (your label)</label>
+                  <label className="label" htmlFor="resume-name">
+                    Name (your label)
+                  </label>
                   <input
                     id="resume-name"
                     type="text"
@@ -541,10 +569,10 @@ export default function ResumeLibrary({ onChange, onUseResume, aiEnabled = false
                     disabled={!aiEnabled || !file || suggesting || uploading}
                     title={
                       !aiEnabled
-                        ? 'AI is disabled on the server — set GEMINI_API_KEY'
+                        ? "AI is disabled on the server — set GEMINI_API_KEY"
                         : !file
-                          ? 'Pick a PDF first'
-                          : 'Read the PDF and propose tags (merged with what you already have)'
+                          ? "Pick a PDF first"
+                          : "Read the PDF and propose tags (merged with what you already have)"
                     }
                   >
                     <svg
@@ -559,11 +587,11 @@ export default function ResumeLibrary({ onChange, onUseResume, aiEnabled = false
                     >
                       <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
                     </svg>
-                    {suggesting ? 'Asking AI...' : 'Suggest from PDF'}
+                    {suggesting ? "Asking AI..." : "Suggest from PDF"}
                   </button>
                 </div>
                 <TagInput tags={tags} onChange={setTags} />
-                <label className="mt-2 flex items-center gap-2 text-2xs text-ink-500 dark:text-ink-400">
+                <label className="mt-2 flex items-center gap-2 text-2xs text-ui-fg-muted">
                   <input
                     type="checkbox"
                     className="h-3.5 w-3.5"
@@ -581,7 +609,7 @@ export default function ResumeLibrary({ onChange, onUseResume, aiEnabled = false
               </div>
             </div>
 
-            <footer className="flex items-center justify-end gap-2 border-t border-ink-200/60 dark:border-ink-800 bg-ink-50/40 dark:bg-ink-800/40 px-5 py-3">
+            <footer className="flex items-center justify-end gap-2 border-t border-ui-border/70 bg-ui-inset/50 px-5 py-3">
               <button
                 type="button"
                 className="btn-ghost btn-xs"
@@ -596,7 +624,7 @@ export default function ResumeLibrary({ onChange, onUseResume, aiEnabled = false
                 onClick={upload}
                 disabled={uploading || suggesting || !file || !name.trim()}
               >
-                {uploading ? 'Uploading...' : 'Upload PDF'}
+                {uploading ? "Uploading..." : "Upload PDF"}
               </button>
             </footer>
           </div>
@@ -609,7 +637,7 @@ export default function ResumeLibrary({ onChange, onUseResume, aiEnabled = false
         onApply={applyAutoTags}
         existingTags={autoTagSession?.existingTags || []}
         proposed={autoTagSession?.proposed || []}
-        title={`Auto-tag "${autoTagSession?.target?.name || ''}"`}
+        title={`Auto-tag"${autoTagSession?.target?.name || ""}"`}
         subtitle="Selected tags will be saved to this resume immediately."
         applying={autoTagApplying}
       />

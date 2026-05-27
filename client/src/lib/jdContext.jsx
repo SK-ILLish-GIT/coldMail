@@ -1,22 +1,28 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 
 // One JD lives in App-level state + localStorage so the same paste flows from
 // the Tailor tab → Templates AI Tailor modal → Compose JDMatcher without the
 // user re-pasting. Components read via `useJd()` and write via `setJd(value)`.
 
-const STORAGE_KEY = 'coldmail.currentJd';
+const STORAGE_KEY = "coldmail.currentJd";
 
 const JdContext = createContext({
-  jd: '',
+  jd: "",
   setJd: () => {},
   clearJd: () => {},
 });
 
 function readFromStorage() {
   try {
-    return localStorage.getItem(STORAGE_KEY) || '';
+    return localStorage.getItem(STORAGE_KEY) || "";
   } catch {
-    return '';
+    return "";
   }
 }
 
@@ -36,19 +42,22 @@ export function JdProvider({ children }) {
   // in OTHER tabs when one tab writes.
   useEffect(() => {
     const onStorage = (e) => {
-      if (e.key === STORAGE_KEY) setJdState(e.newValue || '');
+      if (e.key === STORAGE_KEY) setJdState(e.newValue || "");
     };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  const setJd = useCallback((next) => {
-    const value = typeof next === 'function' ? next(jd) : next || '';
-    setJdState(value);
-    writeToStorage(value);
-  }, [jd]);
+  const setJd = useCallback(
+    (next) => {
+      const value = typeof next === "function" ? next(jd) : next || "";
+      setJdState(value);
+      writeToStorage(value);
+    },
+    [jd],
+  );
 
-  const clearJd = useCallback(() => setJd(''), [setJd]);
+  const clearJd = useCallback(() => setJd(""), [setJd]);
 
   return (
     <JdContext.Provider value={{ jd, setJd, clearJd }}>

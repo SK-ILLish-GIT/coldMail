@@ -1,0 +1,41 @@
+/**
+ * coldMail design tokens — single source of truth for light & dark.
+ * RGB channels so Tailwind opacity modifiers work (bg-ui-panel/80).
+ */
+@layer base {
+  :root {
+    color-scheme: light;
+
+    --cm-app: 240 235 227;
+    --cm-panel: 250 248 244;
+    --cm-panel-muted: 243 239 230;
+    --cm-inset: 235 230 220;
+    --cm-border: 217 211 200;
+    --cm-fg: 28 25 23;
+    --cm-fg-muted: 111 106 98;
+    --cm-fg-subtle: 87 83 78;
+
+    --cm-shadow: 28 25 23;
+    --cm-preview: 255 255 255;
+    --cm-overlay: 28 25 23;
+
+  }
+
+  html.dark {
+    color-scheme: dark;
+
+    --cm-app: 18 17 16;
+    --cm-panel: 31 29 27;
+    --cm-panel-muted: 41 38 36;
+    --cm-inset: 36 34 32;
+    --cm-border: 61 56 52;
+    --cm-fg: 245 242 235;
+    --cm-fg-muted: 196 190 178;
+    --cm-fg-subtle: 163 158 148;
+
+    --cm-shadow: 0 0 0;
+    --cm-preview: 255 255 255;
+    --cm-overlay: 0 0 0;
+
+  }
+}

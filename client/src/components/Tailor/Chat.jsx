@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 
 // Lightweight check: don't hijack the keystroke if the user is typing into a
 // real input/textarea/contenteditable/select (or if a modifier is held).
@@ -6,26 +6,26 @@ function shouldIgnoreShortcut(e) {
   if (e.ctrlKey || e.metaKey || e.altKey) return true;
   const t = e.target;
   if (!t) return false;
-  const tag = (t.tagName || '').toLowerCase();
-  if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+  const tag = (t.tagName || "").toLowerCase();
+  if (tag === "input" || tag === "textarea" || tag === "select") return true;
   if (t.isContentEditable) return true;
   return false;
 }
 
 const SECTION_LABELS = {
-  summary: 'Summary',
-  skills: 'Skills',
-  experience: 'Experience',
-  projects: 'Projects',
-  certifications: 'Certifications',
-  coding: 'Coding',
-  education: 'Education',
+  summary: "Summary",
+  skills: "Skills",
+  experience: "Experience",
+  projects: "Projects",
+  certifications: "Certifications",
+  coding: "Coding",
+  education: "Education",
 };
 
 const ACTION_LABELS = {
-  replace_bullet: 'Rewrite bullet',
-  replace_summary: 'Rewrite summary',
-  update_skills_line: 'Update skills line',
+  replace_bullet: "Rewrite bullet",
+  replace_summary: "Rewrite summary",
+  update_skills_line: "Update skills line",
 };
 
 function ChipList({ items }) {
@@ -43,13 +43,13 @@ function ChipList({ items }) {
 
 function SuggestionCard({ suggestion, busy, onDecide }) {
   const [editOpen, setEditOpen] = useState(false);
-  const [editText, setEditText] = useState('');
+  const [editText, setEditText] = useState("");
 
   const submitEdit = () => {
     if (!editText.trim()) return;
-    onDecide('edit', editText.trim());
+    onDecide("edit", editText.trim());
     setEditOpen(false);
-    setEditText('');
+    setEditText("");
   };
 
   // Keyboard shortcuts on the active card: a = approve, r = reject, e = edit.
@@ -60,19 +60,19 @@ function SuggestionCard({ suggestion, busy, onDecide }) {
       if (shouldIgnoreShortcut(e)) return;
       if (busy || editOpen) return;
       const key = e.key.toLowerCase();
-      if (key === 'a') {
+      if (key === "a") {
         e.preventDefault();
-        onDecide('approve');
-      } else if (key === 'r') {
+        onDecide("approve");
+      } else if (key === "r") {
         e.preventDefault();
-        onDecide('reject');
-      } else if (key === 'e') {
+        onDecide("reject");
+      } else if (key === "e") {
         e.preventDefault();
         setEditOpen(true);
       }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, [busy, editOpen, onDecide]);
 
   return (
@@ -91,7 +91,7 @@ function SuggestionCard({ suggestion, busy, onDecide }) {
       </div>
 
       {suggestion.reason ? (
-        <p className="mt-3 text-xs text-ink-600 dark:text-ink-300">
+        <p className="mt-3 text-xs text-ui-fg-subtle">
           <span className="font-semibold">Why: </span>
           {suggestion.reason}
         </p>
@@ -100,7 +100,7 @@ function SuggestionCard({ suggestion, busy, onDecide }) {
       {suggestion.targetBulletText ? (
         <div className="mt-3">
           <p className="label">Before</p>
-          <p className="rounded-md bg-rose-50/70 px-3 py-2 font-mono text-xs text-ink-700 dark:bg-rose-900/20 dark:text-ink-200">
+          <p className="rounded-md bg-rose-50/70 px-3 py-2 font-mono text-xs text-ui-fg dark:bg-rose-900/20">
             {suggestion.targetBulletText}
           </p>
         </div>
@@ -108,14 +108,14 @@ function SuggestionCard({ suggestion, busy, onDecide }) {
 
       <div className="mt-3">
         <p className="label">
-          {suggestion.targetBulletText ? 'After' : 'New content'}
+          {suggestion.targetBulletText ? "After" : "New content"}
         </p>
-        <p className="rounded-md bg-emerald-50/70 px-3 py-2 font-mono text-xs text-ink-700 dark:bg-emerald-900/20 dark:text-ink-100">
+        <p className="rounded-md bg-emerald-50/70 px-3 py-2 font-mono text-xs text-ui-fg dark:bg-emerald-900/20">
           {suggestion.previewText}
         </p>
-        <details className="mt-2 text-2xs text-ink-500 dark:text-ink-400">
+        <details className="mt-2 text-2xs text-ui-fg-muted">
           <summary className="cursor-pointer">View LaTeX</summary>
-          <pre className="mt-1 overflow-x-auto rounded bg-ink-50 px-3 py-2 text-2xs text-ink-700 dark:bg-ink-800 dark:text-ink-200">
+          <pre className="mt-1 overflow-x-auto rounded bg-ink-50 px-3 py-2 text-2xs text-ui-fg bg-ui-inset">
             {suggestion.draftLatex}
           </pre>
         </details>
@@ -124,7 +124,7 @@ function SuggestionCard({ suggestion, busy, onDecide }) {
       <ChipList items={suggestion.atsKeywords} />
 
       {editOpen ? (
-        <div className="mt-3 rounded-md border border-ink-200/70 bg-white p-3 dark:border-ink-700 dark:bg-ink-900">
+        <div className="mt-3 rounded-md border border-ui-border/70 bg-ui-panel p-3">
           <label className="label">How should I revise this?</label>
           <textarea
             className="input-mono h-20 resize-y"
@@ -138,7 +138,7 @@ function SuggestionCard({ suggestion, busy, onDecide }) {
               className="btn-ghost btn-xs"
               onClick={() => {
                 setEditOpen(false);
-                setEditText('');
+                setEditText("");
               }}
               disabled={busy}
             >
@@ -158,7 +158,7 @@ function SuggestionCard({ suggestion, busy, onDecide }) {
           <div className="mt-4 flex flex-wrap gap-2">
             <button
               className="btn-primary"
-              onClick={() => onDecide('approve')}
+              onClick={() => onDecide("approve")}
               disabled={busy}
               title="Approve & apply (A)"
             >
@@ -174,15 +174,21 @@ function SuggestionCard({ suggestion, busy, onDecide }) {
             </button>
             <button
               className="btn-ghost"
-              onClick={() => onDecide('reject')}
+              onClick={() => onDecide("reject")}
               disabled={busy}
               title="Reject (R)"
             >
               Reject
             </button>
           </div>
-          <p className="mt-2 text-2xs text-ink-400 dark:text-ink-500">
-            Shortcuts: <kbd className="rounded bg-ink-100 px-1 dark:bg-ink-800">A</kbd> approve · <kbd className="rounded bg-ink-100 px-1 dark:bg-ink-800">R</kbd> reject · <kbd className="rounded bg-ink-100 px-1 dark:bg-ink-800">E</kbd> edit
+          <p className="mt-2 text-2xs text-ui-fg-muted">
+            Shortcuts:{""}
+            <kbd className="rounded bg-ui-inset px-1 bg-ui-inset">A</kbd>{" "}
+            approve ·{" "}
+            <kbd className="rounded bg-ui-inset px-1 bg-ui-inset">R</kbd>
+            {""}
+            reject ·{""}
+            <kbd className="rounded bg-ui-inset px-1 bg-ui-inset">E</kbd> edit
           </p>
         </>
       )}
@@ -192,53 +198,51 @@ function SuggestionCard({ suggestion, busy, onDecide }) {
 
 function Bubble({ role, children }) {
   const cls =
-    role === 'user'
-      ? 'ml-auto bg-brand-600 text-white'
-      : role === 'system'
-        ? 'mx-auto bg-ink-100 text-ink-600 dark:bg-ink-800 dark:text-ink-300'
-        : 'bg-white text-ink-800 ring-1 ring-ink-200/70 dark:bg-ink-900 dark:text-ink-100 dark:ring-ink-700';
+    role === "user"
+      ? "ml-auto bg-brand-600 text-white"
+      : role === "system"
+        ? "mx-auto bg-ink-100 text-ui-fg-subtle bg-ui-inset"
+        : "bg-ui-panel text-ui-fg ring-1 ring-ui-border/70";
   return (
-    <div
-      className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm ${cls}`}
-    >
+    <div className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm ${cls}`}>
       {children}
     </div>
   );
 }
 
 // Render a past decision. The user can re-decide via the inline buttons —
-// the "current" pill flips to the new outcome on the server's response.
+// the"current" pill flips to the new outcome on the server's response.
 function HistoryItem({ suggestion, decision, busy, onRedecide }) {
   const [editOpen, setEditOpen] = useState(false);
-  const [editText, setEditText] = useState('');
+  const [editText, setEditText] = useState("");
 
   const tone =
-    decision === 'applied' || decision === 'refined-applied'
-      ? 'pill-emerald'
-      : decision === 'rejected'
-        ? 'pill-rose'
-        : decision === 'failed'
-          ? 'pill-rose'
-          : 'pill-amber';
+    decision === "applied" || decision === "refined-applied"
+      ? "pill-emerald"
+      : decision === "rejected"
+        ? "pill-rose"
+        : decision === "failed"
+          ? "pill-rose"
+          : "pill-amber";
   const label =
-    decision === 'applied' || decision === 'refined-applied'
-      ? 'Applied'
-      : decision === 'rejected'
-        ? 'Rejected'
-        : decision === 'failed'
-          ? 'Failed'
-          : decision === 'refined'
-            ? 'Refined (pending)'
+    decision === "applied" || decision === "refined-applied"
+      ? "Applied"
+      : decision === "rejected"
+        ? "Rejected"
+        : decision === "failed"
+          ? "Failed"
+          : decision === "refined"
+            ? "Refined (pending)"
             : decision;
 
-  const isApplied = decision === 'applied' || decision === 'refined-applied';
-  const isRejected = decision === 'rejected';
+  const isApplied = decision === "applied" || decision === "refined-applied";
+  const isRejected = decision === "rejected";
 
   const submitEdit = () => {
     if (!editText.trim()) return;
-    onRedecide?.(suggestion, 'edit', editText.trim());
+    onRedecide?.(suggestion, "edit", editText.trim());
     setEditOpen(false);
-    setEditText('');
+    setEditText("");
   };
 
   return (
@@ -252,13 +256,11 @@ function HistoryItem({ suggestion, decision, busy, onRedecide }) {
           <span className="pill-ink">{suggestion.subheading}</span>
         ) : null}
       </div>
-      <p className="mt-2 text-xs text-ink-600 dark:text-ink-300">
-        {suggestion.previewText}
-      </p>
+      <p className="mt-2 text-xs text-ui-fg-subtle">{suggestion.previewText}</p>
 
       {onRedecide ? (
         editOpen ? (
-          <div className="mt-2 rounded-md border border-ink-200/70 bg-white p-2 dark:border-ink-700 dark:bg-ink-900">
+          <div className="mt-2 rounded-md border border-ui-border/70 bg-ui-panel p-2">
             <textarea
               className="input-mono h-16 resize-y text-2xs"
               placeholder="Revise instruction..."
@@ -271,7 +273,7 @@ function HistoryItem({ suggestion, decision, busy, onRedecide }) {
                 className="btn-ghost btn-xs"
                 onClick={() => {
                   setEditOpen(false);
-                  setEditText('');
+                  setEditText("");
                 }}
                 disabled={busy}
               >
@@ -291,7 +293,7 @@ function HistoryItem({ suggestion, decision, busy, onRedecide }) {
             {!isApplied ? (
               <button
                 className="btn-primary btn-xs"
-                onClick={() => onRedecide(suggestion, 'approve')}
+                onClick={() => onRedecide(suggestion, "approve")}
                 disabled={busy}
               >
                 Approve
@@ -300,15 +302,15 @@ function HistoryItem({ suggestion, decision, busy, onRedecide }) {
             {!isRejected ? (
               <button
                 className="btn-ghost btn-xs"
-                onClick={() => onRedecide(suggestion, 'reject')}
+                onClick={() => onRedecide(suggestion, "reject")}
                 disabled={busy}
                 title={
                   isApplied
-                    ? 'Revert this change — your other approved edits stay applied.'
-                    : 'Mark this suggestion rejected.'
+                    ? "Revert this change — your other approved edits stay applied."
+                    : "Mark this suggestion rejected."
                 }
               >
-                {isApplied ? 'Revert' : 'Reject'}
+                {isApplied ? "Revert" : "Reject"}
               </button>
             ) : null}
             <button
@@ -325,14 +327,21 @@ function HistoryItem({ suggestion, decision, busy, onRedecide }) {
   );
 }
 
-export default function Chat({ messages, current, done, busy, onDecide, onRedecide }) {
+export default function Chat({
+  messages,
+  current,
+  done,
+  busy,
+  onDecide,
+  onRedecide,
+}) {
   return (
     <div className="space-y-3">
       {messages.map((m, i) => {
-        if (m.role === 'history') {
+        if (m.role === "history") {
           return (
             <HistoryItem
-              key={`${m.suggestion?.id || 'h'}-${i}`}
+              key={`${m.suggestion?.id || "h"}-${i}`}
               suggestion={m.suggestion}
               decision={m.decision}
               busy={busy}
@@ -347,11 +356,7 @@ export default function Chat({ messages, current, done, busy, onDecide, onRedeci
         );
       })}
       {current && !done ? (
-        <SuggestionCard
-          suggestion={current}
-          busy={busy}
-          onDecide={onDecide}
-        />
+        <SuggestionCard suggestion={current} busy={busy} onDecide={onDecide} />
       ) : null}
     </div>
   );

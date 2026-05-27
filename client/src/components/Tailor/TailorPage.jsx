@@ -1,35 +1,38 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import { api } from '../../lib/api.js';
-import { tailorApi } from '../../lib/tailorApi.js';
-import { useJd } from '../../lib/jdContext.jsx';
-import { useTailorTarget } from '../../lib/tailorTarget.jsx';
-import { confirmAsync } from '../../lib/confirm.jsx';
-import Chat from './Chat.jsx';
-import FinalActions from './FinalActions.jsx';
-import ScorePanel from './ScorePanel.jsx';
-import TemplateTailorPanel from './TemplateTailorPanel.jsx';
-import TemplateLivePreview, { TemplateTailorSplit } from './TemplateLivePreview.jsx';
+import { api } from "../../lib/api.js";
+import { tabClick, tabMouseDown } from "../../lib/tabButton.js";
+import { tailorApi } from "../../lib/tailorApi.js";
+import { useJd } from "../../lib/jdContext.jsx";
+import { useTailorTarget } from "../../lib/tailorTarget.jsx";
+import { confirmAsync } from "../../lib/confirm.jsx";
+import Chat from "./Chat.jsx";
+import FinalActions from "./FinalActions.jsx";
+import ScorePanel from "./ScorePanel.jsx";
+import TemplateTailorPanel from "./TemplateTailorPanel.jsx";
+import TemplateLivePreview, {
+  TemplateTailorSplit,
+} from "./TemplateLivePreview.jsx";
 
 const SENIORITY_OPTIONS = [
-  'Entry Level (1 YOE)',
-  'Junior (1-3 YOE)',
-  'Mid-level (3-5 YOE)',
-  'Senior (5-8 YOE)',
-  'Staff / Principal (8+ YOE)',
+  "Entry Level (1 YOE)",
+  "Junior (1-3 YOE)",
+  "Mid-level (3-5 YOE)",
+  "Senior (5-8 YOE)",
+  "Staff / Principal (8+ YOE)",
 ];
 const DEFAULT_SENIORITY = SENIORITY_OPTIONS[0];
-const TEXLIVE_OPTOUT_KEY = 'coldmail.texliveOptOut';
+const TEXLIVE_OPTOUT_KEY = "coldmail.texliveOptOut";
 
 function fmtBytes(bytes) {
-  if (!bytes && bytes !== 0) return '—';
+  if (!bytes && bytes !== 0) return "—";
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function fmtDate(iso) {
-  if (!iso) return '—';
+  if (!iso) return "—";
   try {
     return new Date(iso).toLocaleString();
   } catch {
@@ -47,15 +50,15 @@ export default function TailorPage({ aiConfigured }) {
     consumePendingResumeTailor,
   } = useTailorTarget();
 
-  const [targetRole, setTargetRole] = useState('');
-  const [targetCompany, setTargetCompany] = useState('');
+  const [targetRole, setTargetRole] = useState("");
+  const [targetCompany, setTargetCompany] = useState("");
   const [seniority, setSeniority] = useState(DEFAULT_SENIORITY);
 
   // Persist the texlive opt-out across sessions. If true, we hide compile
   // and only offer the local zip download — nothing leaves the app.
   const [texliveOptOut, setTexliveOptOut] = useState(() => {
     try {
-      return localStorage.getItem(TEXLIVE_OPTOUT_KEY) === '1';
+      return localStorage.getItem(TEXLIVE_OPTOUT_KEY) === "1";
     } catch {
       return false;
     }
@@ -66,27 +69,33 @@ export default function TailorPage({ aiConfigured }) {
   const [current, setCurrent] = useState(null);
   const [done, setDone] = useState(false);
   const [messages, setMessages] = useState([]);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   // Active resume-session view: 'chat' (default iterative flow) or 'triage'.
-  const [resumeView, setResumeView] = useState('chat');
+  const [resumeView, setResumeView] = useState("chat");
   const [queue, setQueue] = useState([]); // for triage view
 
   const [templates, setTemplates] = useState([]);
   const [tailorTemplateTarget, setTailorTemplateTarget] = useState(null);
-  const [rightPane, setRightPane] = useState('resume');
-  // Set when a caller (TemplateLibrary's "AI Tailor", JDMatcher) deep-links
+  const [rightPane, setRightPane] = useState("resume");
+  // Set when a caller (TemplateLibrary's"AI Tailor", JDMatcher) deep-links
   // a specific template — pre-selects it in TemplateStartForm so the user
   // still gets to paste JD / targeting before kicking off the session.
-  const [prefilledTemplateId, setPrefilledTemplateId] = useState('');
+  const [prefilledTemplateId, setPrefilledTemplateId] = useState("");
 
   const chatBottomRef = useRef(null);
 
   useEffect(() => {
-    tailorApi.status().then(setStatus).catch(() => {});
-    api.listTemplates().then((data) => {
-      setTemplates(Array.isArray(data) ? data : []);
-    }).catch(() => {});
+    tailorApi
+      .status()
+      .then(setStatus)
+      .catch(() => {});
+    api
+      .listTemplates()
+      .then((data) => {
+        setTemplates(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {});
   }, []);
 
   // Consume a deep-link request from JDMatcher / TemplateLibrary: switch
@@ -94,29 +103,32 @@ export default function TailorPage({ aiConfigured }) {
   // (so the user still gets to paste JD / role / company before starting).
   useEffect(() => {
     if (!pendingTemplate) return;
-    setRightPane('template');
+    setRightPane("template");
     setPrefilledTemplateId(pendingTemplate.id);
     setTailorTemplateTarget(null);
     consumePendingTemplate();
   }, [pendingTemplate, consumePendingTemplate]);
 
-  // ResumeLibrary "AI Tailor" → open the resume tailoring start form.
+  // ResumeLibrary"AI Tailor" → open the resume tailoring start form.
   useEffect(() => {
     if (!pendingResumeTailor) return;
-    setRightPane('resume');
+    setRightPane("resume");
     setTailorTemplateTarget(null);
-    setPrefilledTemplateId('');
+    setPrefilledTemplateId("");
     consumePendingResumeTailor();
   }, [pendingResumeTailor, consumePendingResumeTailor]);
 
   const refreshTemplates = () => {
-    api.listTemplates().then((data) => {
-      setTemplates(Array.isArray(data) ? data : []);
-    }).catch(() => {});
+    api
+      .listTemplates()
+      .then((data) => {
+        setTemplates(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {});
   };
 
   useEffect(() => {
-    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    chatBottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, current, done]);
 
   const aiReady = aiConfigured || status?.aiConfigured;
@@ -124,12 +136,17 @@ export default function TailorPage({ aiConfigured }) {
 
   const handleStart = async () => {
     if (!jd.trim()) {
-      setError('Paste a job description first.');
+      setError("Paste a job description first.");
       return;
     }
-    setError('');
+    setError("");
     setStarting(true);
-    setMessages([{ role: 'system', text: 'Analyzing your resume and the job description...' }]);
+    setMessages([
+      {
+        role: "system",
+        text: "Analyzing your resume and the job description...",
+      },
+    ]);
     try {
       const result = await tailorApi.startSession({
         jobDescription: jd,
@@ -143,9 +160,9 @@ export default function TailorPage({ aiConfigured }) {
         setMessages((m) => [
           ...m,
           {
-            role: 'assistant',
+            role: "assistant",
             text: `I scanned your resume and prepared ${result.totalSuggestions} improvement${
-              result.totalSuggestions === 1 ? '' : 's'
+              result.totalSuggestions === 1 ? "" : "s"
             }. Let's review them one by one — or switch to Triage to bulk-decide.`,
           },
         ]);
@@ -153,28 +170,35 @@ export default function TailorPage({ aiConfigured }) {
         setDone(true);
         setMessages((m) => [
           ...m,
-          { role: 'assistant', text: 'No suggestions needed — your resume already matches this JD well.' },
+          {
+            role: "assistant",
+            text: "No suggestions needed — your resume already matches this JD well.",
+          },
         ]);
       }
     } catch (err) {
-      setError(err.message || 'Failed to start session.');
+      setError(err.message || "Failed to start session.");
       setMessages([]);
     } finally {
       setStarting(false);
     }
   };
 
-  const pushHistory = (suggestion, decision, note = '') => {
-    setMessages((m) => [...m, { role: 'history', suggestion, decision, note }]);
+  const pushHistory = (suggestion, decision, note = "") => {
+    setMessages((m) => [...m, { role: "history", suggestion, decision, note }]);
   };
 
-  const handleDecide = async (decision, editInstruction = '', overrideSuggestion = null) => {
+  const handleDecide = async (
+    decision,
+    editInstruction = "",
+    overrideSuggestion = null,
+  ) => {
     if (!session) return;
     const target = overrideSuggestion || current;
     if (!target) return;
     const isRedecide = Boolean(overrideSuggestion);
     setBusy(true);
-    setError('');
+    setError("");
     try {
       const result = await tailorApi.decide(session.sessionId, {
         suggestionId: target.id,
@@ -184,35 +208,41 @@ export default function TailorPage({ aiConfigured }) {
       if (isRedecide) {
         setMessages((m) =>
           m.map((msg) =>
-            msg.role === 'history' && msg.suggestion?.id === target.id
+            msg.role === "history" && msg.suggestion?.id === target.id
               ? {
                   ...msg,
-                  suggestion: result.next?.id === target.id ? result.next : msg.suggestion,
+                  suggestion:
+                    result.next?.id === target.id
+                      ? result.next
+                      : msg.suggestion,
                   decision: result.result,
                 }
-              : msg
-          )
+              : msg,
+          ),
         );
         setSession((s) => ({ ...s, ...result.state }));
-        if (result.result === 'refined' && result.next?.id === target.id) {
+        if (result.result === "refined" && result.next?.id === target.id) {
           setCurrent(result.next);
           setDone(false);
         }
-        if (result.result === 'failed') {
-          setError(result.error || 'Suggestion could not be applied.');
+        if (result.result === "failed") {
+          setError(result.error || "Suggestion could not be applied.");
         }
-        if (resumeView === 'triage') await refreshQueue();
+        if (resumeView === "triage") await refreshQueue();
         return;
       }
-      if (result.result === 'refined') {
+      if (result.result === "refined") {
         setCurrent(result.next);
         setMessages((m) => [
           ...m,
-          { role: 'user', text: editInstruction },
-          { role: 'assistant', text: 'Here is a revised draft based on your instruction.' },
+          { role: "user", text: editInstruction },
+          {
+            role: "assistant",
+            text: "Here is a revised draft based on your instruction.",
+          },
         ]);
       } else {
-        pushHistory(current, result.result, '');
+        pushHistory(current, result.result, "");
         setSession((s) => ({ ...s, ...result.state }));
         if (result.next) {
           setCurrent(result.next);
@@ -222,18 +252,17 @@ export default function TailorPage({ aiConfigured }) {
           setMessages((m) => [
             ...m,
             {
-              role: 'assistant',
-              text:
-                'All suggestions reviewed. You can compile the PDF or download the updated .tex files below.',
+              role: "assistant",
+              text: "All suggestions reviewed. You can compile the PDF or download the updated .tex files below.",
             },
           ]);
         }
-        if (result.result === 'failed') {
-          setError(result.error || 'Suggestion could not be applied.');
+        if (result.result === "failed") {
+          setError(result.error || "Suggestion could not be applied.");
         }
       }
     } catch (err) {
-      setError(err.message || 'Failed to process decision.');
+      setError(err.message || "Failed to process decision.");
     } finally {
       setBusy(false);
     }
@@ -253,7 +282,7 @@ export default function TailorPage({ aiConfigured }) {
   };
 
   useEffect(() => {
-    if (resumeView === 'triage' && session) refreshQueue();
+    if (resumeView === "triage" && session) refreshQueue();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resumeView, session]);
 
@@ -268,7 +297,7 @@ export default function TailorPage({ aiConfigured }) {
       if (result.next && !current) setCurrent(result.next);
       await refreshQueue();
     } catch (err) {
-      setError(err.message || 'Decision failed.');
+      setError(err.message || "Decision failed.");
     } finally {
       setBusy(false);
     }
@@ -277,9 +306,10 @@ export default function TailorPage({ aiConfigured }) {
   const handleRollback = async () => {
     if (!session) return;
     const ok = await confirmAsync({
-      title: 'Restore all .tex files?',
-      description: 'This undoes every applied change in this session — original files are restored from .bak baselines.',
-      confirmLabel: 'Restore',
+      title: "Restore all .tex files?",
+      description:
+        "This undoes every applied change in this session — original files are restored from .bak baselines.",
+      confirmLabel: "Restore",
       danger: true,
     });
     if (!ok) return;
@@ -290,7 +320,7 @@ export default function TailorPage({ aiConfigured }) {
       setMessages((m) => [
         ...m,
         {
-          role: 'assistant',
+          role: "assistant",
           text: `Rolled back ${r.restored.length} file(s). You can re-approve any earlier suggestion.`,
         },
       ]);
@@ -302,9 +332,9 @@ export default function TailorPage({ aiConfigured }) {
         setCurrent(np.suggestion);
         setDone(false);
       }
-      if (resumeView === 'triage') await refreshQueue();
+      if (resumeView === "triage") await refreshQueue();
     } catch (err) {
-      setError(err.message || 'Rollback failed.');
+      setError(err.message || "Rollback failed.");
     } finally {
       setBusy(false);
     }
@@ -315,9 +345,9 @@ export default function TailorPage({ aiConfigured }) {
     setCurrent(null);
     setDone(false);
     setMessages([]);
-    setError('');
+    setError("");
     setQueue([]);
-    setResumeView('chat');
+    setResumeView("chat");
   };
 
   const scoreDelta = useMemo(() => {
@@ -328,7 +358,7 @@ export default function TailorPage({ aiConfigured }) {
   const persistTexliveOptOut = (value) => {
     setTexliveOptOut(value);
     try {
-      if (value) localStorage.setItem(TEXLIVE_OPTOUT_KEY, '1');
+      if (value) localStorage.setItem(TEXLIVE_OPTOUT_KEY, "1");
       else localStorage.removeItem(TEXLIVE_OPTOUT_KEY);
     } catch {
       /* non-fatal */
@@ -338,13 +368,21 @@ export default function TailorPage({ aiConfigured }) {
   if (!aiReady) {
     return (
       <div className="card p-6">
-        <h2 className="text-lg font-semibold text-ink-900 dark:text-white">
+        <h2 className="text-lg font-semibold text-ui-fg">
           Resume Tailor is offline
         </h2>
-        <p className="mt-2 text-sm text-ink-600 dark:text-ink-300">
-          Set <code className="rounded bg-ink-100 px-1 py-0.5 dark:bg-ink-800">GEMINI_API_KEY</code> in{' '}
-          <code className="rounded bg-ink-100 px-1 py-0.5 dark:bg-ink-800">server/.env</code> and
-          restart the server to enable JD-aware resume editing.
+        <p className="mt-2 text-sm text-ui-fg-subtle">
+          Set{""}
+          <code className="rounded bg-ui-inset px-1 py-0.5 bg-ui-inset">
+            GEMINI_API_KEY
+          </code>
+          {""}
+          in{""}
+          <code className="rounded bg-ui-inset px-1 py-0.5 bg-ui-inset">
+            server/.env
+          </code>
+          {""}
+          and restart the server to enable JD-aware resume editing.
         </p>
       </div>
     );
@@ -355,53 +393,63 @@ export default function TailorPage({ aiConfigured }) {
 
   return (
     <section className="card flex min-h-[80vh] flex-col overflow-hidden">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200/70 px-5 py-3 dark:border-ink-800">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-ui-border/70 px-5 py-3">
         <div className="flex items-center gap-1">
           <button
             type="button"
-            onClick={() => setRightPane('resume')}
+            onClick={() => setRightPane("resume")}
             className={`rounded-md px-3 py-1 text-xs font-medium transition ${
-              rightPane === 'resume'
-                ? 'bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-200 dark:bg-brand-900/30 dark:text-brand-200 dark:ring-brand-800/50'
-                : 'text-ink-500 hover:text-ink-700 dark:text-ink-400 dark:hover:text-ink-200'
+              rightPane === "resume"
+                ? "bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-200 dark:bg-brand-900/30 dark:text-brand-200 dark:ring-brand-800/50"
+                : "text-ui-fg-muted hover:text-ui-fg"
             }`}
           >
             Tailor resume
           </button>
           <button
             type="button"
-            onClick={() => setRightPane('template')}
+            onClick={() => setRightPane("template")}
             className={`rounded-md px-3 py-1 text-xs font-medium transition ${
-              rightPane === 'template'
-                ? 'bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-200 dark:bg-brand-900/30 dark:text-brand-200 dark:ring-brand-800/50'
-                : 'text-ink-500 hover:text-ink-700 dark:text-ink-400 dark:hover:text-ink-200'
+              rightPane === "template"
+                ? "bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-200 dark:bg-brand-900/30 dark:text-brand-200 dark:ring-brand-800/50"
+                : "text-ui-fg-muted hover:text-ui-fg"
             }`}
           >
             Tailor template
             {tailorTemplateTarget ? (
-              <span className="ml-1 text-ink-400 dark:text-ink-500">
-                · {tailorTemplateTarget.name.slice(0, 22)}{tailorTemplateTarget.name.length > 22 ? '…' : ''}
+              <span className="ml-1 text-ui-fg-muted">
+                · {tailorTemplateTarget.name.slice(0, 22)}
+                {tailorTemplateTarget.name.length > 22 ? "…" : ""}
               </span>
             ) : null}
           </button>
         </div>
-        {rightPane === 'resume' && resumeSessionActive ? (
+        {rightPane === "resume" && resumeSessionActive ? (
           <div className="flex items-center gap-2">
             <span className="pill-ink">
-              {session.applied} applied · {session.pending} pending · {session.totalSuggestions} total
+              {session.applied} applied · {session.pending} pending ·{""}
+              {session.totalSuggestions} total
             </span>
-            <div className="tabs text-xs">
+            <div className="tabs tabs-2 text-xs">
               <button
                 type="button"
-                className={['tab', resumeView === 'chat' && 'tab-active'].filter(Boolean).join(' ')}
-                onClick={() => setResumeView('chat')}
+                className={["tab", resumeView === "chat" && "tab-active"]
+                  .filter(Boolean)
+                  .join(" ")}
+                onMouseDown={tabMouseDown}
+                onClick={tabClick(() => setResumeView("chat"))}
+                aria-selected={resumeView === "chat"}
               >
                 Chat
               </button>
               <button
                 type="button"
-                className={['tab', resumeView === 'triage' && 'tab-active'].filter(Boolean).join(' ')}
-                onClick={() => setResumeView('triage')}
+                className={["tab", resumeView === "triage" && "tab-active"]
+                  .filter(Boolean)
+                  .join(" ")}
+                onMouseDown={tabMouseDown}
+                onClick={tabClick(() => setResumeView("triage"))}
+                aria-selected={resumeView === "triage"}
               >
                 Triage
               </button>
@@ -412,23 +460,26 @@ export default function TailorPage({ aiConfigured }) {
 
       <div
         className={
-          rightPane === 'template'
-            ? 'flex flex-1 min-h-0 flex-col overflow-hidden px-5 py-4'
-            : 'flex-1 space-y-4 overflow-y-auto px-5 py-4'
+          rightPane === "template"
+            ? "flex flex-1 min-h-0 flex-col overflow-hidden px-5 py-4"
+            : "flex-1 space-y-4 overflow-y-auto px-5 py-4"
         }
       >
-        {rightPane === 'resume' ? (
+        {rightPane === "resume" ? (
           resumeSessionActive ? (
             <>
               {scoreDelta ? (
-                <ScorePanel initial={scoreDelta.initial} current={scoreDelta.current} />
+                <ScorePanel
+                  initial={scoreDelta.initial}
+                  current={scoreDelta.current}
+                />
               ) : null}
-              {resumeView === 'triage' ? (
+              {resumeView === "triage" ? (
                 <TriageView
                   queue={queue}
                   busy={busy}
                   onDecide={handleTriageDecide}
-                  onBackToChat={() => setResumeView('chat')}
+                  onBackToChat={() => setResumeView("chat")}
                 />
               ) : (
                 <>
@@ -439,7 +490,7 @@ export default function TailorPage({ aiConfigured }) {
                     busy={busy}
                     onDecide={handleDecide}
                     onRedecide={(suggestion, decision, editInstruction) =>
-                      handleDecide(decision, editInstruction || '', suggestion)
+                      handleDecide(decision, editInstruction || "", suggestion)
                     }
                   />
                   {done ? (
@@ -448,14 +499,18 @@ export default function TailorPage({ aiConfigured }) {
                       onRollback={handleRollback}
                       texliveOptOut={texliveOptOut}
                       onCompileMessage={(text) =>
-                        setMessages((m) => [...m, { role: 'assistant', text }])
+                        setMessages((m) => [...m, { role: "assistant", text }])
                       }
                     />
                   ) : null}
                 </>
               )}
               <div className="pt-2">
-                <button className="btn-secondary" onClick={restart} disabled={busy}>
+                <button
+                  className="btn-secondary"
+                  onClick={restart}
+                  disabled={busy}
+                >
                   Start over with a new JD
                 </button>
               </div>
@@ -517,7 +572,7 @@ export default function TailorPage({ aiConfigured }) {
             setSeniority={setSeniority}
             initialSelectedId={prefilledTemplateId}
             onStart={(tpl) => {
-              setPrefilledTemplateId('');
+              setPrefilledTemplateId("");
               setTailorTemplateTarget(tpl);
             }}
           />
@@ -549,7 +604,7 @@ function TargetingFields({
           onChange={(e) => setJd(e.target.value)}
         />
         {jd ? (
-          <p className="mt-1 text-2xs text-ink-400 dark:text-ink-500">
+          <p className="mt-1 text-2xs text-ui-fg-muted">
             Same JD pre-fills in Compose &amp; the Templates tab.
           </p>
         ) : null}
@@ -581,7 +636,9 @@ function TargetingFields({
             onChange={(e) => setSeniority(e.target.value)}
           >
             {SENIORITY_OPTIONS.map((opt) => (
-              <option key={opt} value={opt}>{opt}</option>
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
             ))}
           </select>
         </div>
@@ -596,18 +653,22 @@ function CvInfoCard({ cvInfo }) {
     return (
       <div className="rounded-lg border border-rose-200/70 bg-rose-50/70 px-3 py-2 text-xs text-rose-700 dark:border-rose-800/60 dark:bg-rose-900/20 dark:text-rose-200">
         <p className="font-semibold">CV folder not found</p>
-        <p className="mt-0.5">{cvInfo.error || 'Check CV_DEFAULT_PATH in server/.env'}</p>
+        <p className="mt-0.5">
+          {cvInfo.error || "Check CV_DEFAULT_PATH in server/.env"}
+        </p>
       </div>
     );
   }
   return (
-    <div className="rounded-lg border border-ink-200/70 bg-ink-50/40 px-3 py-2 text-xs dark:border-ink-800 dark:bg-ink-800/40">
-      <p className="text-2xs font-semibold uppercase tracking-wider text-ink-500 dark:text-ink-400">
+    <div className="rounded-lg border border-ui-border/70 bg-ui-inset/50 px-3 py-2 text-xs">
+      <p className="text-2xs font-semibold uppercase tracking-wider text-ui-fg-muted">
         Source resume
       </p>
-      <p className="mt-1 font-mono text-ink-700 dark:text-ink-200 break-all">{cvInfo.path}</p>
-      <p className="mt-1 text-ink-500 dark:text-ink-400">
-        {cvInfo.fileCount} files · {fmtBytes(cvInfo.totalSize)} · last edited {fmtDate(cvInfo.lastModified)}
+      <p className="mt-1 font-mono text-ui-fg break-all">{cvInfo.path}</p>
+      <p className="mt-1 text-ui-fg-muted">
+        {cvInfo.fileCount} files · {fmtBytes(cvInfo.totalSize)} · last edited
+        {""}
+        {fmtDate(cvInfo.lastModified)}
       </p>
     </div>
   );
@@ -618,9 +679,11 @@ function TexliveNotice({ optedOut, onChange, texliveUrl }) {
     <div className="rounded-lg border border-amber-200/70 bg-amber-50/70 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-200">
       <p className="font-semibold">Where your resume goes when you compile</p>
       <p className="mt-0.5">
-        PDF compilation uses <span className="font-mono">{texliveUrl || 'texlive.net'}</span>, a public LaTeX service.
-        The contents of your .tex files are sent there to render the PDF. Tick the box to disable compile and
-        only allow local zip downloads — nothing leaves the app.
+        PDF compilation uses{""}
+        <span className="font-mono">{texliveUrl || "texlive.net"}</span>, a
+        public LaTeX service. The contents of your .tex files are sent there to
+        render the PDF. Tick the box to disable compile and only allow local zip
+        downloads — nothing leaves the app.
       </p>
       <label className="mt-2 flex items-center gap-2 text-2xs">
         <input
@@ -648,12 +711,13 @@ function ResumeStartForm({
   return (
     <div className="mx-auto max-w-2xl space-y-3">
       <div>
-        <h3 className="text-base font-semibold text-ink-900 dark:text-white">
+        <h3 className="text-base font-semibold text-ui-fg">
           Tailor your resume
         </h3>
-        <p className="mt-0.5 text-xs text-ink-500 dark:text-ink-400">
-          Paste the JD, optionally add target hints, and I&apos;ll walk you through
-          edits one suggestion at a time — or use Triage view inside the session for bulk decisions.
+        <p className="mt-0.5 text-xs text-ui-fg-muted">
+          Paste the JD, optionally add target hints, and I&apos;ll walk you
+          through edits one suggestion at a time — or use Triage view inside the
+          session for bulk decisions.
         </p>
       </div>
       <CvInfoCard cvInfo={cvInfo} />
@@ -668,7 +732,7 @@ function ResumeStartForm({
         disabled={starting || !rest.jd.trim()}
         onClick={onStart}
       >
-        {starting ? 'Starting...' : 'Start tailoring resume'}
+        {starting ? "Starting..." : "Start tailoring resume"}
       </button>
       {error ? (
         <p className="text-xs text-rose-600 dark:text-rose-300">{error}</p>
@@ -677,7 +741,12 @@ function ResumeStartForm({
   );
 }
 
-function TemplateStartForm({ templates, onStart, initialSelectedId = '', ...rest }) {
+function TemplateStartForm({
+  templates,
+  onStart,
+  initialSelectedId = "",
+  ...rest
+}) {
   const [selectedId, setSelectedId] = useState(initialSelectedId);
   // Honour a fresh deep-link from JDMatcher / TemplateLibrary mid-mount —
   // overwrite the dropdown selection when the caller pre-selects a template.
@@ -691,14 +760,14 @@ function TemplateStartForm({ templates, onStart, initialSelectedId = '', ...rest
   const formColumn = (
     <div className="max-w-xl space-y-3">
       <div>
-        <h3 className="text-base font-semibold text-ink-900 dark:text-white">
+        <h3 className="text-base font-semibold text-ui-fg">
           Tailor an email template
         </h3>
       </div>
       <div>
         <label className="label">Template to tailor</label>
         {templates.length === 0 ? (
-          <p className="text-xs text-ink-500 dark:text-ink-400">
+          <p className="text-xs text-ui-fg-muted">
             No templates yet. Create one in the <em>Templates</em> tab first.
           </p>
         ) : (
@@ -709,13 +778,15 @@ function TemplateStartForm({ templates, onStart, initialSelectedId = '', ...rest
           >
             <option value="">Pick a template...</option>
             {templates.map((t) => (
-              <option key={t.id} value={t.id}>{t.name}</option>
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
             ))}
           </select>
         )}
         {selected?.tags?.length ? (
-          <p className="mt-1 text-2xs text-ink-400 dark:text-ink-500">
-            Tags: {selected.tags.join(', ')}
+          <p className="mt-1 text-2xs text-ui-fg-muted">
+            Tags: {selected.tags.join(",")}
           </p>
         ) : null}
       </div>
@@ -726,10 +797,10 @@ function TemplateStartForm({ templates, onStart, initialSelectedId = '', ...rest
         onClick={() => selected && onStart(selected)}
         title={
           !selected
-            ? 'Pick a template above first'
+            ? "Pick a template above first"
             : !jdReady
-              ? 'Paste a longer JD (20+ chars)'
-              : 'Tailor this template against the JD'
+              ? "Paste a longer JD (20+ chars)"
+              : "Tailor this template against the JD"
         }
       >
         Start tailoring template
@@ -744,11 +815,9 @@ function TemplateStartForm({ templates, onStart, initialSelectedId = '', ...rest
         <TemplateLivePreview
           subject={selected?.subject}
           body={selected?.body}
-          hint={selected ? 'Selected template before tailoring.' : null}
+          hint={selected ? "Selected template before tailoring." : null}
           emptyMessage={
-            selected
-              ? '(empty body)'
-              : 'Pick a template to preview it here.'
+            selected ? "(empty body)" : "Pick a template to preview it here."
           }
         />
       }
@@ -757,13 +826,13 @@ function TemplateStartForm({ templates, onStart, initialSelectedId = '', ...rest
 }
 
 const SECTION_LABELS = {
-  summary: 'Summary',
-  skills: 'Skills',
-  experience: 'Experience',
-  projects: 'Projects',
-  certifications: 'Certifications',
-  coding: 'Coding',
-  education: 'Education',
+  summary: "Summary",
+  skills: "Skills",
+  experience: "Experience",
+  projects: "Projects",
+  certifications: "Certifications",
+  coding: "Coding",
+  education: "Education",
 };
 
 // Compact list view of every suggestion in the session. Lets the user
@@ -781,46 +850,55 @@ function TriageView({ queue, busy, onDecide, onBackToChat }) {
 
   const Row = ({ s }) => {
     const tone =
-      s.status === 'approved' ? 'pill-emerald'
-        : s.status === 'rejected' ? 'pill-rose'
-          : s.status === 'failed' ? 'pill-rose'
-            : 'pill-ink';
+      s.status === "approved"
+        ? "pill-emerald"
+        : s.status === "rejected"
+          ? "pill-rose"
+          : s.status === "failed"
+            ? "pill-rose"
+            : "pill-ink";
     const label = s.status[0].toUpperCase() + s.status.slice(1);
     return (
       <li className="surface flex flex-wrap items-start gap-3 p-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className={tone}>{label}</span>
-            <span className="pill-ink">{SECTION_LABELS[s.section] || s.section}</span>
-            {s.subheading ? <span className="pill-amber">{s.subheading}</span> : null}
+            <span className="pill-ink">
+              {SECTION_LABELS[s.section] || s.section}
+            </span>
+            {s.subheading ? (
+              <span className="pill-amber">{s.subheading}</span>
+            ) : null}
             <span className="pill-emerald">impact {s.impact}/10</span>
           </div>
-          <p className="mt-2 text-xs text-ink-700 dark:text-ink-200 line-clamp-3">
+          <p className="mt-2 text-xs text-ui-fg line-clamp-3">
             {s.previewText}
           </p>
           {s.error ? (
-            <p className="mt-1 text-2xs text-rose-600 dark:text-rose-300">{s.error}</p>
+            <p className="mt-1 text-2xs text-rose-600 dark:text-rose-300">
+              {s.error}
+            </p>
           ) : null}
         </div>
         <div className="flex shrink-0 gap-1.5">
-          {s.status !== 'approved' ? (
+          {s.status !== "approved" ? (
             <button
               type="button"
               className="btn-primary btn-xs"
               disabled={busy}
-              onClick={() => onDecide(s, 'approve')}
+              onClick={() => onDecide(s, "approve")}
             >
               Approve
             </button>
           ) : null}
-          {s.status !== 'rejected' ? (
+          {s.status !== "rejected" ? (
             <button
               type="button"
               className="btn-ghost btn-xs text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:bg-rose-900/20 dark:ring-rose-800/50 dark:hover:bg-rose-900/40"
               disabled={busy}
-              onClick={() => onDecide(s, 'reject')}
+              onClick={() => onDecide(s, "reject")}
             >
-              {s.status === 'approved' ? 'Revert' : 'Reject'}
+              {s.status === "approved" ? "Revert" : "Reject"}
             </button>
           ) : null}
         </div>
@@ -832,11 +910,13 @@ function TriageView({ queue, busy, onDecide, onBackToChat }) {
     if (!items.length) return null;
     return (
       <section>
-        <h4 className="text-2xs font-semibold uppercase tracking-wider text-ink-500 dark:text-ink-400">
+        <h4 className="text-2xs font-semibold uppercase tracking-wider text-ui-fg-muted">
           {label} ({items.length})
         </h4>
         <ul className="mt-2 space-y-2">
-          {items.map((s) => <Row key={s.id} s={s} />)}
+          {items.map((s) => (
+            <Row key={s.id} s={s} />
+          ))}
         </ul>
       </section>
     );
@@ -845,11 +925,16 @@ function TriageView({ queue, busy, onDecide, onBackToChat }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-xs text-ink-500 dark:text-ink-400">
-          {queue.length} suggestion{queue.length === 1 ? '' : 's'} in this session. Approve / reject in any order —
-          edits go through the same flow as Chat.
+        <p className="text-xs text-ui-fg-muted">
+          {queue.length} suggestion{queue.length === 1 ? "" : "s"} in this
+          session. Approve / reject in any order — edits go through the same
+          flow as Chat.
         </p>
-        <button type="button" className="btn-ghost btn-xs" onClick={onBackToChat}>
+        <button
+          type="button"
+          className="btn-ghost btn-xs"
+          onClick={onBackToChat}
+        >
           ← Back to Chat
         </button>
       </div>

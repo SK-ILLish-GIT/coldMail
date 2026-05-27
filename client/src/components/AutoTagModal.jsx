@@ -1,27 +1,27 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from "react";
 
-import { normalizeTags, TagInput } from './Tags.jsx';
+import { normalizeTags, TagInput } from "./Tags.jsx";
 
 /**
  * Confirmation modal for AI-proposed tags. Mirrors PreviewModal's overlay
  * pattern (backdrop click + Escape close, body scroll-lock). Lets the user:
- *   - toggle individual proposed tags on/off,
- *   - see / edit the existing tags being kept,
- *   - add custom tags before applying.
+ * - toggle individual proposed tags on/off,
+ * - see / edit the existing tags being kept,
+ * - add custom tags before applying.
  *
  * On Apply, calls onApply(finalTags) where finalTags is the merged,
  * normalised list. The caller decides what to do (PUT existing template, or
  * just update local form state).
  *
  * Props:
- *  - open: boolean
- *  - onClose: () => void
- *  - onApply: (tags: string[]) => void | Promise<void>
- *  - existingTags: string[]
- *  - proposed: string[]
- *  - title?: string
- *  - subtitle?: string
- *  - applying?: boolean
+ * - open: boolean
+ * - onClose: () => void
+ * - onApply: (tags: string[]) => void | Promise<void>
+ * - existingTags: string[]
+ * - proposed: string[]
+ * - title?: string
+ * - subtitle?: string
+ * - applying?: boolean
  */
 export default function AutoTagModal({
   open,
@@ -29,8 +29,8 @@ export default function AutoTagModal({
   onApply,
   existingTags = [],
   proposed = [],
-  title = 'AI-suggested tags',
-  subtitle = 'Pick which tags to keep, edit them, then apply.',
+  title = "AI-suggested tags",
+  subtitle = "Pick which tags to keep, edit them, then apply.",
   applying = false,
 }) {
   // Newly suggested tags = proposed minus existingTags (so we don't double-list).
@@ -57,12 +57,12 @@ export default function AutoTagModal({
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e) => e.key === 'Escape' && !applying && onClose();
-    document.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
+    const onKey = (e) => e.key === "Escape" && !applying && onClose();
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
     return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
     };
   }, [open, onClose, applying]);
 
@@ -81,7 +81,7 @@ export default function AutoTagModal({
         ...Array.from(selectedNew),
         ...extra,
       ]),
-    [selectedExisting, selectedNew, extra]
+    [selectedExisting, selectedNew, extra],
   );
 
   if (!open) return null;
@@ -91,28 +91,26 @@ export default function AutoTagModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/55 p-4 backdrop-blur-sm anim-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ui-overlay/50 p-4 backdrop-blur-sm anim-in"
       onClick={() => (applying ? null : onClose())}
     >
       <div
-        className="flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white dark:bg-ink-900 shadow-lift"
+        className="flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-ui-panel shadow-lift"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex items-start justify-between gap-4 border-b border-ink-200/60 dark:border-ink-800 px-5 py-4">
+        <header className="flex items-start justify-between gap-4 border-b border-ui-border/70 px-5 py-4">
           <div className="min-w-0">
-            <p className="text-2xs font-semibold uppercase tracking-[0.08em] text-ink-500 dark:text-ink-400">
+            <p className="text-2xs font-semibold uppercase tracking-[0.08em] text-ui-fg-muted">
               Auto tag
             </p>
-            <h3 className="text-base font-semibold text-ink-900 dark:text-white">
-              {title}
-            </h3>
-            <p className="mt-0.5 text-xs text-ink-500 dark:text-ink-400">{subtitle}</p>
+            <h3 className="text-base font-semibold text-ui-fg">{title}</h3>
+            <p className="mt-0.5 text-xs text-ui-fg-muted">{subtitle}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             disabled={applying}
-            className="rounded-md p-1.5 text-ink-400 dark:text-ink-500 hover:bg-ink-100 dark:hover:bg-ink-800/60 hover:text-ink-700 dark:hover:text-ink-200 disabled:opacity-50"
+            className="rounded-md p-1.5 text-ui-fg-muted hover:bg-ui-inset/60 hover:text-ui-fg disabled:opacity-50"
             aria-label="Close"
           >
             <svg
@@ -134,10 +132,10 @@ export default function AutoTagModal({
         <div className="flex-1 space-y-5 overflow-auto px-5 py-4">
           {hasAnyProposed ? (
             <section>
-              <p className="text-2xs font-semibold uppercase tracking-wider text-ink-500 dark:text-ink-400">
+              <p className="text-2xs font-semibold uppercase tracking-wider text-ui-fg-muted">
                 Newly suggested ({newlySuggested.length})
               </p>
-              <p className="mt-0.5 text-2xs text-ink-400 dark:text-ink-500">
+              <p className="mt-0.5 text-2xs text-ui-fg-muted">
                 Click to toggle each tag on or off.
               </p>
               <div className="mt-2 flex flex-wrap gap-1.5">
@@ -149,13 +147,13 @@ export default function AutoTagModal({
                       key={t}
                       onClick={() => toggle(setSelectedNew)(t)}
                       className={[
-                        'rounded-full px-2 py-0.5 text-xs font-medium transition',
+                        "rounded-full px-2 py-0.5 text-xs font-medium transition",
                         active
-                          ? 'bg-brand-500 text-white hover:bg-brand-600'
-                          : 'bg-ink-100 dark:bg-ink-800/60 text-ink-700 dark:text-ink-200 hover:bg-ink-200 dark:hover:bg-ink-800',
-                      ].join(' ')}
+                          ? "bg-brand-500 text-white hover:bg-brand-600"
+                          : "bg-ink-100 text-ui-fg hover:bg-ink-200 dark:hover:bg-ink-800",
+                      ].join("")}
                     >
-                      {active ? '✓ ' : '+ '}
+                      {active ? "✓" : "+"}
                       {t}
                     </button>
                   );
@@ -163,17 +161,18 @@ export default function AutoTagModal({
               </div>
             </section>
           ) : (
-            <p className="text-xs text-ink-500 dark:text-ink-400">
-              No new tags suggested — the AI thinks your current ones already cover this template.
+            <p className="text-xs text-ui-fg-muted">
+              No new tags suggested — the AI thinks your current ones already
+              cover this template.
             </p>
           )}
 
           {hasExisting && (
             <section>
-              <p className="text-2xs font-semibold uppercase tracking-wider text-ink-500 dark:text-ink-400">
+              <p className="text-2xs font-semibold uppercase tracking-wider text-ui-fg-muted">
                 Existing tags ({existingTags.length})
               </p>
-              <p className="mt-0.5 text-2xs text-ink-400 dark:text-ink-500">
+              <p className="mt-0.5 text-2xs text-ui-fg-muted">
                 Click to drop any that no longer fit.
               </p>
               <div className="mt-2 flex flex-wrap gap-1.5">
@@ -185,13 +184,13 @@ export default function AutoTagModal({
                       key={t}
                       onClick={() => toggle(setSelectedExisting)(t)}
                       className={[
-                        'rounded-full px-2 py-0.5 text-xs font-medium transition',
+                        "rounded-full px-2 py-0.5 text-xs font-medium transition",
                         active
-                          ? 'bg-emerald-500 text-white hover:bg-emerald-600'
-                          : 'bg-ink-100 dark:bg-ink-800/60 text-ink-500 dark:text-ink-400 line-through hover:bg-ink-200 dark:hover:bg-ink-800',
-                      ].join(' ')}
+                          ? "bg-emerald-500 text-white hover:bg-emerald-600"
+                          : "bg-ink-100 text-ui-fg-muted line-through hover:bg-ink-200 dark:hover:bg-ink-800",
+                      ].join("")}
                     >
-                      {active ? '✓ ' : '× '}
+                      {active ? "✓" : "×"}
                       {t}
                     </button>
                   );
@@ -201,28 +200,32 @@ export default function AutoTagModal({
           )}
 
           <section>
-            <p className="text-2xs font-semibold uppercase tracking-wider text-ink-500 dark:text-ink-400">
+            <p className="text-2xs font-semibold uppercase tracking-wider text-ui-fg-muted">
               Add custom tags
             </p>
             <div className="mt-2">
-              <TagInput tags={extra} onChange={setExtra} placeholder="extra-tag, another-one..." />
+              <TagInput
+                tags={extra}
+                onChange={setExtra}
+                placeholder="extra-tag, another-one..."
+              />
             </div>
           </section>
 
-          <section className="rounded-lg border border-ink-200/60 dark:border-ink-800 bg-ink-50/40 dark:bg-ink-800/30 px-3 py-2">
-            <p className="text-2xs font-semibold uppercase tracking-wider text-ink-500 dark:text-ink-400">
+          <section className="rounded-lg border border-ui-border/70 bg-ui-inset/50 px-3 py-2">
+            <p className="text-2xs font-semibold uppercase tracking-wider text-ui-fg-muted">
               Final tag list ({finalTags.length})
             </p>
             <div className="mt-1.5 flex flex-wrap gap-1">
               {finalTags.length === 0 ? (
-                <span className="text-2xs italic text-ink-400 dark:text-ink-500">
+                <span className="text-2xs italic text-ui-fg-muted">
                   (no tags selected)
                 </span>
               ) : (
                 finalTags.map((t) => (
                   <span
                     key={t}
-                    className="rounded-full bg-white dark:bg-ink-900 px-1.5 py-0.5 text-2xs font-medium text-ink-700 dark:text-ink-200 ring-1 ring-ink-200 dark:ring-ink-700"
+                    className="rounded-full bg-ui-panel px-1.5 py-0.5 text-2xs font-medium text-ui-fg ring-1 ring-ink-200 ring-ui-border"
                   >
                     {t}
                   </span>
@@ -232,7 +235,7 @@ export default function AutoTagModal({
           </section>
         </div>
 
-        <footer className="flex items-center justify-end gap-2 border-t border-ink-200/60 dark:border-ink-800 bg-white dark:bg-ink-900 px-5 py-3">
+        <footer className="flex items-center justify-end gap-2 border-t border-ui-border/70 bg-ui-panel px-5 py-3">
           <button
             type="button"
             className="btn-ghost btn-xs"
@@ -247,7 +250,7 @@ export default function AutoTagModal({
             onClick={() => onApply(finalTags)}
             disabled={applying}
           >
-            {applying ? 'Applying...' : 'Apply tags'}
+            {applying ? "Applying..." : "Apply tags"}
           </button>
         </footer>
       </div>

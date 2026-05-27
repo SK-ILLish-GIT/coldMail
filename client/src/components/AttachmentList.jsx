@@ -1,13 +1,13 @@
-import { useRef, useState } from 'react';
-import toast from 'react-hot-toast';
+import { useRef, useState } from "react";
+import toast from "react-hot-toast";
 
 const MAX_FILES = 5;
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
 function isPdf(file) {
   if (!file) return false;
-  if (file.type === 'application/pdf') return true;
-  return /\.pdf$/i.test(file.name || '');
+  if (file.type === "application/pdf") return true;
+  return /\.pdf$/i.test(file.name || "");
 }
 
 function fmtSize(bytes) {
@@ -68,12 +68,12 @@ export default function AttachmentList({ files, onChange }) {
         onDragLeave={() => setDragOver(false)}
         onDrop={onDrop}
         className={[
-          'flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-dashed bg-ink-50/40 px-4 py-3 transition',
-          dragOver ? 'border-brand-400 bg-brand-50/60' : 'border-ink-200',
-        ].join(' ')}
+          "flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-dashed bg-ui-inset/50 px-4 py-3 transition",
+          dragOver ? "border-brand-400 bg-brand-50/60" : "border-ui-border",
+        ].join("")}
       >
         <div className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-ink-500 ring-1 ring-inset ring-ink-200">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-ui-panel text-ui-fg-muted ring-1 ring-inset ring-ink-200">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
@@ -90,11 +90,12 @@ export default function AttachmentList({ files, onChange }) {
           <div>
             <p className="text-sm font-medium text-ink-800">
               {files.length
-                ? `${files.length} PDF${files.length === 1 ? '' : 's'} attached`
-                : 'Attach PDFs'}
+                ? `${files.length} PDF${files.length === 1 ? "" : "s"} attached`
+                : "Attach PDFs"}
             </p>
-            <p className="text-xs text-ink-500">
-              PDF only · max {MAX_FILES} files · 10 MB each. Drop here or browse.
+            <p className="text-xs text-ui-fg-muted">
+              PDF only · max {MAX_FILES} files · 10 MB each. Drop here or
+              browse.
             </p>
           </div>
         </div>
@@ -107,7 +108,7 @@ export default function AttachmentList({ files, onChange }) {
           onChange={(e) => {
             add(e.target.files);
             // Reset so re-selecting the same file fires onChange.
-            if (inputRef.current) inputRef.current.value = '';
+            if (inputRef.current) inputRef.current.value = "";
           }}
         />
         <button
@@ -116,7 +117,7 @@ export default function AttachmentList({ files, onChange }) {
           onClick={() => inputRef.current?.click()}
           disabled={files.length >= MAX_FILES}
         >
-          {files.length ? 'Add more' : 'Browse'}
+          {files.length ? "Add more" : "Browse"}
         </button>
       </div>
 
@@ -125,7 +126,7 @@ export default function AttachmentList({ files, onChange }) {
           {files.map((f, i) => (
             <li
               key={`${f.name}-${f.size}-${i}`}
-              className="flex items-center justify-between gap-3 rounded-lg border border-ink-200/70 bg-white px-3 py-2 shadow-soft"
+              className="flex items-center justify-between gap-3 rounded-lg border border-ui-border/70 bg-ui-panel px-3 py-2 shadow-soft"
             >
               <div className="flex min-w-0 items-center gap-2.5">
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-rose-50 text-rose-600">
@@ -144,8 +145,10 @@ export default function AttachmentList({ files, onChange }) {
                   </svg>
                 </span>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-ink-800">{f.name}</p>
-                  <p className="text-2xs text-ink-500">{fmtSize(f.size)}</p>
+                  <p className="truncate text-sm font-medium text-ink-800">
+                    {f.name}
+                  </p>
+                  <p className="text-2xs text-ui-fg-muted">{fmtSize(f.size)}</p>
                 </div>
               </div>
               <button

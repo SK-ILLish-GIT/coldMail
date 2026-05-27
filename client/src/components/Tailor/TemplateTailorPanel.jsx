@@ -1,29 +1,34 @@
-import { useEffect, useRef, useState } from 'react';
-import toast from 'react-hot-toast';
+import { useEffect, useRef, useState } from "react";
+import toast from "react-hot-toast";
 
-import { api } from '../../lib/api.js';
-import { formatGeminiError, isGeminiQuotaError } from '../../lib/geminiError.js';
-import { tailorApi } from '../../lib/tailorApi.js';
-import { useJd } from '../../lib/jdContext.jsx';
-import AutoTagModal from '../AutoTagModal.jsx';
-import { TagInput } from '../Tags.jsx';
-import TemplateLivePreview, { TemplateTailorSplit } from './TemplateLivePreview.jsx';
+import { api } from "../../lib/api.js";
+import {
+  formatGeminiError,
+  isGeminiQuotaError,
+} from "../../lib/geminiError.js";
+import { tailorApi } from "../../lib/tailorApi.js";
+import { useJd } from "../../lib/jdContext.jsx";
+import AutoTagModal from "../AutoTagModal.jsx";
+import { TagInput } from "../Tags.jsx";
+import TemplateLivePreview, {
+  TemplateTailorSplit,
+} from "./TemplateLivePreview.jsx";
 
 const TARGET_LABEL = (target) => {
-  if (target === 'subject') return 'Subject line';
-  const m = /^paragraph:(\d+)$/.exec(target || '');
+  if (target === "subject") return "Subject line";
+  const m = /^paragraph:(\d+)$/.exec(target || "");
   return m ? `Paragraph ${Number(m[1]) + 1}` : target;
 };
 
 function SuggestionCard({ suggestion, busy, onDecide }) {
   const [editOpen, setEditOpen] = useState(false);
-  const [editText, setEditText] = useState('');
+  const [editText, setEditText] = useState("");
 
   const submit = () => {
     if (!editText.trim()) return;
-    onDecide('edit', editText.trim());
+    onDecide("edit", editText.trim());
     setEditOpen(false);
-    setEditText('');
+    setEditText("");
   };
 
   return (
@@ -33,7 +38,7 @@ function SuggestionCard({ suggestion, busy, onDecide }) {
         <span className="pill-emerald">impact {suggestion.impact}/10</span>
       </div>
       {suggestion.reason ? (
-        <p className="mt-3 text-xs text-ink-600 dark:text-ink-300">
+        <p className="mt-3 text-xs text-ui-fg-subtle">
           <span className="font-semibold">Why: </span>
           {suggestion.reason}
         </p>
@@ -42,7 +47,7 @@ function SuggestionCard({ suggestion, busy, onDecide }) {
       {suggestion.targetText ? (
         <div className="mt-3">
           <p className="label">Before</p>
-          <p className="whitespace-pre-wrap rounded-md bg-rose-50/70 px-3 py-2 font-mono text-xs text-ink-700 dark:bg-rose-900/20 dark:text-ink-200">
+          <p className="whitespace-pre-wrap rounded-md bg-rose-50/70 px-3 py-2 font-mono text-xs text-ui-fg dark:bg-rose-900/20">
             {suggestion.targetText}
           </p>
         </div>
@@ -50,7 +55,7 @@ function SuggestionCard({ suggestion, busy, onDecide }) {
 
       <div className="mt-3">
         <p className="label">After</p>
-        <p className="whitespace-pre-wrap rounded-md bg-emerald-50/70 px-3 py-2 font-mono text-xs text-ink-700 dark:bg-emerald-900/20 dark:text-ink-100">
+        <p className="whitespace-pre-wrap rounded-md bg-emerald-50/70 px-3 py-2 font-mono text-xs text-ui-fg dark:bg-emerald-900/20">
           {suggestion.previewText}
         </p>
       </div>
@@ -58,13 +63,15 @@ function SuggestionCard({ suggestion, busy, onDecide }) {
       {suggestion.atsKeywords?.length ? (
         <div className="mt-2 flex flex-wrap gap-1.5">
           {suggestion.atsKeywords.map((k, i) => (
-            <span key={`${k}-${i}`} className="pill-brand">{k}</span>
+            <span key={`${k}-${i}`} className="pill-brand">
+              {k}
+            </span>
           ))}
         </div>
       ) : null}
 
       {editOpen ? (
-        <div className="mt-3 rounded-md border border-ink-200/70 bg-white p-3 dark:border-ink-700 dark:bg-ink-900">
+        <div className="mt-3 rounded-md border border-ui-border/70 bg-ui-panel p-3">
           <label className="label">How should I revise this?</label>
           <textarea
             className="input-mono h-20 resize-y"
@@ -74,23 +81,46 @@ function SuggestionCard({ suggestion, busy, onDecide }) {
             autoFocus
           />
           <div className="mt-2 flex justify-end gap-2">
-            <button className="btn-ghost btn-xs" onClick={() => { setEditOpen(false); setEditText(''); }} disabled={busy}>
+            <button
+              className="btn-ghost btn-xs"
+              onClick={() => {
+                setEditOpen(false);
+                setEditText("");
+              }}
+              disabled={busy}
+            >
               Cancel
             </button>
-            <button className="btn-primary btn-xs" onClick={submit} disabled={busy || !editText.trim()}>
+            <button
+              className="btn-primary btn-xs"
+              onClick={submit}
+              disabled={busy || !editText.trim()}
+            >
               Revise
             </button>
           </div>
         </div>
       ) : (
         <div className="mt-4 flex flex-wrap gap-2">
-          <button className="btn-primary" onClick={() => onDecide('approve')} disabled={busy}>
+          <button
+            className="btn-primary"
+            onClick={() => onDecide("approve")}
+            disabled={busy}
+          >
             Approve &amp; apply
           </button>
-          <button className="btn-secondary" onClick={() => setEditOpen(true)} disabled={busy}>
+          <button
+            className="btn-secondary"
+            onClick={() => setEditOpen(true)}
+            disabled={busy}
+          >
             Edit
           </button>
-          <button className="btn-ghost" onClick={() => onDecide('reject')} disabled={busy}>
+          <button
+            className="btn-ghost"
+            onClick={() => onDecide("reject")}
+            disabled={busy}
+          >
             Reject
           </button>
         </div>
@@ -101,45 +131,48 @@ function SuggestionCard({ suggestion, busy, onDecide }) {
 
 function HistoryItem({ suggestion, decision }) {
   const tone =
-    decision === 'applied' || decision === 'refined-applied'
-      ? 'pill-emerald'
-      : decision === 'rejected'
-        ? 'pill-rose'
-        : decision === 'failed'
-          ? 'pill-rose'
-          : 'pill-amber';
+    decision === "applied" || decision === "refined-applied"
+      ? "pill-emerald"
+      : decision === "rejected"
+        ? "pill-rose"
+        : decision === "failed"
+          ? "pill-rose"
+          : "pill-amber";
   const label =
-    decision === 'applied' || decision === 'refined-applied' ? 'Applied'
-      : decision === 'rejected' ? 'Rejected'
-      : decision === 'failed' ? 'Failed'
-      : decision;
+    decision === "applied" || decision === "refined-applied"
+      ? "Applied"
+      : decision === "rejected"
+        ? "Rejected"
+        : decision === "failed"
+          ? "Failed"
+          : decision;
   return (
     <div className="surface p-3 opacity-90">
       <div className="flex flex-wrap items-center gap-2">
         <span className={tone}>{label}</span>
         <span className="pill-ink">{TARGET_LABEL(suggestion.target)}</span>
       </div>
-      <p className="mt-2 whitespace-pre-wrap text-xs text-ink-600 dark:text-ink-300">
+      <p className="mt-2 whitespace-pre-wrap text-xs text-ui-fg-subtle">
         {suggestion.previewText}
       </p>
     </div>
   );
 }
 
-const DEFAULT_SENIORITY = 'Entry Level (1 YOE)';
+const DEFAULT_SENIORITY = "Entry Level (1 YOE)";
 const SENIORITY_OPTIONS = [
-  'Entry Level (1 YOE)',
-  'Junior (1-3 YOE)',
-  'Mid-level (3-5 YOE)',
-  'Senior (5-8 YOE)',
-  'Staff / Principal (8+ YOE)',
+  "Entry Level (1 YOE)",
+  "Junior (1-3 YOE)",
+  "Mid-level (3-5 YOE)",
+  "Senior (5-8 YOE)",
+  "Staff / Principal (8+ YOE)",
 ];
 
 export default function TemplateTailorPanel({
   template,
-  initialJobDescription = '',
-  initialTargetRole = '',
-  initialTargetCompany = '',
+  initialJobDescription = "",
+  initialTargetRole = "",
+  initialTargetCompany = "",
   initialSeniority = DEFAULT_SENIORITY,
   // When true, render inline (no modal backdrop / no header bar). Used by the
   // Tailor tab where the right pane hosts the flow directly. Modal callers
@@ -175,8 +208,8 @@ export default function TemplateTailorPanel({
   const [history, setHistory] = useState([]);
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const [saveName, setSaveName] = useState('');
+  const [error, setError] = useState("");
+  const [saveName, setSaveName] = useState("");
   const [saveTags, setSaveTags] = useState([]);
   const [saving, setSaving] = useState(false);
   const [savedTemplate, setSavedTemplate] = useState(null);
@@ -186,13 +219,19 @@ export default function TemplateTailorPanel({
   const autoStartLaunchedRef = useRef(false);
 
   useEffect(() => {
-    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    chatBottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [history, current, done]);
 
   // Auto-start once when caller passes `autoStart` and the inputs are ready.
   // Guard with a ref so a failed start (e.g. 429) does not re-fire endlessly.
   useEffect(() => {
-    if (!autoStart || autoStartLaunchedRef.current || session || starting || !jd.trim()) {
+    if (
+      !autoStart ||
+      autoStartLaunchedRef.current ||
+      session ||
+      starting ||
+      !jd.trim()
+    ) {
       return;
     }
     autoStartLaunchedRef.current = true;
@@ -202,11 +241,11 @@ export default function TemplateTailorPanel({
 
   const start = async () => {
     if (!jd.trim()) {
-      setError('Paste a job description first.');
+      setError("Paste a job description first.");
       return;
     }
     if (starting || session) return;
-    setError('');
+    setError("");
     setStarting(true);
     try {
       const result = await tailorApi.startTemplateSession({
@@ -219,13 +258,13 @@ export default function TemplateTailorPanel({
       setSession(result);
       const date = new Date().toISOString().slice(0, 10);
       setSaveName(
-        [template.name, targetCompany, date].filter(Boolean).join(' — ')
+        [template.name, targetCompany, date].filter(Boolean).join(" —"),
       );
       // Seed save-tags from original + obvious hints
       setSaveTags(
         [...(template.tags || []), targetCompany, targetRole, seniority]
           .filter(Boolean)
-          .slice(0, 10)
+          .slice(0, 10),
       );
       if (result.firstSuggestion) {
         setCurrent(result.firstSuggestion);
@@ -241,20 +280,23 @@ export default function TemplateTailorPanel({
     }
   };
 
-  const decide = async (decision, editInstruction = '') => {
+  const decide = async (decision, editInstruction = "") => {
     if (!session || !current) return;
     setBusy(true);
-    setError('');
+    setError("");
     try {
       const result = await tailorApi.templateDecide(session.sessionId, {
         suggestionId: current.id,
         decision,
         editInstruction,
       });
-      if (result.result === 'refined') {
+      if (result.result === "refined") {
         setCurrent(result.next);
       } else {
-        setHistory((h) => [...h, { suggestion: current, decision: result.result }]);
+        setHistory((h) => [
+          ...h,
+          { suggestion: current, decision: result.result },
+        ]);
         setSession((s) => ({ ...s, ...result.state }));
         if (result.next) {
           setCurrent(result.next);
@@ -262,7 +304,8 @@ export default function TemplateTailorPanel({
           setCurrent(null);
           setDone(true);
         }
-        if (result.result === 'failed') setError(result.error || 'Could not apply.');
+        if (result.result === "failed")
+          setError(result.error || "Could not apply.");
       }
     } catch (err) {
       const message = formatGeminiError(err);
@@ -276,13 +319,15 @@ export default function TemplateTailorPanel({
   const onAutoTagSave = async () => {
     if (!session) return;
     if (!aiEnabled) {
-      return toast.error('AI is disabled on the server — set GEMINI_API_KEY to enable.');
+      return toast.error(
+        "AI is disabled on the server — set GEMINI_API_KEY to enable.",
+      );
     }
     setAutoTagLoading(true);
     try {
       const res = await api.suggestTemplateTags({
-        subject: session.subject || '',
-        body: session.body || '',
+        subject: session.subject || "",
+        body: session.body || "",
         tags: saveTags,
       });
       const proposed = Array.isArray(res?.tags) ? res.tags : [];
@@ -291,7 +336,7 @@ export default function TemplateTailorPanel({
         proposed,
       });
     } catch (err) {
-      toast.error(err.message || 'Auto-tag failed.');
+      toast.error(err.message || "Auto-tag failed.");
     } finally {
       setAutoTagLoading(false);
     }
@@ -300,13 +345,13 @@ export default function TemplateTailorPanel({
   const applyAutoTags = (finalTags) => {
     setSaveTags(finalTags);
     setAutoTagSession(null);
-    toast.success('Tags updated. Save when ready.');
+    toast.success("Tags updated. Save when ready.");
   };
 
   const save = async () => {
     if (!session || !saveName.trim()) return;
     setSaving(true);
-    setError('');
+    setError("");
     try {
       const created = await tailorApi.saveTemplateSession(session.sessionId, {
         name: saveName.trim(),
@@ -315,7 +360,7 @@ export default function TemplateTailorPanel({
       setSavedTemplate(created);
       onSaved?.(created);
     } catch (err) {
-      setError(err.message || 'Save failed.');
+      setError(err.message || "Save failed.");
     } finally {
       setSaving(false);
     }
@@ -324,7 +369,11 @@ export default function TemplateTailorPanel({
   const suggestionsColumn = (
     <div className="space-y-3">
       {history.map((h, i) => (
-        <HistoryItem key={`${h.suggestion?.id || 'h'}-${i}`} suggestion={h.suggestion} decision={h.decision} />
+        <HistoryItem
+          key={`${h.suggestion?.id || "h"}-${i}`}
+          suggestion={h.suggestion}
+          decision={h.decision}
+        />
       ))}
       {current && !done ? (
         <SuggestionCard suggestion={current} busy={busy} onDecide={decide} />
@@ -341,7 +390,9 @@ export default function TemplateTailorPanel({
           </div>
         ) : (
           <div className="surface space-y-3 p-4">
-            <p className="text-sm font-semibold text-ink-900 dark:text-white">Save as a new template</p>
+            <p className="text-sm font-semibold text-ui-fg">
+              Save as a new template
+            </p>
             <div>
               <label className="label">Name</label>
               <input
@@ -362,121 +413,147 @@ export default function TemplateTailorPanel({
                     disabled={autoTagLoading || saving}
                     title="Suggest tags from the tailored subject and body"
                   >
-                    {autoTagLoading ? 'Tagging...' : 'Auto tag'}
+                    {autoTagLoading ? "Tagging..." : "Auto tag"}
                   </button>
                 )}
               </div>
-              <TagInput tags={saveTags} onChange={setSaveTags} placeholder="backend, kubernetes..." />
+              <TagInput
+                tags={saveTags}
+                onChange={setSaveTags}
+                placeholder="backend, kubernetes..."
+              />
             </div>
             <div className="flex justify-end gap-2">
               <button className="btn-ghost" onClick={onClose} disabled={saving}>
                 Cancel
               </button>
-              <button className="btn-primary" onClick={save} disabled={saving || !saveName.trim()}>
-                {saving ? 'Saving...' : 'Save as new template'}
+              <button
+                className="btn-primary"
+                onClick={save}
+                disabled={saving || !saveName.trim()}
+              >
+                {saving ? "Saving..." : "Save as new template"}
               </button>
             </div>
           </div>
         )
       ) : null}
-      {error ? <p className="text-xs text-rose-600 dark:text-rose-300">{error}</p> : null}
+      {error ? (
+        <p className="text-xs text-rose-600 dark:text-rose-300">{error}</p>
+      ) : null}
       <div ref={chatBottomRef} />
     </div>
   );
 
-  const previewSubject = session?.subject ?? template.subject ?? '';
-  const previewBody = session?.body ?? template.body ?? '';
+  const previewSubject = session?.subject ?? template.subject ?? "";
+  const previewBody = session?.body ?? template.body ?? "";
   const previewHint = session
-    ? 'Updates as you approve suggestions.'
-    : 'Original template — changes appear here after you start.';
+    ? "Updates as you approve suggestions."
+    : "Original template — changes appear here after you start.";
 
   const sessionHeader = session ? (
-    <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-ink-200/70 pb-2 dark:border-ink-800">
-      <p className="text-xs font-medium text-ink-700 dark:text-ink-200">
+    <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-ui-border/70 pb-2">
+      <p className="text-xs font-medium text-ui-fg">
         Suggestions ({session.pending} pending)
       </p>
-      <p className="text-2xs text-ink-500 dark:text-ink-400">
-        {session.applied} applied · {session.pending} pending · {session.totalSuggestions} total
+      <p className="text-2xs text-ui-fg-muted">
+        {session.applied} applied · {session.pending} pending ·{""}
+        {session.totalSuggestions} total
       </p>
     </div>
   ) : null;
 
   const quotaBlocked = Boolean(error && isGeminiQuotaError({ message: error }));
 
-  const leftColumn = !session && hideInputsForm ? (
-    <div className="surface space-y-3 p-4">
-      {starting ? (
-        <p className="text-xs text-ink-500 dark:text-ink-400">Starting template tailoring…</p>
-      ) : error ? (
-        <p className="text-xs leading-relaxed text-rose-700 dark:text-rose-300">{error}</p>
-      ) : (
-        <p className="text-xs text-ink-500 dark:text-ink-400">Waiting to start.</p>
-      )}
-      {error && !starting ? (
+  const leftColumn =
+    !session && hideInputsForm ? (
+      <div className="surface space-y-3 p-4">
+        {starting ? (
+          <p className="text-xs text-ui-fg-muted">
+            Starting template tailoring…
+          </p>
+        ) : error ? (
+          <p className="text-xs leading-relaxed text-rose-700 dark:text-rose-300">
+            {error}
+          </p>
+        ) : (
+          <p className="text-xs text-ui-fg-muted">Waiting to start.</p>
+        )}
+        {error && !starting ? (
+          <button
+            type="button"
+            className="btn-secondary btn-xs"
+            onClick={() => start()}
+            disabled={quotaBlocked}
+            title={
+              quotaBlocked
+                ? "Daily Gemini free-tier limit — pick another model in the header or wait for reset"
+                : undefined
+            }
+          >
+            {quotaBlocked ? "Quota exhausted" : "Try again"}
+          </button>
+        ) : null}
+      </div>
+    ) : !session ? (
+      <div className="max-w-xl space-y-3">
+        <div>
+          <label className="label">Job description</label>
+          <textarea
+            className="input-mono h-44 resize-y"
+            placeholder="Paste the JD here..."
+            value={jd}
+            onChange={(e) => setJd(e.target.value)}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label">Role (optional)</label>
+            <input
+              className="input"
+              value={targetRole}
+              onChange={(e) => setTargetRole(e.target.value)}
+              placeholder="e.g. SDE intern"
+            />
+          </div>
+          <div>
+            <label className="label">Company (optional)</label>
+            <input
+              className="input"
+              value={targetCompany}
+              onChange={(e) => setTargetCompany(e.target.value)}
+              placeholder="e.g. Stripe"
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="label">Seniority</label>
+            <select
+              className="input"
+              value={seniority}
+              onChange={(e) => setSeniority(e.target.value)}
+            >
+              {SENIORITY_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
         <button
-          type="button"
-          className="btn-secondary btn-xs"
-          onClick={() => start()}
-          disabled={quotaBlocked}
-          title={
-            quotaBlocked
-              ? 'Daily Gemini free-tier limit — pick another model in the header or wait for reset'
-              : undefined
-          }
+          className="btn-gradient w-full"
+          onClick={start}
+          disabled={starting || !jd.trim()}
         >
-          {quotaBlocked ? 'Quota exhausted' : 'Try again'}
+          {starting ? "Starting..." : "Start tailoring"}
         </button>
-      ) : null}
-    </div>
-  ) : !session ? (
-    <div className="max-w-xl space-y-3">
-      <div>
-        <label className="label">Job description</label>
-        <textarea
-          className="input-mono h-44 resize-y"
-          placeholder="Paste the JD here..."
-          value={jd}
-          onChange={(e) => setJd(e.target.value)}
-        />
+        {error ? (
+          <p className="text-xs text-rose-600 dark:text-rose-300">{error}</p>
+        ) : null}
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="label">Role (optional)</label>
-          <input
-            className="input"
-            value={targetRole}
-            onChange={(e) => setTargetRole(e.target.value)}
-            placeholder="e.g. SDE intern"
-          />
-        </div>
-        <div>
-          <label className="label">Company (optional)</label>
-          <input
-            className="input"
-            value={targetCompany}
-            onChange={(e) => setTargetCompany(e.target.value)}
-            placeholder="e.g. Stripe"
-          />
-        </div>
-        <div className="col-span-2">
-          <label className="label">Seniority</label>
-          <select className="input" value={seniority} onChange={(e) => setSeniority(e.target.value)}>
-            {SENIORITY_OPTIONS.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-      <button className="btn-gradient w-full" onClick={start} disabled={starting || !jd.trim()}>
-        {starting ? 'Starting...' : 'Start tailoring'}
-      </button>
-      {error ? <p className="text-xs text-rose-600 dark:text-rose-300">{error}</p> : null}
-    </div>
-  ) : (
-    suggestionsColumn
-  );
+    ) : (
+      suggestionsColumn
+    );
 
   const content = (
     <TemplateTailorSplit
@@ -507,7 +584,9 @@ export default function TemplateTailorPanel({
   if (embedded) {
     return (
       <>
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{content}</div>
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          {content}
+        </div>
         {autoTagModal}
       </>
     );
@@ -515,19 +594,25 @@ export default function TemplateTailorPanel({
 
   return (
     <>
-      <div className="fixed inset-0 z-40 flex items-start justify-center bg-ink-900/60 px-4 py-8 backdrop-blur-sm dark:bg-black/70">
+      <div className="fixed inset-0 z-40 flex items-start justify-center bg-ui-overlay/55 px-4 py-8 backdrop-blur-sm">
         <div className="card flex max-h-[90vh] min-h-[min(85vh,720px)] w-full max-w-7xl flex-col overflow-hidden">
-          <header className="flex shrink-0 items-center justify-between border-b border-ink-200/70 px-5 py-3 dark:border-ink-800">
+          <header className="flex shrink-0 items-center justify-between border-b border-ui-border/70 px-5 py-3">
             <div>
-            <h2 className="text-base font-semibold text-ink-900 dark:text-white">
-              Tailor template — {template.name}
-            </h2>
+              <h2 className="text-base font-semibold text-ui-fg">
+                Tailor template — {template.name}
+              </h2>
             </div>
-            <button className="btn-ghost btn-xs" onClick={onClose} aria-label="Close">
+            <button
+              className="btn-ghost btn-xs"
+              onClick={onClose}
+              aria-label="Close"
+            >
               Close
             </button>
           </header>
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-5 py-4">{content}</div>
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-5 py-4">
+            {content}
+          </div>
         </div>
       </div>
       {autoTagModal}

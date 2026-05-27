@@ -1,19 +1,19 @@
-import { useEffect, useMemo, useState } from 'react';
-import toast from 'react-hot-toast';
+import { useEffect, useMemo, useState } from "react";
+import toast from "react-hot-toast";
 
-import { api } from '../lib/api.js';
-import { confirmAsync } from '../lib/confirm.jsx';
-import { renderTemplate } from '../lib/render.js';
-import { useTailorTarget } from '../lib/tailorTarget.jsx';
-import AutoTagModal from './AutoTagModal.jsx';
-import EmptyState from './EmptyState.jsx';
-import PreviewModal from './PreviewModal.jsx';
-import RowActionsMenu from './RowActionsMenu.jsx';
-import { TagInput, TagPills } from './Tags.jsx';
-import TailoredForPill from './TailoredForPill.jsx';
+import { api } from "../lib/api.js";
+import { confirmAsync } from "../lib/confirm.jsx";
+import { renderTemplate } from "../lib/render.js";
+import { useTailorTarget } from "../lib/tailorTarget.jsx";
+import AutoTagModal from "./AutoTagModal.jsx";
+import EmptyState from "./EmptyState.jsx";
+import PreviewModal from "./PreviewModal.jsx";
+import RowActionsMenu from "./RowActionsMenu.jsx";
+import { TagInput, TagPills } from "./Tags.jsx";
+import TailoredForPill from "./TailoredForPill.jsx";
 
 function fmtDate(iso) {
-  if (!iso) return '';
+  if (!iso) return "";
   try {
     return new Date(iso).toLocaleString();
   } catch {
@@ -21,15 +21,15 @@ function fmtDate(iso) {
   }
 }
 
-const BLANK = { name: '', subject: '', body: '', tags: [] };
+const BLANK = { name: "", subject: "", body: "", tags: [] };
 
 // Sample merge values used purely for the preview modal so {{name}} /
 // {{company}} / {{email}} render as something readable instead of empty
 // strings. These never leave the client.
 const PREVIEW_SAMPLE_VARS = {
-  name: 'Sample Recipient',
-  company: 'Sample Co',
-  email: 'sample@example.com',
+  name: "Sample Recipient",
+  company: "Sample Co",
+  email: "sample@example.com",
 };
 
 export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
@@ -38,15 +38,15 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(BLANK);
   // Form is a modal now — only mounted/visible when the user explicitly opens
-  // it via "New template" or by editing an existing row.
+  // it via"New template" or by editing an existing row.
   const [formOpen, setFormOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   // The template currently being previewed in the read-only modal.
   const [previewing, setPreviewing] = useState(null);
 
   // Auto-tag flow state.
-  //   autoTagSession.mode = 'row'  → applying to a saved template (has id)
-  //   autoTagSession.mode = 'form' → applying to the in-progress form state
+  // autoTagSession.mode = 'row' → applying to a saved template (has id)
+  // autoTagSession.mode = 'form' → applying to the in-progress form state
   // existingTags + proposed are what the AutoTagModal renders.
   const [autoTagLoading, setAutoTagLoading] = useState(false);
   const [autoTagApplying, setAutoTagApplying] = useState(false);
@@ -55,15 +55,15 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
   // Live preview of the in-progress form, rendered with sample merge vars so
   // {{name}} / {{company}} / {{email}} read as something concrete.
   const livePreviewSubject = useMemo(
-    () => renderTemplate(form.subject || '', PREVIEW_SAMPLE_VARS),
-    [form.subject]
+    () => renderTemplate(form.subject || "", PREVIEW_SAMPLE_VARS),
+    [form.subject],
   );
   const livePreviewHtml = useMemo(
-    () => renderTemplate(form.body || '', PREVIEW_SAMPLE_VARS),
-    [form.body]
+    () => renderTemplate(form.body || "", PREVIEW_SAMPLE_VARS),
+    [form.body],
   );
   // Tailoring is now a single canonical flow on the Tailor tab. Clicking
-  // "AI Tailor" here just stages the chosen template and switches tab.
+  //"AI Tailor" here just stages the chosen template and switches tab.
   const { requestTailorTemplate } = useTailorTarget();
 
   const refresh = async () => {
@@ -72,7 +72,7 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
       const data = await api.listTemplates();
       setItems(data);
     } catch (err) {
-      toast.error(err.message || 'Failed to load templates');
+      toast.error(err.message || "Failed to load templates");
     } finally {
       setLoading(false);
     }
@@ -108,23 +108,23 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
 
   const save = async () => {
     if (!form.name.trim() || !form.subject.trim() || !form.body.trim()) {
-      return toast.error('Name, subject and body are required.');
+      return toast.error("Name, subject and body are required.");
     }
     setSaving(true);
     try {
       if (editingId) {
         await api.updateTemplate(editingId, form);
-        toast.success('Template updated.');
+        toast.success("Template updated.");
       } else {
         await api.createTemplate(form);
-        toast.success('Template created.');
+        toast.success("Template created.");
       }
       setFormOpen(false);
       setEditingId(null);
       setForm(BLANK);
       refresh();
     } catch (err) {
-      toast.error(err.message || 'Save failed');
+      toast.error(err.message || "Save failed");
     } finally {
       setSaving(false);
     }
@@ -132,18 +132,18 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
 
   const remove = async (tpl) => {
     const ok = await confirmAsync({
-      title: `Delete template "${tpl.name}"?`,
-      description: 'This cannot be undone.',
-      confirmLabel: 'Delete',
+      title: `Delete template"${tpl.name}"?`,
+      description: "This cannot be undone.",
+      confirmLabel: "Delete",
       danger: true,
     });
     if (!ok) return;
     try {
       await api.deleteTemplate(tpl.id);
-      toast.success('Template deleted.');
+      toast.success("Template deleted.");
       refresh();
     } catch (err) {
-      toast.error(err.message || 'Delete failed');
+      toast.error(err.message || "Delete failed");
     }
   };
 
@@ -152,10 +152,12 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
   // stage them into AutoTagModal. mode controls how Apply behaves.
   const requestAutoTags = async ({ mode, subject, body, tags, target }) => {
     if (!aiEnabled) {
-      return toast.error('AI is disabled on the server — set GEMINI_API_KEY to enable.');
+      return toast.error(
+        "AI is disabled on the server — set GEMINI_API_KEY to enable.",
+      );
     }
     if (!subject.trim() && !body.trim()) {
-      return toast.error('Add a subject or body before auto-tagging.');
+      return toast.error("Add a subject or body before auto-tagging.");
     }
     setAutoTagLoading(true);
     try {
@@ -168,7 +170,7 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
         proposed,
       });
     } catch (err) {
-      toast.error(err.message || 'Auto-tag failed.');
+      toast.error(err.message || "Auto-tag failed.");
     } finally {
       setAutoTagLoading(false);
     }
@@ -176,30 +178,30 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
 
   const onAutoTagRow = (tpl) =>
     requestAutoTags({
-      mode: 'row',
-      subject: tpl.subject || '',
-      body: tpl.body || '',
+      mode: "row",
+      subject: tpl.subject || "",
+      body: tpl.body || "",
       tags: tpl.tags || [],
       target: tpl,
     });
 
   const onAutoTagForm = () =>
     requestAutoTags({
-      mode: 'form',
-      subject: form.subject || '',
-      body: form.body || '',
+      mode: "form",
+      subject: form.subject || "",
+      body: form.body || "",
       tags: form.tags || [],
       target: null,
     });
 
   const applyAutoTags = async (finalTags) => {
     if (!autoTagSession) return;
-    if (autoTagSession.mode === 'form') {
+    if (autoTagSession.mode === "form") {
       // Edit/New modal: just patch local form state; the user still has to
       // click Save/Update to persist the template.
       setForm((f) => ({ ...f, tags: finalTags }));
       setAutoTagSession(null);
-      toast.success('Tags applied to the form. Save to persist.');
+      toast.success("Tags applied to the form. Save to persist.");
       return;
     }
     // 'row' mode: persist directly via PUT.
@@ -216,11 +218,11 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
         body: tpl.body,
         tags: finalTags,
       });
-      toast.success(`Tags updated on "${tpl.name}".`);
+      toast.success(`Tags updated on"${tpl.name}".`);
       setAutoTagSession(null);
       refresh();
     } catch (err) {
-      toast.error(err.message || 'Failed to save tags.');
+      toast.error(err.message || "Failed to save tags.");
     } finally {
       setAutoTagApplying(false);
     }
@@ -230,12 +232,12 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
   // overlay behaviour is consistent across the app.
   useEffect(() => {
     if (!formOpen) return;
-    const onKey = (e) => e.key === 'Escape' && closeForm();
-    document.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
+    const onKey = (e) => e.key === "Escape" && closeForm();
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
     return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formOpen]);
@@ -243,13 +245,23 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
   return (
     <>
       <section className="card overflow-hidden">
-        <header className="flex items-center justify-between border-b border-ink-200/60 dark:border-ink-800 px-6 py-4">
-          <h2 className="text-base font-semibold text-ink-900 dark:text-ink-100">Saved templates</h2>
+        <header className="flex items-center justify-between border-b border-ui-border/70 px-6 py-4">
+          <h2 className="text-base font-semibold text-ui-fg">
+            Saved templates
+          </h2>
           <div className="flex items-center gap-2">
-            <button type="button" className="btn-ghost btn-xs" onClick={refresh}>
+            <button
+              type="button"
+              className="btn-ghost btn-xs"
+              onClick={refresh}
+            >
               Refresh
             </button>
-            <button type="button" className="btn-primary btn-xs" onClick={openCreate}>
+            <button
+              type="button"
+              className="btn-primary btn-xs"
+              onClick={openCreate}
+            >
               + New template
             </button>
           </div>
@@ -258,7 +270,10 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
         {loading ? (
           <div className="space-y-2 p-6">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-16 animate-pulse rounded-lg bg-ink-100 dark:bg-ink-800" />
+              <div
+                key={i}
+                className="h-16 animate-pulse rounded-lg bg-ui-inset"
+              />
             ))}
           </div>
         ) : items.length === 0 ? (
@@ -272,11 +287,15 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
             {items.map((tpl) => (
               <li
                 key={tpl.id}
-                className="flex flex-wrap items-start justify-between gap-3 px-6 py-4 transition hover:bg-ink-50/40 dark:hover:bg-ink-800/60"
+                className="flex flex-wrap items-start justify-between gap-3 px-6 py-4 transition hover:bg-ui-inset/50"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-ink-900 dark:text-ink-100">{tpl.name}</p>
-                  <p className="mt-0.5 truncate text-xs text-ink-500 dark:text-ink-400">{tpl.subject}</p>
+                  <p className="truncate text-sm font-semibold text-ui-fg">
+                    {tpl.name}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-ui-fg-muted">
+                    {tpl.subject}
+                  </p>
                   {tpl.tailoredFor ? (
                     <div className="mt-1.5">
                       <TailoredForPill tailoredFor={tpl.tailoredFor} />
@@ -287,7 +306,7 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
                       <TagPills tags={tpl.tags} />
                     </div>
                   )}
-                  <p className="mt-1 text-2xs text-ink-400 dark:text-ink-500">
+                  <p className="mt-1 text-2xs text-ui-fg-muted">
                     Updated {fmtDate(tpl.updatedAt)}
                   </p>
                 </div>
@@ -302,32 +321,33 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
                   <RowActionsMenu
                     items={[
                       {
-                        label: 'Preview',
+                        label: "Preview",
                         onClick: () => setPreviewing(tpl),
                       },
                       {
-                        label: 'AI Tailor',
+                        label: "AI Tailor",
                         onClick: () => requestTailorTemplate(tpl),
-                        tone: 'brand',
+                        tone: "brand",
                       },
                       aiEnabled && {
                         label:
-                          autoTagLoading && autoTagSession?.target?.id === tpl.id
-                            ? 'Tagging...'
-                            : 'Auto tag',
+                          autoTagLoading &&
+                          autoTagSession?.target?.id === tpl.id
+                            ? "Tagging..."
+                            : "Auto tag",
                         onClick: () => onAutoTagRow(tpl),
                         disabled: autoTagLoading,
-                        tone: 'indigo',
+                        tone: "indigo",
                       },
                       {
-                        label: 'Edit',
+                        label: "Edit",
                         onClick: () => startEdit(tpl),
-                        tone: 'amber',
+                        tone: "amber",
                       },
                       {
-                        label: 'Delete',
+                        label: "Delete",
                         onClick: () => remove(tpl),
-                        tone: 'rose',
+                        tone: "rose",
                         separated: true,
                       },
                     ].filter(Boolean)}
@@ -342,21 +362,21 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
       {/* Create / edit modal — backdrop click + Escape both close. */}
       {formOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/55 p-4 backdrop-blur-sm anim-in"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ui-overlay/50 p-4 backdrop-blur-sm anim-in"
           onClick={closeForm}
         >
           <div
-            className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white dark:bg-ink-900 shadow-lift"
+            className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-ui-panel shadow-lift"
             onClick={(e) => e.stopPropagation()}
           >
-            <header className="flex items-center justify-between gap-4 border-b border-ink-200/60 dark:border-ink-800 px-5 py-4">
-              <h3 className="text-sm font-semibold text-ink-900 dark:text-ink-100">
-                {editingId ? 'Edit template' : 'New template'}
+            <header className="flex items-center justify-between gap-4 border-b border-ui-border/70 px-5 py-4">
+              <h3 className="text-sm font-semibold text-ui-fg">
+                {editingId ? "Edit template" : "New template"}
               </h3>
               <button
                 type="button"
                 onClick={closeForm}
-                className="rounded-md p-1.5 text-ink-400 dark:text-ink-500 hover:bg-ink-100 dark:hover:bg-ink-800/60 hover:text-ink-700 dark:hover:text-ink-200"
+                className="rounded-md p-1.5 text-ui-fg-muted hover:bg-ui-inset/60 hover:text-ui-fg"
                 aria-label="Close"
               >
                 <svg
@@ -376,8 +396,8 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
             </header>
 
             {/* Two-column body: form on the left, live preview on the right.
-                Each column scrolls independently so a long body doesn't push
-                the preview out of view. Stacks vertically on smaller screens. */}
+ Each column scrolls independently so a long body doesn't push
+ the preview out of view. Stacks vertically on smaller screens. */}
             <div className="grid flex-1 min-h-0 grid-cols-1 md:grid-cols-2 divide-ink-200/60 dark:divide-ink-800 md:divide-x">
               <div className="flex-1 space-y-3 overflow-auto px-5 py-4">
                 <div>
@@ -397,7 +417,9 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
                     type="text"
                     className="input"
                     value={form.subject}
-                    onChange={(e) => setForm({ ...form, subject: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, subject: e.target.value })
+                    }
                     placeholder="Quick question for {{company}}"
                   />
                 </div>
@@ -421,9 +443,9 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
                         disabled={autoTagLoading}
                         title="Ask AI for tag suggestions based on the current subject + body"
                       >
-                        {autoTagLoading && autoTagSession?.mode === 'form'
-                          ? 'Tagging...'
-                          : 'Auto tag'}
+                        {autoTagLoading && autoTagSession?.mode === "form"
+                          ? "Tagging..."
+                          : "Auto tag"}
                       </button>
                     )}
                   </div>
@@ -434,18 +456,20 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
                 </div>
               </div>
 
-              <div className="flex flex-col overflow-hidden bg-ink-50/40 dark:bg-ink-800/30">
-                <div className="flex items-start justify-between gap-3 border-b border-ink-200/60 dark:border-ink-800 px-5 py-3">
+              <div className="flex flex-col overflow-hidden bg-ui-inset/50">
+                <div className="flex items-start justify-between gap-3 border-b border-ui-border/70 px-5 py-3">
                   <div className="min-w-0">
-                    <p className="text-2xs font-semibold uppercase tracking-[0.08em] text-ink-500 dark:text-ink-400">
+                    <p className="text-2xs font-semibold uppercase tracking-[0.08em] text-ui-fg-muted">
                       Live preview
                     </p>
-                    <p className="mt-0.5 truncate text-sm font-medium text-ink-800 dark:text-ink-100">
+                    <p className="mt-0.5 truncate text-sm font-medium text-ui-fg">
                       {livePreviewSubject || (
-                        <span className="italic text-ink-400 dark:text-ink-500">(no subject)</span>
+                        <span className="italic text-ui-fg-muted">
+                          (no subject)
+                        </span>
                       )}
                     </p>
-                    <p className="mt-0.5 text-2xs text-ink-400 dark:text-ink-500">
+                    <p className="mt-0.5 text-2xs text-ui-fg-muted">
                       Tokens rendered with sample values
                     </p>
                   </div>
@@ -456,10 +480,10 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
                       title="Template live preview"
                       srcDoc={livePreviewHtml}
                       sandbox=""
-                      className="preview-frame h-full min-h-[420px] w-full rounded-lg border border-ink-200 dark:border-ink-700 bg-white"
+                      className="preview-frame h-full min-h-[420px] w-full rounded-lg border border-ui-border"
                     />
                   ) : (
-                    <div className="grid h-full min-h-[420px] place-items-center rounded-lg border border-dashed border-ink-300 dark:border-ink-700 bg-white/60 dark:bg-ink-900/40 px-4 text-center text-xs text-ink-500 dark:text-ink-400">
+                    <div className="grid h-full min-h-[420px] place-items-center rounded-lg border border-dashed border-ui-border bg-ui-panel-muted/80 px-4 text-center text-xs text-ui-fg-muted">
                       Start typing the body — the preview updates live.
                     </div>
                   )}
@@ -467,7 +491,7 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
               </div>
             </div>
 
-            <footer className="flex items-center justify-end gap-2 border-t border-ink-200/60 dark:border-ink-800 bg-ink-50/40 dark:bg-ink-800/40 px-5 py-3">
+            <footer className="flex items-center justify-end gap-2 border-t border-ui-border/70 bg-ui-inset/50 px-5 py-3">
               <button
                 type="button"
                 className="btn-ghost btn-xs"
@@ -482,7 +506,11 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
                 onClick={save}
                 disabled={saving}
               >
-                {saving ? 'Saving...' : editingId ? 'Update template' : 'Create template'}
+                {saving
+                  ? "Saving..."
+                  : editingId
+                    ? "Update template"
+                    : "Create template"}
               </button>
             </footer>
           </div>
@@ -492,8 +520,16 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
       <PreviewModal
         open={!!previewing}
         onClose={() => setPreviewing(null)}
-        subject={previewing ? renderTemplate(previewing.subject || '', PREVIEW_SAMPLE_VARS) : ''}
-        html={previewing ? renderTemplate(previewing.body || '', PREVIEW_SAMPLE_VARS) : ''}
+        subject={
+          previewing
+            ? renderTemplate(previewing.subject || "", PREVIEW_SAMPLE_VARS)
+            : ""
+        }
+        html={
+          previewing
+            ? renderTemplate(previewing.body || "", PREVIEW_SAMPLE_VARS)
+            : ""
+        }
         to=""
         editLabel="Edit template"
         onEdit={
@@ -514,18 +550,19 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
         existingTags={autoTagSession?.existingTags || []}
         proposed={autoTagSession?.proposed || []}
         title={
-          autoTagSession?.mode === 'form'
-            ? (editingId ? 'Auto-tag this template' : 'Auto-tag the new template')
-            : `Auto-tag "${autoTagSession?.target?.name || ''}"`
+          autoTagSession?.mode === "form"
+            ? editingId
+              ? "Auto-tag this template"
+              : "Auto-tag the new template"
+            : `Auto-tag"${autoTagSession?.target?.name || ""}"`
         }
         subtitle={
-          autoTagSession?.mode === 'form'
-            ? 'Selected tags will fill the Tags field — save the template to persist.'
-            : 'Selected tags will be saved to this template immediately.'
+          autoTagSession?.mode === "form"
+            ? "Selected tags will fill the Tags field — save the template to persist."
+            : "Selected tags will be saved to this template immediately."
         }
         applying={autoTagApplying}
       />
     </>
   );
 }
-

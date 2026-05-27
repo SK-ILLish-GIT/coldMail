@@ -1,12 +1,13 @@
-import { useState } from 'react';
-import toast from 'react-hot-toast';
+import { useState } from "react";
+import toast from "react-hot-toast";
 
-import { api } from '../lib/api.js';
+import { api } from "../lib/api.js";
 
 function confidenceTone(value, threshold) {
-  if (value >= threshold + 0.2) return { bar: 'bg-emerald-500', pill: 'pill-emerald' };
-  if (value >= threshold) return { bar: 'bg-amber-500', pill: 'pill-amber' };
-  return { bar: 'bg-rose-400', pill: 'pill-rose' };
+  if (value >= threshold + 0.2)
+    return { bar: "bg-emerald-500", pill: "pill-emerald" };
+  if (value >= threshold) return { bar: "bg-amber-500", pill: "pill-amber" };
+  return { bar: "bg-rose-400", pill: "pill-rose" };
 }
 
 function ConfidenceCell({ value, threshold }) {
@@ -14,10 +15,12 @@ function ConfidenceCell({ value, threshold }) {
   const tone = confidenceTone(value, threshold);
   return (
     <div className="flex items-center gap-2">
-      <div className="h-1.5 w-20 overflow-hidden rounded-full bg-ink-100 dark:bg-ink-800/40">
+      <div className="h-1.5 w-20 overflow-hidden rounded-full bg-ink-100">
         <div className={`h-full ${tone.bar}`} style={{ width: `${pct}%` }} />
       </div>
-      <span className={`${tone.pill} font-mono tabular-nums`}>{Math.round(pct)}%</span>
+      <span className={`${tone.pill} font-mono tabular-nums`}>
+        {Math.round(pct)}%
+      </span>
     </div>
   );
 }
@@ -41,7 +44,7 @@ export default function EnrichPanel({
   const sendTo = async (cand) => {
     if (sendingEmail) return;
     if (!canSend) {
-      toast.error('Add subject and template before drafting.');
+      toast.error("Add subject and template before drafting.");
       return;
     }
     setSendingEmail(cand.email);
@@ -60,13 +63,13 @@ export default function EnrichPanel({
           mxValid: cand.mxValid,
         },
       },
-      attachmentArgs.files
+      attachmentArgs.files,
     );
     try {
       await toast.promise(promise, {
         loading: `Saving draft for ${cand.email}...`,
-        success: 'Draft saved in Gmail.',
-        error: (err) => err.message || 'Could not save draft',
+        success: "Draft saved in Gmail.",
+        error: (err) => err.message || "Could not save draft",
       });
       onLoggedSend?.();
     } catch {
@@ -78,9 +81,9 @@ export default function EnrichPanel({
 
   return (
     <section className="surface overflow-hidden">
-      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-200/60 dark:border-ink-800 bg-gradient-to-br from-brand-50/60 to-white dark:from-brand-900/20 dark:to-ink-900 px-4 py-3">
+      <header className="surface-brand flex flex-wrap items-center justify-between gap-2 border-b border-ui-border/70 px-4 py-3">
         <div className="flex items-center gap-2">
-          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-brand text-white">
+          <span className="icon-brand flex h-6 w-6 items-center justify-center rounded-md">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
@@ -98,8 +101,11 @@ export default function EnrichPanel({
             <p className="text-2xs font-semibold uppercase tracking-[0.08em] text-brand-700 dark:text-brand-300">
               AI email candidates
             </p>
-            <p className="text-2xs text-ink-500 dark:text-ink-400">
-              Domain <span className="font-mono text-ink-700 dark:text-ink-200">{domain || 'unknown'}</span>
+            <p className="text-2xs text-ui-fg-muted">
+              Domain{""}
+              <span className="font-mono text-ui-fg">
+                {domain || "unknown"}
+              </span>
             </p>
           </div>
         </div>
@@ -123,19 +129,24 @@ export default function EnrichPanel({
         {candidates.map((c) => {
           const disabled = !c.mxValid || !canSend || sendingEmail !== null;
           const tooltip = !c.mxValid
-            ? 'Domain has no MX records — mail will bounce.'
+            ? "Domain has no MX records — mail will bounce."
             : !canSend
-              ? 'Add a subject and template first.'
+              ? "Add a subject and template first."
               : `Save draft for ${c.email}`;
           return (
             <li
               key={c.email}
-              className="grid grid-cols-[1fr_auto] items-start gap-3 px-4 py-3 transition hover:bg-ink-50/60 dark:hover:bg-ink-800/60 sm:grid-cols-[1fr_auto_auto] sm:items-center"
+              className="grid grid-cols-[1fr_auto] items-start gap-3 px-4 py-3 transition hover:bg-ui-inset/60 sm:grid-cols-[1fr_auto_auto] sm:items-center"
             >
               <div className="min-w-0">
-                <p className="truncate font-mono text-sm text-ink-900 dark:text-ink-100">{c.email}</p>
+                <p className="truncate font-mono text-sm text-ui-fg">
+                  {c.email}
+                </p>
                 {c.reasoning && (
-                  <p className="mt-0.5 line-clamp-1 text-2xs text-ink-500 dark:text-ink-400" title={c.reasoning}>
+                  <p
+                    className="mt-0.5 line-clamp-1 text-2xs text-ui-fg-muted"
+                    title={c.reasoning}
+                  >
                     {c.reasoning}
                   </p>
                 )}
@@ -148,15 +159,16 @@ export default function EnrichPanel({
                 disabled={disabled}
                 title={tooltip}
               >
-                {sendingEmail === c.email ? 'Saving...' : 'Draft'}
+                {sendingEmail === c.email ? "Saving..." : "Draft"}
               </button>
             </li>
           );
         })}
       </ul>
 
-      <footer className="border-t border-ink-200/60 dark:border-ink-800 bg-ink-50/40 dark:bg-ink-800/40 px-4 py-2.5 text-2xs text-ink-500 dark:text-ink-400">
-        Patterns proposed by Google Gemini. Confidence is a model estimate, not deliverability.
+      <footer className="border-t border-ui-border/70 bg-ui-inset/50 px-4 py-2.5 text-2xs text-ui-fg-muted">
+        Patterns proposed by Google Gemini. Confidence is a model estimate, not
+        deliverability.
       </footer>
     </section>
   );

@@ -1,13 +1,13 @@
-import axios from 'axios';
+import axios from "axios";
 
-import { attachGeminiModelRequest } from './geminiModel.js';
+import { attachGeminiModelRequest } from "./geminiModel.js";
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
+const baseURL = import.meta.env.VITE_API_BASE_URL || "/api";
 
 const client = axios.create({
   baseURL,
   timeout: 60_000,
-  headers: { 'Content-Type': 'application/json' },
+  headers: { "Content-Type": "application/json" },
 });
 
 client.interceptors.request.use(attachGeminiModelRequest);
@@ -20,7 +20,7 @@ function unwrapError(err) {
     return e;
   }
   if (err.message) return new Error(err.message);
-  return new Error('Network error');
+  return new Error("Network error");
 }
 
 async function call(method, url, data) {
@@ -39,7 +39,7 @@ async function callForm(method, url, formData) {
       method,
       url,
       data: formData,
-      headers: { 'Content-Type': undefined },
+      headers: { "Content-Type": undefined },
     });
     return res.data;
   } catch (err) {
@@ -51,7 +51,7 @@ function buildSendFormData(payload, attachments) {
   const fd = new FormData();
   for (const [key, value] of Object.entries(payload)) {
     if (value == null) continue;
-    if (typeof value === 'object') {
+    if (typeof value === "object") {
       // Arrays + plain objects (e.g. recipients, extra, meta) → JSON.
       fd.append(key, JSON.stringify(value));
     } else {
@@ -59,64 +59,64 @@ function buildSendFormData(payload, attachments) {
     }
   }
   for (const file of attachments) {
-    fd.append('attachments', file, file.name);
+    fd.append("attachments", file, file.name);
   }
   return fd;
 }
 
 export const api = {
-  health: () => call('get', '/health'),
+  health: () => call("get", "/health"),
 
-  listGeminiModels: () => call('get', '/ai/models'),
+  listGeminiModels: () => call("get", "/ai/models"),
 
-  preview: (payload) => call('post', '/preview', payload),
+  preview: (payload) => call("post", "/preview", payload),
 
   sendEmail: (payload, attachments = []) =>
     attachments.length
-      ? callForm('post', '/send-email', buildSendFormData(payload, attachments))
-      : call('post', '/send-email', payload),
+      ? callForm("post", "/send-email", buildSendFormData(payload, attachments))
+      : call("post", "/send-email", payload),
 
   sendBulk: (payload, attachments = []) =>
     attachments.length
-      ? callForm('post', '/send-bulk', buildSendFormData(payload, attachments))
-      : call('post', '/send-bulk', payload),
+      ? callForm("post", "/send-bulk", buildSendFormData(payload, attachments))
+      : call("post", "/send-bulk", payload),
 
-  listTemplates: () => call('get', '/templates'),
-  createTemplate: (payload) => call('post', '/templates', payload),
-  updateTemplate: (id, payload) => call('put', `/templates/${id}`, payload),
-  deleteTemplate: (id) => call('delete', `/templates/${id}`),
+  listTemplates: () => call("get", "/templates"),
+  createTemplate: (payload) => call("post", "/templates", payload),
+  updateTemplate: (id, payload) => call("put", `/templates/${id}`, payload),
+  deleteTemplate: (id) => call("delete", `/templates/${id}`),
   // AI: ask Gemini for tag suggestions based on a template's subject + body.
   // Stateless; the caller decides whether to merge/replace existing tags.
   suggestTemplateTags: ({ subject, body, tags }) =>
-    call('post', '/templates/suggest-tags', { subject, body, tags }),
+    call("post", "/templates/suggest-tags", { subject, body, tags }),
 
-  listLog: () => call('get', '/log'),
-  clearLog: () => call('delete', '/log'),
+  listLog: () => call("get", "/log"),
+  clearLog: () => call("delete", "/log"),
 
-  enrichEmail: (payload) => call('post', '/enrich/email', payload),
-  extractNames: (payload) => call('post', '/enrich/names', payload),
-  matchJD: (payload) => call('post', '/enrich/jd-match', payload),
+  enrichEmail: (payload) => call("post", "/enrich/email", payload),
+  extractNames: (payload) => call("post", "/enrich/names", payload),
+  matchJD: (payload) => call("post", "/enrich/jd-match", payload),
 
-  listResumes: () => call('get', '/resumes'),
+  listResumes: () => call("get", "/resumes"),
   uploadResume: (name, file, tags = []) => {
     const fd = new FormData();
-    fd.append('name', name);
-    fd.append('file', file, file.name);
-    if (tags && tags.length) fd.append('tags', JSON.stringify(tags));
-    return callForm('post', '/resumes', fd);
+    fd.append("name", name);
+    fd.append("file", file, file.name);
+    if (tags && tags.length) fd.append("tags", JSON.stringify(tags));
+    return callForm("post", "/resumes", fd);
   },
   // AI: parse a PDF and return suggested resume tags (no upload, no storage).
   suggestResumeTags: (file) => {
     const fd = new FormData();
-    fd.append('file', file, file.name);
-    return callForm('post', '/resumes/suggest-tags', fd);
+    fd.append("file", file, file.name);
+    return callForm("post", "/resumes/suggest-tags", fd);
   },
   // AI: suggest tags for an already-stored resume by id.
-  suggestStoredResumeTags: (id) => call('post', `/resumes/${id}/suggest-tags`),
+  suggestStoredResumeTags: (id) => call("post", `/resumes/${id}/suggest-tags`),
   // PATCH-ish: name and/or tags. Either can be omitted to leave unchanged.
-  updateResume: (id, patch) => call('put', `/resumes/${id}`, patch),
+  updateResume: (id, patch) => call("put", `/resumes/${id}`, patch),
   // Back-compat shim for callers that only want to rename.
-  renameResume: (id, name) => call('put', `/resumes/${id}`, { name }),
-  deleteResume: (id) => call('delete', `/resumes/${id}`),
+  renameResume: (id, name) => call("put", `/resumes/${id}`, { name }),
+  deleteResume: (id) => call("delete", `/resumes/${id}`),
   resumeDownloadUrl: (id) => `${baseURL}/resumes/${id}`,
 };

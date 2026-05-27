@@ -1,17 +1,45 @@
-import { useState } from 'react';
-import toast from 'react-hot-toast';
+import { useState } from "react";
+import toast from "react-hot-toast";
 
-import { api } from '../lib/api.js';
-import EnrichPanel from './EnrichPanel.jsx';
+import { api } from "../lib/api.js";
+import EnrichPanel from "./EnrichPanel.jsx";
 
 // Common job-title tokens that often appear after the name in LinkedIn slugs.
 // Stop tokenisation when we hit one of these.
 const TITLE_STOP = new Set([
-  'software', 'engineer', 'developer', 'manager', 'designer', 'intern',
-  'associate', 'senior', 'lead', 'head', 'founder', 'cofounder', 'ceo',
-  'cto', 'coo', 'cfo', 'specialist', 'consultant', 'analyst', 'data',
-  'scientist', 'phd', 'mba', 'pm', 'product', 'marketing', 'sales',
-  'finance', 'student', 'graduate', 'aspiring', 'researcher', 'engineering',
+  "software",
+  "engineer",
+  "developer",
+  "manager",
+  "designer",
+  "intern",
+  "associate",
+  "senior",
+  "lead",
+  "head",
+  "founder",
+  "cofounder",
+  "ceo",
+  "cto",
+  "coo",
+  "cfo",
+  "specialist",
+  "consultant",
+  "analyst",
+  "data",
+  "scientist",
+  "phd",
+  "mba",
+  "pm",
+  "product",
+  "marketing",
+  "sales",
+  "finance",
+  "student",
+  "graduate",
+  "aspiring",
+  "researcher",
+  "engineering",
 ]);
 
 // Best-effort: pull a likely Full Name out of a linkedin.com/in/<slug> URL.
@@ -19,8 +47,8 @@ const TITLE_STOP = new Set([
 // drops anything starting from the first job-title-ish token, and title-cases
 // the rest. The user can always edit afterwards.
 export function parseLinkedInSlug(input) {
-  if (!input) return '';
-  let slug = '';
+  if (!input) return "";
+  let slug = "";
   const m = String(input).match(/linkedin\.com\/in\/([^/?#]+)/i);
   if (m) {
     try {
@@ -30,14 +58,16 @@ export function parseLinkedInSlug(input) {
     }
   } else {
     // Allow pasting a bare slug too.
-    slug = String(input).trim().replace(/^\/+|\/+$/g, '');
+    slug = String(input)
+      .trim()
+      .replace(/^\/+|\/+$/g, "");
   }
-  if (!slug) return '';
+  if (!slug) return "";
 
-  // Trailing 6+ char alphanumeric hash like "-a1b2c3d4". Require at least
+  // Trailing 6+ char alphanumeric hash like"-a1b2c3d4". Require at least
   // one digit in the suffix so we don't accidentally strip real surnames
-  // (e.g. "-dupont" or "-johnson") that happen to be 6+ letters.
-  slug = slug.replace(/-(?=[a-z0-9]*\d)[a-z0-9]{6,}$/i, '');
+  // (e.g."-dupont" or"-johnson") that happen to be 6+ letters.
+  slug = slug.replace(/-(?=[a-z0-9]*\d)[a-z0-9]{6,}$/i, "");
 
   const rawTokens = slug
     .split(/[-_]+/)
@@ -52,12 +82,12 @@ export function parseLinkedInSlug(input) {
   }
   return nameTokens
     .map((t) => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase())
-    .join(' ');
+    .join("");
 }
 
 function splitName(full) {
-  const parts = (full || '').trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return { firstName: '', lastName: '' };
+  const parts = (full || "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { firstName: "", lastName: "" };
   if (parts.length === 1) return { firstName: parts[0], lastName: parts[0] };
   return { firstName: parts[0], lastName: parts[parts.length - 1] };
 }
@@ -72,26 +102,29 @@ export default function LinkedInPanel({
   attachmentArgs = { extraPayload: {}, files: [] },
   aiEnabled = false,
 }) {
-  const [url, setUrl] = useState('');
+  const [url, setUrl] = useState("");
   const [enriching, setEnriching] = useState(false);
   const [enrichResult, setEnrichResult] = useState(null);
 
   const extractFromUrl = () => {
     const parsed = parseLinkedInSlug(url);
     if (!parsed) {
-      toast.error('Could not parse a name from that URL. Paste a /in/<slug> profile link.');
+      toast.error(
+        "Could not parse a name from that URL. Paste a /in/<slug> profile link.",
+      );
       return;
     }
     setName(parsed);
-    toast.success(`Name set to "${parsed}". Edit if needed.`);
+    toast.success(`Name set to"${parsed}". Edit if needed.`);
   };
 
   const canFind = aiEnabled && name.trim() && company.trim() && !enriching;
 
   const findEmails = async () => {
-    if (!aiEnabled) return toast.error('AI is disabled. Set GEMINI_API_KEY on the server.');
-    if (!name.trim()) return toast.error('Name is required.');
-    if (!company.trim()) return toast.error('Company is required.');
+    if (!aiEnabled)
+      return toast.error("AI is disabled. Set GEMINI_API_KEY on the server.");
+    if (!name.trim()) return toast.error("Name is required.");
+    if (!company.trim()) return toast.error("Company is required.");
 
     const { firstName, lastName } = splitName(name.trim());
     setEnriching(true);
@@ -103,10 +136,10 @@ export default function LinkedInPanel({
       });
       setEnrichResult(res);
       if (!res.candidates?.length) {
-        toast.error('AI returned no usable candidates.');
+        toast.error("AI returned no usable candidates.");
       }
     } catch (err) {
-      toast.error(err.message || 'AI lookup failed');
+      toast.error(err.message || "AI lookup failed");
     } finally {
       setEnriching(false);
     }
@@ -119,7 +152,9 @@ export default function LinkedInPanel({
       <legend className="label !mb-2">LinkedIn profile</legend>
 
       <div>
-        <label className="label" htmlFor="li-url">LinkedIn URL</label>
+        <label className="label" htmlFor="li-url">
+          LinkedIn URL
+        </label>
         <div className="flex gap-2">
           <input
             id="li-url"
@@ -143,7 +178,9 @@ export default function LinkedInPanel({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label className="label" htmlFor="li-name">Full name</label>
+          <label className="label" htmlFor="li-name">
+            Full name
+          </label>
           <input
             id="li-name"
             type="text"
@@ -157,7 +194,9 @@ export default function LinkedInPanel({
           />
         </div>
         <div>
-          <label className="label" htmlFor="li-company">Company</label>
+          <label className="label" htmlFor="li-company">
+            Company
+          </label>
           <input
             id="li-company"
             type="text"
@@ -180,10 +219,10 @@ export default function LinkedInPanel({
           disabled={!canFind}
           title={
             !aiEnabled
-              ? 'AI is disabled on the server'
+              ? "AI is disabled on the server"
               : !name.trim() || !company.trim()
-                ? 'Fill name + company first'
-                : 'Ask AI for likely email addresses'
+                ? "Fill name + company first"
+                : "Ask AI for likely email addresses"
           }
         >
           <svg
@@ -198,7 +237,7 @@ export default function LinkedInPanel({
           >
             <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
           </svg>
-          {enriching ? 'Asking AI...' : 'Find emails with AI'}
+          {enriching ? "Asking AI..." : "Find emails with AI"}
         </button>
         {!aiEnabled && (
           <span className="hint">AI disabled — set GEMINI_API_KEY.</span>

@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
 
-import GeminiModelPicker from './GeminiModelPicker.jsx';
-import StatusPill from './StatusPill.jsx';
-import ThemeToggle from './ThemeToggle.jsx';
+import GeminiModelPicker from "./GeminiModelPicker.jsx";
+import StatusPill from "./StatusPill.jsx";
+import ThemeToggle from "./ThemeToggle.jsx";
 
 export default function HeaderSettingsMenu({
   health,
@@ -16,29 +16,33 @@ export default function HeaderSettingsMenu({
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e) => {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key === "Escape") setOpen(false);
     };
     const onPointer = (e) => {
       if (rootRef.current && !rootRef.current.contains(e.target)) {
         setOpen(false);
       }
     };
-    document.addEventListener('keydown', onKey);
-    document.addEventListener('mousedown', onPointer);
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onPointer);
     return () => {
-      document.removeEventListener('keydown', onKey);
-      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onPointer);
     };
   }, [open]);
 
-  const dbState = health.loading ? 'loading' : health.ok ? 'ok' : 'down';
-  const aiState = health.loading ? 'loading' : health.features?.aiEnrich ? 'ok' : 'off';
+  const dbState = health.loading ? "loading" : health.ok ? "ok" : "down";
+  const aiState = health.loading
+    ? "loading"
+    : health.features?.aiEnrich
+      ? "ok"
+      : "off";
 
   return (
     <div ref={rootRef} className="relative shrink-0">
       <button
         type="button"
-        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-ink-200/70 bg-white text-ink-600 shadow-sm transition hover:bg-ink-50 hover:text-ink-900 dark:border-ink-700 dark:bg-ink-800 dark:text-ink-300 dark:hover:bg-ink-700 dark:hover:text-white"
+        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-ui-border/80 bg-ui-panel text-ui-fg-subtle shadow-sm transition hover:bg-ui-inset hover:text-ui-fg"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="menu"
@@ -61,9 +65,9 @@ export default function HeaderSettingsMenu({
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 z-50 mt-1 w-[min(100vw-2rem,20rem)] rounded-lg border border-ink-200/80 bg-white py-2 shadow-lg dark:border-ink-700 dark:bg-ink-900"
+          className="absolute right-0 z-50 mt-1 w-[min(100vw-2rem,20rem)] rounded-lg border border-ui-border/80 bg-ui-panel py-2 shadow-lg"
         >
-          <p className="px-3 pb-1 text-2xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-500">
+          <p className="px-3 pb-1 text-2xs font-semibold uppercase tracking-wider text-ui-fg-muted">
             Status
           </p>
           <div className="flex flex-wrap items-center gap-2 px-3 pb-3">
@@ -72,10 +76,10 @@ export default function HeaderSettingsMenu({
               state={dbState}
               title={
                 health.loading
-                  ? 'Checking server health...'
+                  ? "Checking server health..."
                   : health.ok
-                    ? `MongoDB connected (${health.storage || 'mongodb'})`
-                    : 'Server or database unreachable'
+                    ? `MongoDB connected (${health.storage || "mongodb"})`
+                    : "Server or database unreachable"
               }
             />
             <button
@@ -84,8 +88,8 @@ export default function HeaderSettingsMenu({
               className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
               title={
                 health.features?.aiEnrich
-                  ? 'AI enabled (GEMINI_API_KEY set)'
-                  : 'AI off — click to copy GEMINI_API_KEY='
+                  ? "AI enabled (GEMINI_API_KEY set)"
+                  : "AI off — click to copy GEMINI_API_KEY="
               }
             >
               <StatusPill label="AI" state={aiState} />
@@ -94,8 +98,8 @@ export default function HeaderSettingsMenu({
 
           {health.features?.aiEnrich ? (
             <>
-              <div className="border-t border-ink-100 dark:border-ink-800" />
-              <p className="px-3 pb-1 pt-2 text-2xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-500">
+              <div className="border-t border-ink-100" />
+              <p className="px-3 pb-1 pt-2 text-2xs font-semibold uppercase tracking-wider text-ui-fg-muted">
                 AI model
               </p>
               <div className="px-1 pb-2">
@@ -108,13 +112,13 @@ export default function HeaderSettingsMenu({
             </>
           ) : null}
 
-          <div className="border-t border-ink-100 dark:border-ink-800" />
-          <p className="px-3 pb-1 pt-2 text-2xs font-semibold uppercase tracking-wider text-ink-400 dark:text-ink-500">
+          <div className="border-t border-ink-100" />
+          <p className="px-3 pb-1 pt-2 text-2xs font-semibold uppercase tracking-wider text-ui-fg-muted">
             Appearance
           </p>
           <div className="flex items-center justify-between gap-2 px-3 pb-1">
-            <span className="text-xs text-ink-600 dark:text-ink-300">
-              {theme === 'dark' ? 'Dark mode' : 'Light mode'}
+            <span className="text-xs text-ui-fg-subtle">
+              {theme === "dark" ? "Dark mode" : "Light mode"}
             </span>
             <ThemeToggle theme={theme} onToggle={onToggleTheme} />
           </div>

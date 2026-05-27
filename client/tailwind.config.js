@@ -5,7 +5,6 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Softer brand — violet (lavender) instead of indigo. Less navy.
         brand: {
           50: '#f5f3ff',
           100: '#ede9fe',
@@ -19,7 +18,6 @@ export default {
           900: '#4c1d95',
           950: '#2e1065',
         },
-        // Secondary accent — fuchsia.
         accent: {
           50: '#fdf4ff',
           100: '#fae8ff',
@@ -32,20 +30,44 @@ export default {
           800: '#86198f',
           900: '#701a75',
         },
-        // Pure neutral grays — no blue tint. Light mode reads as white-and-
-        // gray, dark mode reads as black-and-gray.
+        /* Semantic UI — driven by CSS variables in src/styles/theme.css */
+        ui: {
+          app: 'rgb(var(--cm-app) / <alpha-value>)',
+          panel: {
+            DEFAULT: 'rgb(var(--cm-panel) / <alpha-value>)',
+            muted: 'rgb(var(--cm-panel-muted) / <alpha-value>)',
+          },
+          inset: 'rgb(var(--cm-inset) / <alpha-value>)',
+          border: 'rgb(var(--cm-border) / <alpha-value>)',
+          fg: {
+            DEFAULT: 'rgb(var(--cm-fg) / <alpha-value>)',
+            muted: 'rgb(var(--cm-fg-muted) / <alpha-value>)',
+            subtle: 'rgb(var(--cm-fg-subtle) / <alpha-value>)',
+          },
+          preview: 'rgb(var(--cm-preview) / <alpha-value>)',
+          overlay: 'rgb(var(--cm-overlay) / <alpha-value>)',
+        },
+        /* Legacy ink scale — aliases warm light / charcoal dark for gradual migration */
         ink: {
-          50: '#fafafa',
-          100: '#f5f5f5',
-          200: '#e5e5e5',
-          300: '#d4d4d4',
-          400: '#a3a3a3',
-          500: '#737373',
-          600: '#525252',
-          700: '#404040',
-          800: '#262626',
-          900: '#171717',
-          950: '#0a0a0a',
+          50: 'rgb(var(--cm-inset) / 1)',
+          100: 'rgb(var(--cm-inset) / 1)',
+          200: 'rgb(var(--cm-border) / 1)',
+          300: '#a8a29e',
+          400: 'rgb(var(--cm-fg-subtle) / 1)',
+          500: 'rgb(var(--cm-fg-muted) / 1)',
+          600: 'rgb(var(--cm-fg-subtle) / 1)',
+          700: '#57534e',
+          800: 'rgb(var(--cm-inset) / 1)',
+          900: 'rgb(var(--cm-fg) / 1)',
+          950: 'rgb(var(--cm-app) / 1)',
+        },
+        elevated: {
+          DEFAULT: 'rgb(var(--cm-panel) / 1)',
+          muted: 'rgb(var(--cm-panel-muted) / 1)',
+        },
+        canvas: {
+          DEFAULT: 'rgb(var(--cm-inset) / 1)',
+          soft: 'rgb(var(--cm-app) / 1)',
         },
       },
       fontFamily: {
@@ -72,21 +94,10 @@ export default {
         '2xs': ['0.6875rem', { lineHeight: '1rem' }],
       },
       boxShadow: {
-        soft: '0 1px 2px 0 rgb(15 23 42 / 0.04), 0 4px 12px -2px rgb(15 23 42 / 0.05)',
-        lift: '0 1px 3px 0 rgb(15 23 42 / 0.06), 0 8px 24px -6px rgb(15 23 42 / 0.10)',
-        focus: '0 0 0 4px rgb(99 102 241 / 0.15)',
-        'inner-soft': 'inset 0 1px 2px 0 rgb(15 23 42 / 0.04)',
-      },
-      backgroundImage: {
-        // Brand gradient — violet -> fuchsia. Skips indigo to avoid the
-        // "navy" look the previous gradient had.
-        'gradient-brand':
-          'linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%)',
-        // Light-mode app background: a very subtle violet wash. Dark mode
-        // intentionally has no wash (pure neutral gray) — set via
-        // `html.dark body` in index.css.
-        'gradient-app':
-          'radial-gradient(1200px 600px at 100% -10%, rgb(139 92 246 / 0.08), transparent 60%), radial-gradient(900px 500px at -10% 110%, rgb(217 70 239 / 0.06), transparent 60%)',
+        soft: '0 1px 2px 0 rgb(var(--cm-shadow) / 0.06), 0 4px 12px -2px rgb(var(--cm-shadow) / 0.07)',
+        lift: '0 1px 3px 0 rgb(var(--cm-shadow) / 0.08), 0 8px 24px -6px rgb(var(--cm-shadow) / 0.12)',
+        focus: '0 0 0 4px rgb(139 92 246 / 0.2)',
+        'inner-soft': 'inset 0 1px 2px 0 rgb(var(--cm-shadow) / 0.05)',
       },
       keyframes: {
         'fade-in-up': {

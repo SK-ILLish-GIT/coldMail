@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState } from 'react';
+import { createContext, useCallback, useContext, useState } from "react";
 
 /**
  * Cross-tab deep-link target for the Tailor flow.
@@ -28,15 +28,15 @@ export function TailorTargetProvider({ onRequestTab, children }) {
       if (!template) return;
       setPendingTemplate(template);
       setPendingResumeTailor(false);
-      onRequestTab?.('tailor');
+      onRequestTab?.("tailor");
     },
-    [onRequestTab]
+    [onRequestTab],
   );
 
   const requestTailorResume = useCallback(() => {
     setPendingTemplate(null);
     setPendingResumeTailor(true);
-    onRequestTab?.('tailor');
+    onRequestTab?.("tailor");
   }, [onRequestTab]);
 
   const consumePendingTemplate = useCallback(() => {

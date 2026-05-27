@@ -2,16 +2,16 @@
 // (resume PDF or email template). Render only when `tailoredFor` is set.
 //
 // Examples:
-//   "Tailored for Senior Backend Engineer @ Stripe · +14 ATS"
-//   "Tailored for Stripe · 2 paragraphs edited"
-//   "Tailored · 2026-05-23"
+//"Tailored for Senior Backend Engineer @ Stripe · +14 ATS"
+//"Tailored for Stripe · 2 paragraphs edited"
+//"Tailored · 2026-05-23"
 
 function fmtDate(iso) {
-  if (!iso) return '';
+  if (!iso) return "";
   try {
     return new Date(iso).toLocaleDateString();
   } catch {
-    return '';
+    return "";
   }
 }
 
@@ -20,30 +20,30 @@ function buildHeadline(t) {
   if (t.role) parts.push(t.role);
   if (t.company) parts.push(`@ ${t.company}`);
   if (!parts.length && t.seniority) parts.push(t.seniority);
-  return parts.join(' ');
+  return parts.join("");
 }
 
 export default function TailoredForPill({ tailoredFor }) {
-  if (!tailoredFor || typeof tailoredFor !== 'object') return null;
-  const headline = buildHeadline(tailoredFor) || 'a JD';
+  if (!tailoredFor || typeof tailoredFor !== "object") return null;
+  const headline = buildHeadline(tailoredFor) || "a JD";
 
   // ATS delta (resumes only).
   let scoreSuffix = null;
   if (
-    typeof tailoredFor.atsScoreInitial === 'number' &&
-    typeof tailoredFor.atsScoreFinal === 'number'
+    typeof tailoredFor.atsScoreInitial === "number" &&
+    typeof tailoredFor.atsScoreFinal === "number"
   ) {
     const delta = tailoredFor.atsScoreFinal - tailoredFor.atsScoreInitial;
     if (delta !== 0) {
-      const sign = delta > 0 ? '+' : '';
+      const sign = delta > 0 ? "+" : "";
       scoreSuffix = `${sign}${delta} ATS`;
     }
   }
   // Otherwise, show edit count (templates).
   let editsSuffix = null;
-  if (!scoreSuffix && typeof tailoredFor.appliedCount === 'number') {
+  if (!scoreSuffix && typeof tailoredFor.appliedCount === "number") {
     const n = tailoredFor.appliedCount;
-    if (n > 0) editsSuffix = `${n} edit${n === 1 ? '' : 's'}`;
+    if (n > 0) editsSuffix = `${n} edit${n === 1 ? "" : "s"}`;
   }
   const date = fmtDate(tailoredFor.savedAt);
 

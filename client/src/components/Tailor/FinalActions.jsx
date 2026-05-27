@@ -1,15 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 
-import { tailorApi, overleafImportUrl } from '../../lib/tailorApi.js';
-import { TagInput } from '../Tags.jsx';
+import { tailorApi, overleafImportUrl } from "../../lib/tailorApi.js";
+import { TagInput } from "../Tags.jsx";
 
-// Build a more descriptive default name like "Senior Backend Engineer @ Stripe
+// Build a more descriptive default name like"Senior Backend Engineer @ Stripe
 // · 2026-05-23" so multiple tailored versions don't collide and the user can
 // scan their resume library at a glance.
 function defaultSaveName(session) {
   const date = new Date().toISOString().slice(0, 10);
-  const role = (session?.targetRole || '').trim();
-  const company = (session?.targetCompany || '').trim();
+  const role = (session?.targetRole || "").trim();
+  const company = (session?.targetCompany || "").trim();
   if (role && company) return `${role} @ ${company} · ${date}`;
   if (company) return `${company} resume · ${date}`;
   if (role) return `${role} · ${date}`;
@@ -19,7 +19,7 @@ function defaultSaveName(session) {
 function downloadBlob(buf, filename, mime) {
   const blob = new Blob([buf], { type: mime });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  const a = document.createElement("a");
   a.href = url;
   a.download = filename;
   document.body.appendChild(a);
@@ -44,17 +44,17 @@ export default function FinalActions({
   texliveOptOut = false,
 }) {
   const [compiling, setCompiling] = useState(false);
-  const [pdfUrl, setPdfUrl] = useState('');
+  const [pdfUrl, setPdfUrl] = useState("");
   const [pdfBlobBuf, setPdfBlobBuf] = useState(null);
-  const [compileLog, setCompileLog] = useState('');
-  const [compileSummary, setCompileSummary] = useState('');
-  const [savedId, setSavedId] = useState('');
+  const [compileLog, setCompileLog] = useState("");
+  const [compileSummary, setCompileSummary] = useState("");
+  const [savedId, setSavedId] = useState("");
   const [pageCount, setPageCount] = useState(0);
   const [tags, setTags] = useState([]);
   const [saveName, setSaveName] = useState(() => defaultSaveName(session));
 
   // Fetch auto-suggested tags when the panel mounts. The user can edit them
-  // before clicking "Compile & save"; the server uses whatever the panel sends.
+  // before clicking"Compile & save"; the server uses whatever the panel sends.
   useEffect(() => {
     let cancelled = false;
     tailorApi
@@ -72,8 +72,8 @@ export default function FinalActions({
 
   const compile = async ({ save = false } = {}) => {
     setCompiling(true);
-    setCompileLog('');
-    setCompileSummary('');
+    setCompileLog("");
+    setCompileSummary("");
     try {
       const r = await tailorApi.compile(session.sessionId, {
         save,
@@ -83,24 +83,24 @@ export default function FinalActions({
       });
       const buf = base64ToBuf(r.pdfBase64);
       setPdfBlobBuf(buf);
-      const blob = new Blob([buf], { type: 'application/pdf' });
+      const blob = new Blob([buf], { type: "application/pdf" });
       if (pdfUrl) URL.revokeObjectURL(pdfUrl);
       setPdfUrl(URL.createObjectURL(blob));
       setPageCount(r.pageCount || 0);
       if (save && r.saved) {
         setSavedId(r.saved.id);
-        onCompileMessage?.(`Saved "${r.saved.name}" to your resume library.`);
+        onCompileMessage?.(`Saved"${r.saved.name}" to your resume library.`);
       } else {
-        onCompileMessage?.('PDF compiled. Preview is ready.');
+        onCompileMessage?.("PDF compiled. Preview is ready.");
       }
     } catch (err) {
       if (err.log) {
         setCompileLog(err.log);
-        setCompileSummary(err.logSummary || '');
-        const headline = err.logSummary?.split('\n')[0] || 'See log below.';
+        setCompileSummary(err.logSummary || "");
+        const headline = err.logSummary?.split("\n")[0] || "See log below.";
         onCompileMessage?.(`Compilation failed on texlive.net. ${headline}`);
       } else {
-        onCompileMessage?.(err.message || 'Compile failed.');
+        onCompileMessage?.(err.message || "Compile failed.");
       }
     } finally {
       setCompiling(false);
@@ -109,13 +109,17 @@ export default function FinalActions({
 
   const downloadPdf = () => {
     if (!pdfBlobBuf) return;
-    downloadBlob(pdfBlobBuf, `${saveName || 'tailored-resume'}.pdf`, 'application/pdf');
+    downloadBlob(
+      pdfBlobBuf,
+      `${saveName || "tailored-resume"}.pdf`,
+      "application/pdf",
+    );
   };
 
   const downloadZip = () => {
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = tailorApi.zipUrl(session.sessionId);
-    link.download = `${saveName || 'tailored-resume'}.zip`;
+    link.download = `${saveName || "tailored-resume"}.zip`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -124,35 +128,33 @@ export default function FinalActions({
   const openOverleaf = () => {
     const abs = new URL(
       tailorApi.zipUrl(session.sessionId),
-      window.location.origin
+      window.location.origin,
     ).toString();
-    window.open(overleafImportUrl(abs), '_blank', 'noopener,noreferrer');
+    window.open(overleafImportUrl(abs), "_blank", "noopener,noreferrer");
   };
 
   // Overleaf imports work by fetching the zip URL from Overleaf's servers, so
   // a localhost URL silently fails. Hide the button unless we're on a publicly
   // reachable hostname.
   const overleafReachable = (() => {
-    if (typeof window === 'undefined') return false;
+    if (typeof window === "undefined") return false;
     const h = window.location.hostname;
-    return h && h !== 'localhost' && h !== '127.0.0.1' && !h.endsWith('.local');
+    return h && h !== "localhost" && h !== "127.0.0.1" && !h.endsWith(".local");
   })();
 
   return (
     <div className="surface p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h4 className="text-sm font-semibold text-ink-900 dark:text-white">
-            Finalize
-          </h4>
-          <p className="mt-1 text-xs text-ink-500 dark:text-ink-400">
+          <h4 className="text-sm font-semibold text-ui-fg">Finalize</h4>
+          <p className="mt-1 text-xs text-ui-fg-muted">
             Compile the tailored .tex files into a PDF via texlive.net, or
             download the sources.
           </p>
         </div>
         {pageCount > 0 ? (
-          <span className={pageCount === 1 ? 'pill-emerald' : 'pill-amber'}>
-            {pageCount} {pageCount === 1 ? 'page' : 'pages'}
+          <span className={pageCount === 1 ? "pill-emerald" : "pill-amber"}>
+            {pageCount} {pageCount === 1 ? "page" : "pages"}
           </span>
         ) : null}
       </div>
@@ -170,7 +172,8 @@ export default function FinalActions({
         {texliveOptOut ? (
           <div className="flex items-end">
             <p className="rounded-md bg-amber-50/70 px-3 py-2 text-2xs text-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
-              Compile disabled (texlive.net opt-out is on). Use Download .tex zip below and compile locally.
+              Compile disabled (texlive.net opt-out is on). Use Download .tex
+              zip below and compile locally.
             </p>
           </div>
         ) : (
@@ -180,7 +183,7 @@ export default function FinalActions({
               onClick={() => compile({ save: false })}
               disabled={compiling}
             >
-              {compiling ? 'Compiling...' : 'Compile PDF'}
+              {compiling ? "Compiling..." : "Compile PDF"}
             </button>
             <button
               className="btn-primary"
@@ -196,7 +199,7 @@ export default function FinalActions({
       <div className="mt-3">
         <label className="label">
           Tags
-          <span className="ml-1 font-normal normal-case tracking-normal text-ink-400 dark:text-ink-500">
+          <span className="ml-1 font-normal normal-case tracking-normal text-ui-fg-muted">
             (auto-filled from your skills + JD keywords; used to auto-pick this
             resume on future JDs)
           </span>
@@ -208,7 +211,7 @@ export default function FinalActions({
         />
       </div>
 
-      <p className="mt-2 text-2xs text-ink-500 dark:text-ink-400">
+      <p className="mt-2 text-2xs text-ui-fg-muted">
         Compiles via texlive.net (public LaTeX service). Your resume content is
         sent there to render the PDF.
       </p>
@@ -252,7 +255,7 @@ export default function FinalActions({
       ) : null}
 
       {pdfUrl ? (
-        <div className="mt-4 overflow-hidden rounded-lg border border-ink-200/70 dark:border-ink-700">
+        <div className="mt-4 overflow-hidden rounded-lg border border-ui-border/70">
           <iframe
             title="Tailored resume preview"
             src={pdfUrl}
@@ -277,7 +280,7 @@ export default function FinalActions({
           <summary className="cursor-pointer text-xs font-medium text-rose-600 dark:text-rose-300">
             Full compile log (tail)
           </summary>
-          <pre className="mt-2 max-h-64 overflow-auto rounded bg-ink-50 px-3 py-2 text-2xs text-ink-700 dark:bg-ink-800 dark:text-ink-200">
+          <pre className="mt-2 max-h-64 overflow-auto rounded bg-ink-50 px-3 py-2 text-2xs text-ui-fg bg-ui-inset">
             {compileLog}
           </pre>
         </details>

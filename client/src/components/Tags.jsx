@@ -1,7 +1,7 @@
 // Shared tag widgets used by resumes, templates, and the compose filter row.
 // Kept in one file so the visual style is consistent across the app.
 
-import { useState } from 'react';
+import { useState } from "react";
 
 const VALID_TAG = /^[a-z0-9][a-z0-9+./_-]*$/;
 const MAX_TAG_LEN = 24;
@@ -17,10 +17,10 @@ export function normalizeTags(input) {
   const seen = new Set();
   const out = [];
   for (const raw of arr) {
-    const t = String(raw || '')
+    const t = String(raw || "")
       .trim()
       .toLowerCase()
-      .replace(/\s+/g, '-')
+      .replace(/\s+/g, "-")
       .slice(0, MAX_TAG_LEN);
     if (!t || !VALID_TAG.test(t) || seen.has(t)) continue;
     seen.add(t);
@@ -35,30 +35,34 @@ export function normalizeTags(input) {
  * pills appear inline. Backspace on empty input removes the last pill.
  *
  * Props:
- *  - tags: string[]
- *  - onChange: (tags: string[]) => void
- *  - placeholder?: string
+ * - tags: string[]
+ * - onChange: (tags: string[]) => void
+ * - placeholder?: string
  */
-export function TagInput({ tags = [], onChange, placeholder = 'backend, java, golang...' }) {
-  const [draft, setDraft] = useState('');
+export function TagInput({
+  tags = [],
+  onChange,
+  placeholder = "backend, java, golang...",
+}) {
+  const [draft, setDraft] = useState("");
 
   const commitDraft = (raw) => {
     const value = String(raw ?? draft);
     if (!value.trim()) {
-      setDraft('');
+      setDraft("");
       return;
     }
     onChange(normalizeTags([...tags, value]));
-    setDraft('');
+    setDraft("");
   };
 
   const handleChange = (e) => {
     const value = e.target.value;
     // If the user typed/pasted a comma, commit everything before the comma
     // and keep the rest as the new draft.
-    if (value.includes(',')) {
-      const parts = value.split(',');
-      const tail = parts.pop() ?? '';
+    if (value.includes(",")) {
+      const parts = value.split(",");
+      const tail = parts.pop() ?? "";
       const committed = parts.filter((p) => p.trim().length > 0);
       if (committed.length) {
         onChange(normalizeTags([...tags, ...committed]));
@@ -70,10 +74,10 @@ export function TagInput({ tags = [], onChange, placeholder = 'backend, java, go
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
+    if (e.key === "Enter") {
       e.preventDefault();
       commitDraft();
-    } else if (e.key === 'Backspace' && !draft && tags.length) {
+    } else if (e.key === "Backspace" && !draft && tags.length) {
       e.preventDefault();
       onChange(tags.slice(0, -1));
     }
@@ -82,7 +86,7 @@ export function TagInput({ tags = [], onChange, placeholder = 'backend, java, go
   const removeTag = (t) => onChange(tags.filter((x) => x !== t));
 
   return (
-    <div className="flex flex-wrap items-center gap-1 rounded-lg border border-ink-200 dark:border-ink-800 bg-white dark:bg-ink-900 px-2 py-1.5 focus-within:ring-2 focus-within:ring-brand-200">
+    <div className="flex flex-wrap items-center gap-1 rounded-lg border border-ui-border bg-ui-panel px-2 py-1.5 focus-within:ring-2 focus-within:ring-brand-200">
       {tags.map((t) => (
         <span
           key={t}
@@ -101,8 +105,8 @@ export function TagInput({ tags = [], onChange, placeholder = 'backend, java, go
       ))}
       <input
         type="text"
-        className="min-w-[120px] flex-1 border-0 bg-transparent py-0.5 text-sm outline-none placeholder:text-ink-400 dark:placeholder:text-ink-500"
-        placeholder={tags.length ? '' : placeholder}
+        className="min-w-[120px] flex-1 border-0 bg-transparent py-0.5 text-sm outline-none placeholder:text-ui-fg-muted dark:placeholder:text-ui-fg-muted"
+        placeholder={tags.length ? "" : placeholder}
         value={draft}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
@@ -118,37 +122,42 @@ export function TagInput({ tags = [], onChange, placeholder = 'backend, java, go
  * as a filter row.
  *
  * Props:
- *  - tags: string[]
- *  - activeTags?: string[]
- *  - onToggle?: (tag: string) => void
- *  - size?: 'sm' | 'xs'
+ * - tags: string[]
+ * - activeTags?: string[]
+ * - onToggle?: (tag: string) => void
+ * - size?: 'sm' | 'xs'
  */
-export function TagPills({ tags = [], activeTags = [], onToggle, size = 'xs' }) {
+export function TagPills({
+  tags = [],
+  activeTags = [],
+  onToggle,
+  size = "xs",
+}) {
   if (!tags?.length) return null;
-  const interactive = typeof onToggle === 'function';
+  const interactive = typeof onToggle === "function";
   const sizeClass =
-    size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-1.5 py-0.5 text-2xs';
+    size === "sm" ? "px-2 py-0.5 text-xs" : "px-1.5 py-0.5 text-2xs";
   return (
     <div className="flex flex-wrap items-center gap-1">
       {tags.map((t) => {
         const active = activeTags.includes(t);
-        const Component = interactive ? 'button' : 'span';
+        const Component = interactive ? "button" : "span";
         return (
           <Component
             key={t}
-            type={interactive ? 'button' : undefined}
+            type={interactive ? "button" : undefined}
             onClick={interactive ? () => onToggle(t) : undefined}
             className={[
-              'rounded-full font-medium',
+              "rounded-full font-medium",
               sizeClass,
-              active
-                ? 'bg-brand-500 text-white'
-                : 'bg-ink-100 dark:bg-ink-800/60 text-ink-700 dark:text-ink-200',
-              interactive ? 'cursor-pointer transition hover:bg-ink-200 dark:hover:bg-ink-800' : '',
-              interactive && active ? 'hover:bg-brand-600' : '',
+              active ? "bg-brand-500 text-white" : "bg-ink-100 text-ui-fg",
+              interactive
+                ? "cursor-pointer transition hover:bg-ink-200 dark:hover:bg-ink-800"
+                : "",
+              interactive && active ? "hover:bg-brand-600" : "",
             ]
               .filter(Boolean)
-              .join(' ')}
+              .join("")}
           >
             {t}
           </Component>

@@ -1,33 +1,44 @@
-import { useState } from 'react';
-import toast from 'react-hot-toast';
+import { useState } from "react";
+import toast from "react-hot-toast";
 
-import { api } from '../lib/api.js';
+import { api } from "../lib/api.js";
 
 const EMAIL_REGEX = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const GENERIC_LOCALS = new Set([
-  'sales', 'info', 'contact', 'hr', 'support', 'admin', 'team', 'hello',
-  'noreply', 'no-reply', 'careers', 'jobs', 'billing', 'accounts',
+  "sales",
+  "info",
+  "contact",
+  "hr",
+  "support",
+  "admin",
+  "team",
+  "hello",
+  "noreply",
+  "no-reply",
+  "careers",
+  "jobs",
+  "billing",
+  "accounts",
 ]);
 
 // Deterministic fallback when AI is unavailable (or quota-hit).
 // Splits the local-part on common separators and title-cases the pieces.
 function algoExtractName(email) {
-  const local = email.split('@')[0]?.split('+')[0] ?? '';
-  if (!local) return '';
-  const tokens = local
-    .split(/[._-]+/)
-    .filter((s) => s && !/^\d+$/.test(s));
-  if (!tokens.length) return '';
-  if (tokens.length === 1 && GENERIC_LOCALS.has(tokens[0].toLowerCase())) return '';
+  const local = email.split("@")[0]?.split("+")[0] ?? "";
+  if (!local) return "";
+  const tokens = local.split(/[._-]+/).filter((s) => s && !/^\d+$/.test(s));
+  if (!tokens.length) return "";
+  if (tokens.length === 1 && GENERIC_LOCALS.has(tokens[0].toLowerCase()))
+    return "";
   return tokens
     .map((t) => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase())
-    .join(' ');
+    .join("");
 }
 
 function parseEmails(raw) {
   const seen = new Set();
   const out = [];
-  for (const token of String(raw || '').split(/[\s,;]+/)) {
+  for (const token of String(raw || "").split(/[\s,;]+/)) {
     const e = token.trim().toLowerCase();
     if (e && EMAIL_REGEX.test(e) && !seen.has(e)) {
       seen.add(e);
@@ -39,18 +50,30 @@ function parseEmails(raw) {
 
 function StatusDot({ status }) {
   if (!status) return null;
-  if (status.status === 'sending') {
+  if (status.status === "sending") {
     return (
-      <span className="inline-flex items-center gap-1 text-2xs text-ink-500 dark:text-ink-400">
+      <span className="inline-flex items-center gap-1 text-2xs text-ui-fg-muted">
         <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
-          <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+          <circle
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            strokeOpacity="0.25"
+            strokeWidth="3"
+          />
+          <path
+            d="M22 12a10 10 0 0 1-10 10"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
         </svg>
         Sending
       </span>
     );
   }
-  if (status.status === 'drafted') {
+  if (status.status === "drafted") {
     return (
       <span className="pill-emerald" title="Saved to Gmail Drafts">
         <span className="status-dot bg-emerald-500" />
@@ -58,15 +81,15 @@ function StatusDot({ status }) {
       </span>
     );
   }
-  if (status.status === 'failed') {
+  if (status.status === "failed") {
     return (
-      <span className="pill-rose" title={status.error || 'Failed'}>
+      <span className="pill-rose" title={status.error || "Failed"}>
         <span className="status-dot bg-rose-500" />
         Failed
       </span>
     );
   }
-  if (status.status === 'pending') {
+  if (status.status === "pending") {
     return (
       <span className="pill-ink" title="Queued">
         <span className="status-dot bg-ink-300 dark:bg-ink-600" />
@@ -85,43 +108,55 @@ export default function MailIDPanel({
   aiEnabled = false,
   sendStatuses = {},
 }) {
-  const [rawInput, setRawInput] = useState('');
+  const [rawInput, setRawInput] = useState("");
   const [extracting, setExtracting] = useState(false);
 
   const previewEmails = parseEmails(rawInput);
-  const canExtract = previewEmails.length > 0 && company.trim().length > 0 && !extracting;
+  const canExtract =
+    previewEmails.length > 0 && company.trim().length > 0 && !extracting;
 
   const buildRecipients = (candidates) =>
     candidates.map((c) => ({
       email: c.email,
-      name: c.name || '',
+      name: c.name || "",
       company: company.trim(),
     }));
 
   const extract = async () => {
     const emails = parseEmails(rawInput);
-    if (!emails.length) return toast.error('Add at least one valid email.');
-    if (!company.trim()) return toast.error('Company is required for this mode.');
+    if (!emails.length) return toast.error("Add at least one valid email.");
+    if (!company.trim())
+      return toast.error("Company is required for this mode.");
 
     setExtracting(true);
     try {
       if (aiEnabled) {
         try {
-          const res = await api.extractNames({ emails, company: company.trim() });
+          const res = await api.extractNames({
+            emails,
+            company: company.trim(),
+          });
           setRecipients(buildRecipients(res.candidates));
-          toast.success(`Extracted ${res.candidates.length} name${res.candidates.length === 1 ? '' : 's'} via AI.`);
+          toast.success(
+            `Extracted ${res.candidates.length} name${res.candidates.length === 1 ? "" : "s"} via AI.`,
+          );
           return;
         } catch (err) {
           // Fall back to algorithmic on quota / network / model errors.
           toast(
-            `AI extraction failed (${err.message || 'unknown'}). Using basic split.`,
-            { icon: '⚠️' }
+            `AI extraction failed (${err.message || "unknown"}). Using basic split.`,
+            { icon: "⚠️" },
           );
         }
       }
-      const candidates = emails.map((email) => ({ email, name: algoExtractName(email) }));
+      const candidates = emails.map((email) => ({
+        email,
+        name: algoExtractName(email),
+      }));
       setRecipients(buildRecipients(candidates));
-      toast.success(`Parsed ${candidates.length} email${candidates.length === 1 ? '' : 's'}.`);
+      toast.success(
+        `Parsed ${candidates.length} email${candidates.length === 1 ? "" : "s"}.`,
+      );
     } finally {
       setExtracting(false);
     }
@@ -129,7 +164,7 @@ export default function MailIDPanel({
 
   const updateName = (idx, value) => {
     setRecipients(
-      recipients.map((r, i) => (i === idx ? { ...r, name: value } : r))
+      recipients.map((r, i) => (i === idx ? { ...r, name: value } : r)),
     );
   };
 
@@ -139,7 +174,7 @@ export default function MailIDPanel({
 
   const clearAll = () => {
     setRecipients([]);
-    setRawInput('');
+    setRawInput("");
   };
 
   // If the user changes the company AFTER extraction, propagate to every row
@@ -175,9 +210,7 @@ export default function MailIDPanel({
             Emails
           </label>
           {previewEmails.length > 0 && (
-            <span className="hint">
-              {previewEmails.length} valid
-            </span>
+            <span className="hint">{previewEmails.length} valid</span>
           )}
         </div>
         <textarea
@@ -198,12 +231,12 @@ export default function MailIDPanel({
           disabled={!canExtract}
           title={
             !previewEmails.length
-              ? 'Add at least one valid email'
+              ? "Add at least one valid email"
               : !company.trim()
-                ? 'Company is required'
+                ? "Company is required"
                 : aiEnabled
-                  ? 'Use AI to infer recipient names from each email'
-                  : 'Parse names from each email (no AI)'
+                  ? "Use AI to infer recipient names from each email"
+                  : "Parse names from each email (no AI)"
           }
         >
           <svg
@@ -218,7 +251,11 @@ export default function MailIDPanel({
           >
             <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
           </svg>
-          {extracting ? 'Extracting...' : aiEnabled ? 'Extract names with AI' : 'Parse emails'}
+          {extracting
+            ? "Extracting..."
+            : aiEnabled
+              ? "Extract names with AI"
+              : "Parse emails"}
         </button>
         {recipients.length > 0 && (
           <button
@@ -232,15 +269,15 @@ export default function MailIDPanel({
       </div>
 
       {recipients.length > 0 && (
-        <div className="anim-in overflow-hidden rounded-lg border border-ink-200/70 dark:border-ink-800">
-          <div className="flex items-center justify-between bg-ink-50/60 dark:bg-ink-800/40 px-4 py-2">
-            <span className="text-2xs font-semibold uppercase tracking-[0.08em] text-ink-500 dark:text-ink-400">
+        <div className="anim-in overflow-hidden rounded-lg border border-ui-border/70">
+          <div className="flex items-center justify-between bg-ui-inset/60 px-4 py-2">
+            <span className="text-2xs font-semibold uppercase tracking-[0.08em] text-ui-fg-muted">
               Recipients ({recipients.length})
             </span>
           </div>
           <div className="max-h-[360px] overflow-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-white dark:bg-ink-900 text-2xs uppercase tracking-[0.08em] text-ink-500 dark:text-ink-400">
+              <thead className="bg-ui-panel text-2xs uppercase tracking-[0.08em] text-ui-fg-muted">
                 <tr>
                   <th className="px-4 py-2 font-semibold">Email</th>
                   <th className="px-4 py-2 font-semibold">Name (editable)</th>
@@ -252,8 +289,13 @@ export default function MailIDPanel({
                 {recipients.map((r, i) => {
                   const status = sendStatuses[r.email.toLowerCase()];
                   return (
-                    <tr key={r.email} className="transition hover:bg-ink-50/40 dark:hover:bg-ink-800/60">
-                      <td className="px-4 py-2 font-mono text-xs text-ink-700 dark:text-ink-200">{r.email}</td>
+                    <tr
+                      key={r.email}
+                      className="transition hover:bg-ui-inset/50"
+                    >
+                      <td className="px-4 py-2 font-mono text-xs text-ui-fg">
+                        {r.email}
+                      </td>
                       <td className="px-4 py-2">
                         <input
                           type="text"

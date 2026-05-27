@@ -1,31 +1,31 @@
-import { useEffect, useState } from 'react';
-import toast from 'react-hot-toast';
+import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 
-import { api } from '../lib/api.js';
-import { useJd } from '../lib/jdContext.jsx';
-import { useTailorTarget } from '../lib/tailorTarget.jsx';
+import { api } from "../lib/api.js";
+import { useJd } from "../lib/jdContext.jsx";
+import { useTailorTarget } from "../lib/tailorTarget.jsx";
 
 /**
  * Collapsible panel that asks Gemini to pick the best template + resume for
  * a given Job Description. Lives at the top of Compose as the explicit
- * "Step 0" entry point. The actual selection plumbing lives in the parent
+ *"Step 0" entry point. The actual selection plumbing lives in the parent
  * (EmailForm) via the onMatch callback — this component is purely the UI +
- * API call. The "Tailor template" button deep-links to the Tailor tab
+ * API call. The"Tailor template" button deep-links to the Tailor tab
  * (single canonical entry) instead of opening yet another modal.
  *
  * Props:
- *  - templates: [{id, name, tags}]
- *  - resumes:   [{id, name, tags}]
- *  - aiEnabled: boolean
- *  - onMatch:   ({ templateId, resumeId, reasoning }) => void
- *  - activeTemplateId: currently selected template id (for "Tailor template")
+ * - templates: [{id, name, tags}]
+ * - resumes: [{id, name, tags}]
+ * - aiEnabled: boolean
+ * - onMatch: ({ templateId, resumeId, reasoning }) => void
+ * - activeTemplateId: currently selected template id (for"Tailor template")
  */
 export default function JDMatcher({
   templates = [],
   resumes = [],
   aiEnabled = false,
   onMatch,
-  activeTemplateId = '',
+  activeTemplateId = "",
 }) {
   const { jd, setJd } = useJd();
   const { requestTailorTemplate } = useTailorTarget();
@@ -59,8 +59,16 @@ export default function JDMatcher({
     try {
       const result = await api.matchJD({
         jobDescription: jd.trim(),
-        templates: templates.map((t) => ({ id: t.id, name: t.name, tags: t.tags || [] })),
-        resumes: resumes.map((r) => ({ id: r.id, name: r.name, tags: r.tags || [] })),
+        templates: templates.map((t) => ({
+          id: t.id,
+          name: t.name,
+          tags: t.tags || [],
+        })),
+        resumes: resumes.map((r) => ({
+          id: r.id,
+          name: r.name,
+          tags: r.tags || [],
+        })),
       });
       setLastResult(result);
       onMatch?.(result);
@@ -72,21 +80,23 @@ export default function JDMatcher({
         ? resumes.find((r) => r.id === result.resumeId)?.name
         : null;
       if (pickedT && pickedR) {
-        toast.success(`AI picked "${pickedT}" + "${pickedR}".`);
+        toast.success(`AI picked"${pickedT}" +"${pickedR}".`);
       } else if (pickedT || pickedR) {
-        toast.success(`AI picked ${pickedT ? `template "${pickedT}"` : `resume "${pickedR}"`}.`);
+        toast.success(
+          `AI picked ${pickedT ? `template"${pickedT}"` : `resume"${pickedR}"`}.`,
+        );
       } else {
-        toast(`No good match — review your library tags.`, { icon: 'ℹ️' });
+        toast(`No good match — review your library tags.`, { icon: "ℹ️" });
       }
     } catch (err) {
-      toast.error(err.message || 'JD match failed');
+      toast.error(err.message || "JD match failed");
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <section className="rounded-lg border border-ink-200/80 dark:border-ink-800 bg-gradient-to-br from-brand-50/40 to-white dark:from-brand-900/20 dark:to-ink-900">
+    <section className="surface-brand rounded-lg border border-ui-border/80">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -94,7 +104,7 @@ export default function JDMatcher({
         aria-expanded={open}
       >
         <div className="flex items-center gap-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-brand text-white">
+          <span className="icon-brand flex h-7 w-7 items-center justify-center rounded-md">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
@@ -109,12 +119,15 @@ export default function JDMatcher({
             </svg>
           </span>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-ink-900 dark:text-white">
+            <p className="text-sm font-semibold text-ui-fg">
               Step 0 · Match by JD
-              <span className="ml-1 font-normal text-ink-400 dark:text-ink-500">(optional)</span>
+              <span className="ml-1 font-normal text-ui-fg-muted">
+                (optional)
+              </span>
             </p>
-            <p className="text-2xs text-ink-500 dark:text-ink-400">
-              Paste a JD; AI picks the best-fit template + resume from your library.
+            <p className="text-2xs text-ui-fg-muted">
+              Paste a JD; AI picks the best-fit template + resume from your
+              library.
             </p>
           </div>
         </div>
@@ -126,26 +139,30 @@ export default function JDMatcher({
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className={`h-4 w-4 text-ink-500 dark:text-ink-400 transition-transform ${open ? 'rotate-180' : ''}`}
+          className={`h-4 w-4 text-ui-fg-muted transition-transform ${open ? "rotate-180" : ""}`}
         >
           <polyline points="6 9 12 15 18 9" />
         </svg>
       </button>
 
       {open && (
-        <div className="anim-in space-y-3 border-t border-ink-200/60 dark:border-ink-800 px-4 py-3">
+        <div className="anim-in space-y-3 border-t border-ui-border/70 px-4 py-3">
           {!aiEnabled && (
             <p className="hint text-rose-600 dark:text-rose-400">
-              AI is disabled on the server — set <span className="font-mono">GEMINI_API_KEY</span> to enable this.
+              AI is disabled on the server — set{""}
+              <span className="font-mono">GEMINI_API_KEY</span> to enable this.
             </p>
           )}
           {libraryEmpty && (
             <p className="hint text-amber-600 dark:text-amber-400">
-              Add at least one template or resume first, otherwise there&apos;s nothing to pick from.
+              Add at least one template or resume first, otherwise there&apos;s
+              nothing to pick from.
             </p>
           )}
           <div>
-            <label className="label" htmlFor="jd-text">Job description</label>
+            <label className="label" htmlFor="jd-text">
+              Job description
+            </label>
             <textarea
               id="jd-text"
               rows={6}
@@ -166,15 +183,15 @@ export default function JDMatcher({
               disabled={!canRun}
               title={
                 !aiEnabled
-                  ? 'AI disabled on the server'
+                  ? "AI disabled on the server"
                   : libraryEmpty
-                    ? 'Add a template or resume first'
+                    ? "Add a template or resume first"
                     : jd.trim().length < 20
-                      ? 'Paste a longer JD'
-                      : 'Ask AI to pick the best fit'
+                      ? "Paste a longer JD"
+                      : "Ask AI to pick the best fit"
               }
             >
-              {busy ? 'Analysing...' : 'Find best fit'}
+              {busy ? "Analysing..." : "Find best fit"}
             </button>
             <button
               type="button"
@@ -183,12 +200,12 @@ export default function JDMatcher({
               disabled={!canTailor}
               title={
                 !aiEnabled
-                  ? 'AI disabled on the server'
+                  ? "AI disabled on the server"
                   : !activeTemplate
-                    ? 'Pick a template below first'
+                    ? "Pick a template below first"
                     : jd.trim().length < 20
-                      ? 'Paste a longer JD'
-                      : 'Open the Tailor tab with this template + JD pre-filled'
+                      ? "Paste a longer JD"
+                      : "Open the Tailor tab with this template + JD pre-filled"
               }
             >
               Tailor template →

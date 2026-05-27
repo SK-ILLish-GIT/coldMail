@@ -1,13 +1,13 @@
-import axios from 'axios';
+import axios from "axios";
 
-import { attachGeminiModelRequest } from './geminiModel.js';
+import { attachGeminiModelRequest } from "./geminiModel.js";
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
+const baseURL = import.meta.env.VITE_API_BASE_URL || "/api";
 
 const client = axios.create({
   baseURL: `${baseURL}/tailor`,
   timeout: 120_000,
-  headers: { 'Content-Type': 'application/json' },
+  headers: { "Content-Type": "application/json" },
 });
 
 client.interceptors.request.use(attachGeminiModelRequest);
@@ -20,14 +20,14 @@ function unwrapError(err) {
     return e;
   }
   if (err.response?.data?.log) {
-    const e = new Error('LaTeX compilation failed.');
+    const e = new Error("LaTeX compilation failed.");
     e.log = err.response.data.log;
-    e.logSummary = err.response.data.logSummary || '';
+    e.logSummary = err.response.data.logSummary || "";
     e.status = err.response.status;
     return e;
   }
   if (err.message) return new Error(err.message);
-  return new Error('Network error');
+  return new Error("Network error");
 }
 
 async function call(method, url, data, config) {
@@ -40,50 +40,51 @@ async function call(method, url, data, config) {
 }
 
 export const tailorApi = {
-  status: () => call('get', '/status'),
+  status: () => call("get", "/status"),
 
-  startSession: (payload) => call('post', '/session', payload),
+  startSession: (payload) => call("post", "/session", payload),
 
-  next: (sessionId) => call('get', `/session/${sessionId}/next`),
+  next: (sessionId) => call("get", `/session/${sessionId}/next`),
 
   // Full queue snapshot — drives the bulk-triage view.
-  queue: (sessionId) => call('get', `/session/${sessionId}/queue`),
+  queue: (sessionId) => call("get", `/session/${sessionId}/queue`),
 
   decide: (sessionId, payload) =>
-    call('post', `/session/${sessionId}/decide`, payload),
+    call("post", `/session/${sessionId}/decide`, payload),
 
-  autoTags: (sessionId) => call('get', `/session/${sessionId}/auto-tags`),
+  autoTags: (sessionId) => call("get", `/session/${sessionId}/auto-tags`),
 
-  compile: (sessionId, { save = false, name = '', tags } = {}) => {
+  compile: (sessionId, { save = false, name = "", tags } = {}) => {
     const body = {};
     if (name) body.name = name;
     if (Array.isArray(tags)) body.tags = tags;
     return call(
-      'post',
-      `/session/${sessionId}/compile${save ? '?save=1' : ''}`,
-      body
+      "post",
+      `/session/${sessionId}/compile${save ? "?save=1" : ""}`,
+      body,
     );
   },
 
-  rollback: (sessionId) => call('post', `/session/${sessionId}/rollback`),
+  rollback: (sessionId) => call("post", `/session/${sessionId}/rollback`),
 
-  report: (sessionId) => call('get', `/session/${sessionId}/report`),
+  report: (sessionId) => call("get", `/session/${sessionId}/report`),
 
   zipUrl: (sessionId) => `${baseURL}/tailor/session/${sessionId}/zip`,
 
   // ---- Template tailoring -------------------------------------------------
-  startTemplateSession: (payload) => call('post', '/template-session', payload),
+  startTemplateSession: (payload) => call("post", "/template-session", payload),
 
-  templateNext: (sessionId) => call('get', `/template-session/${sessionId}/next`),
+  templateNext: (sessionId) =>
+    call("get", `/template-session/${sessionId}/next`),
 
   templateDecide: (sessionId, payload) =>
-    call('post', `/template-session/${sessionId}/decide`, payload),
+    call("post", `/template-session/${sessionId}/decide`, payload),
 
   saveTemplateSession: (sessionId, { name, tags } = {}) =>
-    call('post', `/template-session/${sessionId}/save`, { name, tags }),
+    call("post", `/template-session/${sessionId}/save`, { name, tags }),
 };
 
-// Open the current CV folder zip in Overleaf via their "open snippet" deep link.
+// Open the current CV folder zip in Overleaf via their"open snippet" deep link.
 // The zip URL must be publicly reachable for Overleaf to fetch it, which only
 // works when this app is deployed behind a public hostname. In local dev we
 // surface the link anyway as a manual fallback for `wget` + upload-to-Overleaf.

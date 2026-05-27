@@ -1,14 +1,22 @@
-import { useEffect } from 'react';
+import { useEffect } from "react";
 
-export default function PreviewModal({ open, onClose, subject, html, to, onEdit, editLabel = 'Edit' }) {
+export default function PreviewModal({
+  open,
+  onClose,
+  subject,
+  html,
+  to,
+  onEdit,
+  editLabel = "Edit",
+}) {
   useEffect(() => {
     if (!open) return;
-    const onKey = (e) => e.key === 'Escape' && onClose();
-    document.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
+    const onKey = (e) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
     return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
     };
   }, [open, onClose]);
 
@@ -16,31 +24,33 @@ export default function PreviewModal({ open, onClose, subject, html, to, onEdit,
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/55 p-4 backdrop-blur-sm anim-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ui-overlay/50 p-4 backdrop-blur-sm anim-in"
       onClick={onClose}
     >
       <div
-        className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white dark:bg-ink-900 shadow-lift"
+        className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-ui-panel shadow-lift"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex items-start justify-between gap-4 border-b border-ink-200/60 dark:border-ink-800 px-5 py-4">
+        <header className="flex items-start justify-between gap-4 border-b border-ui-border/70 px-5 py-4">
           <div className="min-w-0">
-            <p className="text-2xs font-semibold uppercase tracking-[0.08em] text-ink-500 dark:text-ink-400">
+            <p className="text-2xs font-semibold uppercase tracking-[0.08em] text-ui-fg-muted">
               Email preview
             </p>
-            <h3 className="truncate text-base font-semibold text-ink-900 dark:text-white">
-              {subject || <span className="italic text-ink-400 dark:text-ink-500">(no subject)</span>}
+            <h3 className="truncate text-base font-semibold text-ui-fg">
+              {subject || (
+                <span className="italic text-ui-fg-muted">(no subject)</span>
+              )}
             </h3>
             {to && (
-              <p className="mt-0.5 truncate text-xs text-ink-500 dark:text-ink-400">
-                To <span className="font-medium text-ink-700 dark:text-ink-200">{to}</span>
+              <p className="mt-0.5 truncate text-xs text-ui-fg-muted">
+                To <span className="font-medium text-ui-fg">{to}</span>
               </p>
             )}
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1.5 text-ink-400 dark:text-ink-500 hover:bg-ink-100 dark:hover:bg-ink-800/60 hover:text-ink-700 dark:hover:text-ink-200"
+            className="rounded-md p-1.5 text-ui-fg-muted hover:bg-ui-inset/60 hover:text-ui-fg"
             aria-label="Close preview"
           >
             <svg
@@ -59,16 +69,19 @@ export default function PreviewModal({ open, onClose, subject, html, to, onEdit,
           </button>
         </header>
 
-        <div className="flex-1 overflow-auto bg-ink-100/60 dark:bg-ink-800/40 p-4">
+        <div className="flex-1 overflow-auto bg-ui-inset/60 p-4">
           <iframe
             title="Email preview"
-            srcDoc={html || '<p style="font-family:sans-serif;color:#94a3b8;">Nothing to preview yet.</p>'}
+            srcDoc={
+              html ||
+              '<p style="font-family:sans-serif;color:#94a3b8;">Nothing to preview yet.</p>'
+            }
             sandbox=""
-            className="preview-frame h-[60vh] w-full rounded-lg border border-ink-200 dark:border-ink-800 bg-white"
+            className="preview-frame h-[60vh] w-full rounded-lg border border-ui-border"
           />
         </div>
 
-        <footer className="flex items-center justify-end gap-2 border-t border-ink-200/60 dark:border-ink-800 bg-white dark:bg-ink-900 px-5 py-3">
+        <footer className="flex items-center justify-end gap-2 border-t border-ui-border/70 bg-ui-panel px-5 py-3">
           {onEdit && (
             <button type="button" className="btn-ghost btn-xs" onClick={onEdit}>
               {editLabel}

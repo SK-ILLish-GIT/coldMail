@@ -1,3 +1,5 @@
+@import './styles/theme.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -9,30 +11,15 @@
     height: 100%;
   }
 
-  /* Default = light. The `dark` class on <html> swaps everything. */
-  html {
-    color-scheme: light;
-  }
-  html.dark {
-    color-scheme: dark;
-  }
-
   body {
-    @apply bg-ink-50 bg-gradient-app text-ink-900 antialiased
-           dark:bg-ink-950 dark:text-ink-100;
+    @apply bg-ui-app text-ui-fg antialiased;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'ss01';
-  }
-  /* Dark mode is intentionally a flat black/gray surface — no colored
-     radial washes — so the UI reads as the user asked for. */
-  html.dark body {
-    background-image: none;
   }
 
   ::selection {
     @apply bg-brand-200 text-brand-900 dark:bg-brand-700/60 dark:text-white;
   }
 
-  /* Subtle scrollbar styling */
   ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
@@ -41,38 +28,33 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    @apply rounded-full bg-ink-200 dark:bg-ink-700;
+    @apply rounded-full bg-ui-border;
   }
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-ink-300 dark:bg-ink-600;
+    @apply bg-ui-fg-subtle/40;
   }
 }
 
 @layer components {
-  /* ---------- Form controls ---------- */
   .input {
-    @apply w-full rounded-lg border border-ink-200 bg-white px-3.5 py-2.5 text-sm
-           text-ink-900 placeholder:text-ink-400 shadow-inner-soft
+    @apply w-full rounded-lg border border-ui-border bg-ui-panel px-3.5 py-2.5 text-sm
+           text-ui-fg placeholder:text-ui-fg-muted shadow-inner-soft
            transition focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100
-           disabled:cursor-not-allowed disabled:bg-ink-50 disabled:text-ink-400
-           dark:border-ink-700 dark:bg-ink-900 dark:text-ink-100 dark:placeholder:text-ink-500
-           dark:focus:border-brand-400 dark:focus:ring-brand-900/40
-           dark:disabled:bg-ink-800/60 dark:disabled:text-ink-500;
+           disabled:cursor-not-allowed disabled:bg-ui-inset disabled:text-ui-fg-subtle
+           dark:focus:border-brand-400 dark:focus:ring-brand-900/40;
   }
   .input-mono {
     @apply input font-mono text-[13px] leading-relaxed;
   }
 
   .label {
-    @apply mb-1.5 block text-2xs font-semibold uppercase tracking-[0.08em]
-           text-ink-500 dark:text-ink-400;
+    @apply mb-1.5 block text-2xs font-semibold uppercase tracking-[0.08em] text-ui-fg-muted;
   }
 
   .hint {
-    @apply text-xs text-ink-500 dark:text-ink-400;
+    @apply text-xs text-ui-fg-muted;
   }
 
-  /* ---------- Buttons ---------- */
   .btn {
     @apply relative inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-medium
            transition active:scale-[0.98]
@@ -89,24 +71,31 @@
   }
 
   .btn-gradient {
-    @apply btn bg-gradient-brand text-white shadow-md
-           hover:shadow-lg hover:brightness-110
-           focus-visible:ring-brand-200;
+    @apply btn-primary;
+  }
+
+  .surface-brand {
+    @apply bg-brand-50/50 dark:bg-brand-500/10;
+  }
+
+  .icon-brand {
+    @apply bg-brand-600 text-white dark:bg-brand-600/85;
+  }
+
+  .icon-brand-muted {
+    @apply bg-brand-100/90 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300;
   }
 
   .btn-secondary {
-    @apply btn bg-white text-ink-700 ring-1 ring-inset ring-ink-200 shadow-sm
-           hover:bg-ink-50 hover:ring-ink-300
-           focus-visible:ring-brand-200
-           dark:bg-ink-800 dark:text-ink-100 dark:ring-ink-700
-           dark:hover:bg-ink-700 dark:hover:ring-ink-600;
+    @apply btn bg-ui-panel text-ui-fg ring-1 ring-inset ring-ui-border shadow-sm
+           hover:bg-ui-panel-muted hover:ring-ui-fg-subtle/30
+           focus-visible:ring-brand-200;
   }
 
   .btn-ghost {
-    @apply btn text-ink-600 hover:bg-ink-100 hover:text-ink-900 focus-visible:ring-ink-200
-           dark:bg-ink-800/60 dark:text-ink-200 dark:ring-1 dark:ring-inset dark:ring-ink-700/60
-           dark:hover:bg-ink-700 dark:hover:text-white
-           dark:focus-visible:ring-ink-700;
+    @apply btn text-ui-fg-subtle hover:bg-ui-inset hover:text-ui-fg
+           focus-visible:ring-ui-border
+           dark:ring-1 dark:ring-inset dark:ring-ui-border/80;
   }
 
   .btn-danger {
@@ -120,22 +109,18 @@
     @apply px-2.5 py-1 text-xs;
   }
 
-  /* ---------- Cards & surfaces ---------- */
   .card {
-    @apply rounded-2xl border border-ink-200/70 bg-white shadow-soft
-           dark:border-ink-800 dark:bg-ink-900/80 dark:backdrop-blur;
+    @apply rounded-2xl border border-ui-border/80 bg-ui-panel shadow-soft;
   }
 
   .surface {
-    @apply rounded-xl border border-ink-200/70 bg-white
-           dark:border-ink-800 dark:bg-ink-900/70;
+    @apply rounded-xl border border-ui-border/80 bg-ui-panel;
   }
 
   .divider {
-    @apply h-px w-full bg-ink-200/70 dark:bg-ink-800;
+    @apply h-px w-full bg-ui-border/70;
   }
 
-  /* ---------- Pills ---------- */
   .pill {
     @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-medium;
   }
@@ -157,66 +142,100 @@
            dark:bg-amber-900/30 dark:text-amber-200 dark:ring-amber-800/40;
   }
   .pill-ink {
-    @apply pill bg-ink-100 text-ink-700 ring-1 ring-inset ring-ink-200
-           dark:bg-ink-800 dark:text-ink-200 dark:ring-ink-700;
+    @apply pill bg-ui-inset text-ui-fg-subtle ring-1 ring-inset ring-ui-border;
   }
 
-  /* Tiny pulsing status dot used inside status pills */
   .status-dot {
     @apply inline-block h-1.5 w-1.5 rounded-full;
   }
 
-  /* ---------- Tabs ---------- */
   .tabs {
-    @apply inline-flex items-center gap-0.5 rounded-xl bg-ink-100/80 p-1
-           ring-1 ring-inset ring-ink-200/60
-           dark:bg-ink-800/70 dark:ring-ink-700/60;
+    @apply inline-flex flex-nowrap items-center gap-2 rounded-xl bg-ui-inset/80 p-2
+           ring-1 ring-inset ring-ui-border/60;
   }
+  /*
+   * Tabs: paint hover/active/focus on ::before so the button box never resizes.
+   */
   .tab {
-    @apply rounded-lg px-3 py-1.5 text-sm font-medium text-ink-600 transition
-           hover:text-ink-900
-           dark:text-ink-300 dark:hover:text-white;
+    @apply relative isolate shrink-0 rounded-lg border-0 bg-transparent px-4 py-2
+           text-sm font-medium leading-none text-ui-fg-subtle shadow-none outline-none
+           ring-0 transition-colors duration-150
+           hover:text-ui-fg
+           focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0;
+  }
+  .tab::before {
+    content: '';
+    @apply pointer-events-none absolute inset-0 -z-10 rounded-[inherit]
+           shadow-[inset_0_0_0_1px_transparent]
+           transition-[background-color,box-shadow] duration-150;
+  }
+  .tab:hover::before {
+    @apply bg-ui-panel/50;
+  }
+  .tabs.text-xs .tab {
+    @apply px-4 py-2;
+    font-size: 0.75rem;
+    line-height: 1rem;
   }
   .tab-active {
-    @apply bg-white text-ink-900 shadow-sm ring-1 ring-inset ring-ink-200/60
-           dark:bg-ink-900 dark:text-white dark:ring-ink-700;
+    @apply text-ui-fg;
   }
-  /* Mode-specific active tab tints. Used in the compose form so each
-     channel (email / csv / linkedin) gets a clear color cue. */
+  .tab-active::before {
+    @apply bg-ui-panel shadow-[inset_0_0_0_1px_rgb(var(--cm-border)/0.85)];
+  }
   .tab-active-rose {
-    @apply bg-rose-50 text-rose-700 shadow-sm ring-1 ring-inset ring-rose-200/70
-           dark:bg-rose-900/30 dark:text-rose-200 dark:ring-rose-800/50;
+    @apply text-rose-700 dark:text-rose-200;
+  }
+  .tab-active-rose::before {
+    @apply bg-rose-50 shadow-[inset_0_0_0_1px_rgb(251_207_232/0.9)]
+           dark:bg-rose-900/30 dark:shadow-[inset_0_0_0_1px_rgb(159_18_57/0.45)];
   }
   .tab-active-emerald {
-    @apply bg-emerald-50 text-emerald-700 shadow-sm ring-1 ring-inset ring-emerald-200/70
-           dark:bg-emerald-900/30 dark:text-emerald-200 dark:ring-emerald-800/50;
+    @apply text-emerald-700 dark:text-emerald-200;
+  }
+  .tab-active-emerald::before {
+    @apply bg-emerald-50 shadow-[inset_0_0_0_1px_rgb(167_243_208/0.9)]
+           dark:bg-emerald-900/30 dark:shadow-[inset_0_0_0_1px_rgb(6_78_59/0.5)];
   }
   .tab-active-sky {
-    @apply bg-sky-50 text-sky-700 shadow-sm ring-1 ring-inset ring-sky-200/70
-           dark:bg-sky-900/30 dark:text-sky-200 dark:ring-sky-800/50;
+    @apply text-sky-700 dark:text-sky-200;
   }
-  /* Mobile: let a long tab strip scroll horizontally instead of wrapping. */
+  .tab-active-sky::before {
+    @apply bg-sky-50 shadow-[inset_0_0_0_1px_rgb(186_230_253/0.9)]
+           dark:bg-sky-900/30 dark:shadow-[inset_0_0_0_1px_rgb(12_74_110/0.5)];
+  }
+  /* Equal-width segments so switching active tab never reflows siblings */
+  .tabs-2 {
+    @apply grid grid-cols-2 gap-1 p-1.5;
+  }
+  .tabs-2 .tab {
+    @apply flex w-full items-center justify-center text-center;
+  }
+  .tabs-3 {
+    @apply grid grid-cols-3 gap-1 p-1.5;
+  }
+  .tabs-3 .tab {
+    @apply flex w-full items-center justify-center text-center;
+  }
   .tabs-scroll {
-    @apply -mx-1 max-w-full overflow-x-auto px-1;
+    @apply max-w-full overflow-x-auto;
     scrollbar-width: none;
   }
   .tabs-scroll::-webkit-scrollbar {
     display: none;
   }
 
-  /* ---------- Preview frame ---------- */
+  /* Email body preview — always paper white */
   .preview-frame {
-    background: white;
+    @apply bg-ui-preview;
   }
 
-  /* Subtle entrance for newly-mounted result blocks */
   .anim-in {
     @apply animate-fade-in-up;
   }
 }
 
 @layer utilities {
-  /* Truncate to N lines */
   .line-clamp-1 {
     display: -webkit-box;
     -webkit-line-clamp: 1;

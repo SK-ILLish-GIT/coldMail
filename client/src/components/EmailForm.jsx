@@ -1,27 +1,28 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import toast from 'react-hot-toast';
+import { useEffect, useMemo, useRef, useState } from "react";
+import toast from "react-hot-toast";
 
-import { api } from '../lib/api.js';
-import { extractVariables, renderTemplate } from '../lib/render.js';
-import PreviewModal from './PreviewModal.jsx';
-import LivePreview from './LivePreview.jsx';
-import CsvUploader from './CsvUploader.jsx';
-import MailIDPanel from './MailIDPanel.jsx';
-import LinkedInPanel from './LinkedInPanel.jsx';
-import VariableChips from './VariableChips.jsx';
-import JDMatcher from './JDMatcher.jsx';
+import { api } from "../lib/api.js";
+import { tabClick, tabMouseDown } from "../lib/tabButton.js";
+import { extractVariables, renderTemplate } from "../lib/render.js";
+import PreviewModal from "./PreviewModal.jsx";
+import LivePreview from "./LivePreview.jsx";
+import CsvUploader from "./CsvUploader.jsx";
+import MailIDPanel from "./MailIDPanel.jsx";
+import LinkedInPanel from "./LinkedInPanel.jsx";
+import VariableChips from "./VariableChips.jsx";
+import JDMatcher from "./JDMatcher.jsx";
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
-const ATTACH_DEVICE = '__device__';
+const ATTACH_DEVICE = "__device__";
 
 function isPdf(file) {
   if (!file) return false;
-  if (file.type === 'application/pdf') return true;
-  return /\.pdf$/i.test(file.name || '');
+  if (file.type === "application/pdf") return true;
+  return /\.pdf$/i.test(file.name || "");
 }
 
 function fmtSize(bytes) {
-  if (!bytes) return '';
+  if (!bytes) return "";
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -30,72 +31,74 @@ function fmtSize(bytes) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const DEFAULT_TEMPLATE = `<div style="font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;width:100%;line-height:1.65;font-size:15px;">
-  <p style="margin:0 0 18px;">Hi {{name}},</p>
+ <p style="margin:0 0 18px;">Hi {{name}},</p>
 
-  <h3 style="margin:22px 0 8px;color:#2563eb;font-size:18px;font-weight:700;">About Me:</h3>
-  <p style="margin:0 0 18px;">
-    I&rsquo;m Sk Sahil Parvez, a B.Tech graduate in <strong>IT from IIIT Allahabad</strong> (2021&ndash;2025),
-    currently pursuing an <strong>FDE certification from IIT Roorkee.</strong>
-  </p>
+ <h3 style="margin:22px 0 8px;color:#2563eb;font-size:18px;font-weight:700;">About Me:</h3>
+ <p style="margin:0 0 18px;">
+ I&rsquo;m Sk Sahil Parvez, a B.Tech graduate in <strong>IT from IIIT Allahabad</strong> (2021&ndash;2025),
+ currently pursuing an <strong>FDE certification from IIT Roorkee.</strong>
+ </p>
 
-  <h3 style="margin:22px 0 8px;color:#dc2626;font-size:18px;font-weight:700;">Why This Mail:</h3>
-  <p style="margin:0 0 18px;">
-    I currently work at Highspot, bringing my total experience to 1+ year.
-    <strong>I&rsquo;d love to be considered for this open opportunity. I would like to discuss it on a call.</strong>
-  </p>
+ <h3 style="margin:22px 0 8px;color:#dc2626;font-size:18px;font-weight:700;">Why This Mail:</h3>
+ <p style="margin:0 0 18px;">
+ I currently work at Highspot, bringing my total experience to 1+ year.
+ <strong>I&rsquo;d love to be considered for this open opportunity. I would like to discuss it on a call.</strong>
+ </p>
 
-  <h3 style="margin:22px 0 8px;color:#2563eb;font-size:18px;font-weight:700;">Experience:</h3>
-  <ol style="margin:0 0 18px;padding-left:20px;">
-    <li style="margin-bottom:6px;">
-      <strong>SDE at Highspot</strong>&mdash;Working on Analytics using React, Golang, MongoDB, GraphQL, JavaScript, and Ruby.
-    </li>
-    <li style="margin-bottom:6px;">
-      <strong>SDE Intern at Zscaler</strong>&mdash;Worked on Observability (OpenTelemetry, Prometheus, and Grafana), Docker and CI/CD.
-    </li>
-    <li style="margin-bottom:6px;">
-      <strong>SDE Intern at Fractal Analytics</strong>&mdash;Worked with React &amp; SQL, built automated test scripts in Python, optimized LLM outputs.
-    </li>
-  </ol>
+ <h3 style="margin:22px 0 8px;color:#2563eb;font-size:18px;font-weight:700;">Experience:</h3>
+ <ol style="margin:0 0 18px;padding-left:20px;">
+ <li style="margin-bottom:6px;">
+ <strong>SDE at Highspot</strong>&mdash;Working on Analytics using React, Golang, MongoDB, GraphQL, JavaScript, and Ruby.
+ </li>
+ <li style="margin-bottom:6px;">
+ <strong>SDE Intern at Zscaler</strong>&mdash;Worked on Observability (OpenTelemetry, Prometheus, and Grafana), Docker and CI/CD.
+ </li>
+ <li style="margin-bottom:6px;">
+ <strong>SDE Intern at Fractal Analytics</strong>&mdash;Worked with React &amp; SQL, built automated test scripts in Python, optimized LLM outputs.
+ </li>
+ </ol>
 
-  <p style="margin:0 0 18px;">I invite you to explore my CV.</p>
+ <p style="margin:0 0 18px;">I invite you to explore my CV.</p>
 
-  <p style="margin:22px 0 0;">
-    Best Wishes,<br>
-    Sk Sahil Parvez<br>
-    <a href="https://www.linkedin.com/in/" style="color:#2563eb;text-decoration:underline;">LinkedIn</a> | Phone: (+91) 9874435806<br>
-    Email: <a href="mailto:sksahilparvez2000@gmail.com" style="color:#2563eb;text-decoration:underline;">sksahilparvez2000@gmail.com</a>
-  </p>
+ <p style="margin:22px 0 0;">
+ Best Wishes,<br>
+ Sk Sahil Parvez<br>
+ <a href="https://www.linkedin.com/in/" style="color:#2563eb;text-decoration:underline;">LinkedIn</a> | Phone: (+91) 9874435806<br>
+ Email: <a href="mailto:sksahilparvez2000@gmail.com" style="color:#2563eb;text-decoration:underline;">sksahilparvez2000@gmail.com</a>
+ </p>
 </div>`;
 
 const DEFAULT_SUBJECT =
-  'SK Sahil – IIIT Allahabad | Highspot | 1+ YoE | Interested in {{company}}';
+  "SK Sahil – IIIT Allahabad | Highspot | 1+ YoE | Interested in {{company}}";
 
 // Each mode carries a tone so the active tab gets a clear color cue:
 // email-ish = rose (red), csv = emerald (green), linkedin = sky (blue).
 const MODES = [
-  { id: 'mailid', label: 'By MailID', tone: 'rose' },
-  { id: 'bulk', label: 'By CSV', tone: 'emerald' },
-  { id: 'linkedin', label: 'By LinkedIn', tone: 'sky' },
+  { id: "mailid", label: "By MailID", tone: "rose" },
+  { id: "bulk", label: "By CSV", tone: "emerald" },
+  { id: "linkedin", label: "By LinkedIn", tone: "sky" },
 ];
 
 // Subtle wash + ring applied to the recipient block per active mode so
 // the channel context is obvious at a glance, not just in the tab pill.
 const MODE_PANEL_CLASS = {
   mailid:
-    'rounded-xl bg-rose-50/60 ring-1 ring-rose-200/60 dark:bg-rose-900/10 dark:ring-rose-800/40 p-4',
-  bulk:
-    'rounded-xl bg-emerald-50/60 ring-1 ring-emerald-200/60 dark:bg-emerald-900/10 dark:ring-emerald-800/40 p-4',
+    "rounded-xl bg-rose-50/60 ring-1 ring-rose-200/60 dark:bg-rose-900/10 dark:ring-rose-800/40 p-4",
+  bulk: "rounded-xl bg-emerald-50/60 ring-1 ring-emerald-200/60 dark:bg-emerald-900/10 dark:ring-emerald-800/40 p-4",
   linkedin:
-    'rounded-xl bg-sky-50/60 ring-1 ring-sky-200/60 dark:bg-sky-900/10 dark:ring-sky-800/40 p-4',
+    "rounded-xl bg-sky-50/60 ring-1 ring-sky-200/60 dark:bg-sky-900/10 dark:ring-sky-800/40 p-4",
 };
 
-const DEFAULT_TEMPLATE_ID = '__default__';
+const DEFAULT_TEMPLATE_ID = "__default__";
 
 // Per-recipient send statuses (keyed by email). 'sending' shows a spinner,
 // 'drafted' / 'failed' show a coloured dot. Cleared when the user kicks off
 // a new send.
 function mergeStatus(prev, email, patch) {
-  return { ...prev, [email.toLowerCase()]: { ...(prev[email.toLowerCase()] || {}), ...patch } };
+  return {
+    ...prev,
+    [email.toLowerCase()]: { ...(prev[email.toLowerCase()] || {}), ...patch },
+  };
 }
 
 export default function EmailForm({
@@ -105,7 +108,7 @@ export default function EmailForm({
   onClearResume,
   aiEnabled = false,
 }) {
-  const [mode, setMode] = useState('mailid');
+  const [mode, setMode] = useState("mailid");
   const [subject, setSubject] = useState(DEFAULT_SUBJECT);
   const [template, setTemplate] = useState(DEFAULT_TEMPLATE);
 
@@ -115,13 +118,13 @@ export default function EmailForm({
   const [csvRecipients, setCsvRecipients] = useState([]);
 
   // MailID mode: company is one value applied to every row.
-  const [mailidCompany, setMailidCompany] = useState('');
+  const [mailidCompany, setMailidCompany] = useState("");
 
   // LinkedIn mode: single recipient. Lifted up so the Full-preview modal
   // can show {{name}} / {{company}} merge fields before the user picks
   // an AI-suggested email.
-  const [linkedinName, setLinkedinName] = useState('');
-  const [linkedinCompany, setLinkedinCompany] = useState('');
+  const [linkedinName, setLinkedinName] = useState("");
+  const [linkedinCompany, setLinkedinCompany] = useState("");
 
   const [previewOpen, setPreviewOpen] = useState(false);
 
@@ -134,16 +137,20 @@ export default function EmailForm({
 
   // Single attachment per draft: either a saved-library resume (resumeId)
   // or a one-shot device upload (deviceFile). Mutually exclusive.
-  const [attachment, setAttachment] = useState({ resumeId: '', deviceFile: null });
+  const [attachment, setAttachment] = useState({
+    resumeId: "",
+    deviceFile: null,
+  });
   const [resumes, setResumes] = useState([]);
   // Type-to-filter inputs above each picker.
-  const [templateSearch, setTemplateSearch] = useState('');
-  const [resumeSearch, setResumeSearch] = useState('');
+  const [templateSearch, setTemplateSearch] = useState("");
+  const [resumeSearch, setResumeSearch] = useState("");
 
   // Saved templates loaded from the API, plus which one is currently in use.
   const [templates, setTemplates] = useState([]);
   const [, setTemplatesLoading] = useState(false);
-  const [selectedTemplateId, setSelectedTemplateId] = useState(DEFAULT_TEMPLATE_ID);
+  const [selectedTemplateId, setSelectedTemplateId] =
+    useState(DEFAULT_TEMPLATE_ID);
 
   const subjectRef = useRef(null);
   const bodyRef = useRef(null);
@@ -152,10 +159,10 @@ export default function EmailForm({
   // Hydrate from a chosen saved template
   useEffect(() => {
     if (initialTemplate) {
-      setSubject(initialTemplate.subject || '');
-      setTemplate(initialTemplate.body || '');
+      setSubject(initialTemplate.subject || "");
+      setTemplate(initialTemplate.body || "");
       setSelectedTemplateId(initialTemplate.id || DEFAULT_TEMPLATE_ID);
-      toast.success(`Loaded template "${initialTemplate.name}"`);
+      toast.success(`Loaded template"${initialTemplate.name}"`);
       onClearTemplate?.();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -165,7 +172,7 @@ export default function EmailForm({
   useEffect(() => {
     if (!initialResume?.id) return;
     setAttachment({ resumeId: initialResume.id, deviceFile: null });
-    toast.success(`Attached "${initialResume.name || 'resume'}"`);
+    toast.success(`Attached"${initialResume.name || "resume"}"`);
     onClearResume?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialResume]);
@@ -176,7 +183,7 @@ export default function EmailForm({
       const data = await api.listTemplates();
       setTemplates(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.warn('Failed to load templates:', err.message);
+      console.warn("Failed to load templates:", err.message);
     } finally {
       setTemplatesLoading(false);
     }
@@ -191,7 +198,7 @@ export default function EmailForm({
       const data = await api.listResumes();
       setResumes(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.warn('Failed to load resumes:', err.message);
+      console.warn("Failed to load resumes:", err.message);
     }
   };
 
@@ -204,8 +211,8 @@ export default function EmailForm({
   // useMemo deps that read it don't fire on every render.
   const EMPTY_RECIPIENTS = useMemo(() => [], []);
   const recipients = useMemo(() => {
-    if (mode === 'mailid') return mailidRecipients;
-    if (mode === 'bulk') return csvRecipients;
+    if (mode === "mailid") return mailidRecipients;
+    if (mode === "bulk") return csvRecipients;
     return EMPTY_RECIPIENTS;
   }, [mode, mailidRecipients, csvRecipients, EMPTY_RECIPIENTS]);
 
@@ -223,7 +230,7 @@ export default function EmailForm({
     ? attachment.resumeId
     : attachment.deviceFile
       ? ATTACH_DEVICE
-      : '';
+      : "";
 
   const filteredResumes = useMemo(() => {
     if (!resumeSearch.trim()) return resumes;
@@ -231,7 +238,7 @@ export default function EmailForm({
     return resumes.filter(
       (r) =>
         r.name.toLowerCase().includes(q) ||
-        (r.tags || []).some((t) => t.toLowerCase().includes(q))
+        (r.tags || []).some((t) => t.toLowerCase().includes(q)),
     );
   }, [resumes, resumeSearch]);
 
@@ -241,28 +248,28 @@ export default function EmailForm({
     return templates.filter(
       (t) =>
         t.name.toLowerCase().includes(q) ||
-        (t.tags || []).some((x) => x.toLowerCase().includes(q))
+        (t.tags || []).some((x) => x.toLowerCase().includes(q)),
     );
   }, [templates, templateSearch]);
 
   const applyJDMatch = ({ templateId, resumeId }) => {
     if (templateId) {
-      setTemplateSearch('');
+      setTemplateSearch("");
       onPickTemplate(templateId);
     }
     if (resumeId) {
-      setResumeSearch('');
+      setResumeSearch("");
       setAttachment({ resumeId, deviceFile: null });
     }
   };
 
   const onAttachmentSelect = (value) => {
     if (!value) {
-      setAttachment({ resumeId: '', deviceFile: null });
+      setAttachment({ resumeId: "", deviceFile: null });
       return;
     }
     if (value === ATTACH_DEVICE) {
-      setAttachment({ resumeId: '', deviceFile: null });
+      setAttachment({ resumeId: "", deviceFile: null });
       // Open the device picker immediately — one click instead of two.
       requestAnimationFrame(() => deviceFileRef.current?.click());
       return;
@@ -280,7 +287,7 @@ export default function EmailForm({
       toast.error(`"${file.name}" is over 10 MB.`);
       return;
     }
-    setAttachment({ resumeId: '', deviceFile: file });
+    setAttachment({ resumeId: "", deviceFile: file });
   };
 
   const onPickTemplate = (id) => {
@@ -292,14 +299,17 @@ export default function EmailForm({
     }
     const tpl = templates.find((t) => t.id === id);
     if (!tpl) return;
-    setSubject(tpl.subject || '');
-    setTemplate(tpl.body || '');
-    toast.success(`Loaded "${tpl.name}"`);
+    setSubject(tpl.subject || "");
+    setTemplate(tpl.body || "");
+    toast.success(`Loaded"${tpl.name}"`);
   };
 
   const detectedVars = useMemo(
-    () => Array.from(new Set([...extractVariables(template), ...extractVariables(subject)])),
-    [template, subject]
+    () =>
+      Array.from(
+        new Set([...extractVariables(template), ...extractVariables(subject)]),
+      ),
+    [template, subject],
   );
 
   // P2-12: validate that the recipients carry every token the template uses.
@@ -307,16 +317,13 @@ export default function EmailForm({
   // user has actual rows to send to.
   const missingVars = useMemo(() => {
     if (!recipients.length) return [];
-    const all = ['name', 'company', 'email'];
-    const provided = new Set([
-      ...all,
-      ...Object.keys(recipients[0] || {}),
-    ]);
-    // A token is "missing" if it's required by the template/subject but
+    const all = ["name", "company", "email"];
+    const provided = new Set([...all, ...Object.keys(recipients[0] || {})]);
+    // A token is"missing" if it's required by the template/subject but
     // absent from the column set AND at least one row also leaves it blank.
     return detectedVars.filter((v) => {
       if (provided.has(v)) {
-        return recipients.some((r) => !String(r[v] || '').trim());
+        return recipients.some((r) => !String(r[v] || "").trim());
       }
       return true;
     });
@@ -324,19 +331,23 @@ export default function EmailForm({
 
   const previewVars = useMemo(() => {
     const sample = recipients[0] || {};
-    if (mode === 'linkedin') {
-      return { name: linkedinName, company: linkedinCompany, email: '', ...sample };
+    if (mode === "linkedin") {
+      return {
+        name: linkedinName,
+        company: linkedinCompany,
+        email: "",
+        ...sample,
+      };
     }
     return {
-      name: sample.name || '',
+      name: sample.name || "",
       company: sample.company || mailidCompany,
-      email: sample.email || '',
+      email: sample.email || "",
       ...sample,
     };
   }, [mode, recipients, mailidCompany, linkedinName, linkedinCompany]);
 
-  const previewTo =
-    mode === 'linkedin' ? '' : recipients[0]?.email || '';
+  const previewTo = mode === "linkedin" ? "" : recipients[0]?.email || "";
 
   // ----------------------- Saving drafts -----------------------
 
@@ -346,19 +357,20 @@ export default function EmailForm({
   const sendBulkSequential = async () => {
     if (!recipients.length) {
       return toast.error(
-        mode === 'mailid'
-          ? 'Add emails and extract names first.'
-          : 'Upload a CSV first.'
+        mode === "mailid"
+          ? "Add emails and extract names first."
+          : "Upload a CSV first.",
       );
     }
-    if (!subject.trim()) return toast.error('Subject is required.');
-    if (!template.trim()) return toast.error('Template is empty.');
+    if (!subject.trim()) return toast.error("Subject is required.");
+    if (!template.trim()) return toast.error("Template is empty.");
 
     setSending(true);
-    // Reset statuses for this batch: every row starts as "pending".
+    // Reset statuses for this batch: every row starts as"pending".
     setSendStatuses(() => {
       const m = {};
-      for (const r of recipients) m[r.email.toLowerCase()] = { status: 'pending' };
+      for (const r of recipients)
+        m[r.email.toLowerCase()] = { status: "pending" };
       return m;
     });
 
@@ -368,12 +380,14 @@ export default function EmailForm({
     try {
       for (let i = 0; i < recipients.length; i++) {
         const r = recipients[i];
-        setSendStatuses((prev) => mergeStatus(prev, r.email, { status: 'sending' }));
+        setSendStatuses((prev) =>
+          mergeStatus(prev, r.email, { status: "sending" }),
+        );
         try {
           await api.sendEmail(
             {
               email: r.email,
-              name: r.name || '',
+              name: r.name || "",
               company: r.company || mailidCompany,
               // Forward any extra CSV columns so {{column}} tokens render.
               extra: r,
@@ -381,26 +395,36 @@ export default function EmailForm({
               template,
               ...attachmentArgs.extraPayload,
             },
-            attachmentArgs.files
+            attachmentArgs.files,
           );
-          setSendStatuses((prev) => mergeStatus(prev, r.email, { status: 'drafted' }));
+          setSendStatuses((prev) =>
+            mergeStatus(prev, r.email, { status: "drafted" }),
+          );
           drafted++;
         } catch (err) {
           setSendStatuses((prev) =>
-            mergeStatus(prev, r.email, { status: 'failed', error: err.message })
+            mergeStatus(prev, r.email, {
+              status: "failed",
+              error: err.message,
+            }),
           );
           failed++;
         }
-        toast.loading(
-          `Saving ${i + 1}/${recipients.length} drafts...`,
-          { id: toastId }
-        );
+        toast.loading(`Saving ${i + 1}/${recipients.length} drafts...`, {
+          id: toastId,
+        });
         if (i < recipients.length - 1) await sleep(250);
       }
       if (failed === 0) {
-        toast.success(`Saved ${drafted} draft${drafted === 1 ? '' : 's'} to Gmail.`, { id: toastId });
+        toast.success(
+          `Saved ${drafted} draft${drafted === 1 ? "" : "s"} to Gmail.`,
+          { id: toastId },
+        );
       } else {
-        toast.error(`${drafted} saved, ${failed} failed — see row indicators.`, { id: toastId });
+        toast.error(
+          `${drafted} saved, ${failed} failed — see row indicators.`,
+          { id: toastId },
+        );
       }
     } finally {
       setSending(false);
@@ -416,22 +440,26 @@ export default function EmailForm({
   // ----------------------- Render -----------------------
 
   const renderedSubject = useMemo(
-    () => (subject ? renderTemplate(subject, previewVars) : ''),
-    [subject, previewVars]
+    () => (subject ? renderTemplate(subject, previewVars) : ""),
+    [subject, previewVars],
   );
   const renderedHtml = useMemo(
-    () => (template ? renderTemplate(template, previewVars) : ''),
-    [template, previewVars]
+    () => (template ? renderTemplate(template, previewVars) : ""),
+    [template, previewVars],
   );
 
   const previewAttachment = useMemo(() => {
     if (attachment.resumeId) {
       const r = resumes.find((x) => x.id === attachment.resumeId);
       if (!r) {
-        return { kind: 'resume', name: 'Saved resume', id: attachment.resumeId };
+        return {
+          kind: "resume",
+          name: "Saved resume",
+          id: attachment.resumeId,
+        };
       }
       return {
-        kind: 'resume',
+        kind: "resume",
         name: r.name,
         filename: r.filename,
         size: r.size,
@@ -442,11 +470,11 @@ export default function EmailForm({
     }
     if (attachment.deviceFile) {
       return {
-        kind: 'device',
+        kind: "device",
         name: attachment.deviceFile.name,
         filename: attachment.deviceFile.name,
         size: attachment.deviceFile.size,
-        mimeType: attachment.deviceFile.type || 'application/pdf',
+        mimeType: attachment.deviceFile.type || "application/pdf",
       };
     }
     return null;
@@ -457,32 +485,33 @@ export default function EmailForm({
   // tooltip directing the user to the per-candidate Draft button above.
   const submitDisabled = sending || recipients.length === 0;
   const submitLabel = sending
-    ? 'Saving...'
-    : mode === 'linkedin'
-      ? 'Use a candidate above'
-      : `Save ${recipients.length || 0} draft${recipients.length === 1 ? '' : 's'} to Gmail`;
+    ? "Saving..."
+    : mode === "linkedin"
+      ? "Use a candidate above"
+      : `Save ${recipients.length || 0} draft${recipients.length === 1 ? "" : "s"} to Gmail`;
   const submitTitle =
-    mode === 'linkedin'
-      ? 'For LinkedIn mode, click Draft on the AI candidate row you trust.'
+    mode === "linkedin"
+      ? "For LinkedIn mode, click Draft on the AI candidate row you trust."
       : recipients.length === 0
-        ? 'Add recipients first'
-        : '';
+        ? "Add recipients first"
+        : "";
 
   return (
     <>
       <section className="card flex min-h-[min(85vh,900px)] flex-col overflow-hidden lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)]">
-        <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-ink-200/60 px-6 py-4 dark:border-ink-800/60">
-          <h2 className="text-base font-semibold text-ink-900 dark:text-white">Compose</h2>
-          <div className="tabs text-xs">
+        <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-ui-border/70 px-6 py-4">
+          <h2 className="text-base font-semibold text-ui-fg">Compose</h2>
+          <div className="tabs tabs-3 text-xs">
             {MODES.map((m) => (
               <button
                 type="button"
                 key={m.id}
-                onClick={() => setMode(m.id)}
-                className={[
-                  'tab',
-                  mode === m.id && `tab-active-${m.tone}`,
-                ].filter(Boolean).join(' ')}
+                onMouseDown={tabMouseDown}
+                onClick={tabClick(() => setMode(m.id))}
+                aria-selected={mode === m.id}
+                className={["tab", mode === m.id && `tab-active-${m.tone}`]
+                  .filter(Boolean)
+                  .join(" ")}
               >
                 {m.label}
               </button>
@@ -493,224 +522,254 @@ export default function EmailForm({
         <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(380px,46%)]">
           <form onSubmit={handleSubmit} className="flex min-h-0 flex-col">
             <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
-          {/* JD-based auto-picker — explicit "Step 0" at the top so the
-              relationship between JD and the pickers below is obvious. */}
-          <JDMatcher
-            templates={templates}
-            resumes={resumes}
-            aiEnabled={aiEnabled}
-            onMatch={applyJDMatch}
-            activeTemplateId={selectedTemplateId}
-          />
-
-          {/* Recipients — driven by the active mode. */}
-          <div className={MODE_PANEL_CLASS[mode]}>
-            {mode === 'mailid' && (
-              <MailIDPanel
-                company={mailidCompany}
-                setCompany={setMailidCompany}
-                recipients={mailidRecipients}
-                setRecipients={setMailidRecipients}
+              {/* JD-based auto-picker — explicit"Step 0" at the top so the
+ relationship between JD and the pickers below is obvious. */}
+              <JDMatcher
+                templates={templates}
+                resumes={resumes}
                 aiEnabled={aiEnabled}
-                sendStatuses={sendStatuses}
+                onMatch={applyJDMatch}
+                activeTemplateId={selectedTemplateId}
               />
-            )}
-            {mode === 'bulk' && (
-              <CsvUploader
-                recipients={csvRecipients}
-                onChange={setCsvRecipients}
-                sendStatuses={sendStatuses}
-              />
-            )}
-            {mode === 'linkedin' && (
-              <LinkedInPanel
-                name={linkedinName}
-                setName={setLinkedinName}
-                company={linkedinCompany}
-                setCompany={setLinkedinCompany}
-                subject={subject}
-                template={template}
-                attachmentArgs={attachmentArgs}
-                aiEnabled={aiEnabled}
-              />
-            )}
-          </div>
 
-          {/* Variable validation warning */}
-          {missingVars.length > 0 && (
-            <div className="rounded-lg border border-amber-300/70 bg-amber-50/70 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-200">
-              <span className="font-semibold">Heads up: </span>
-              the template uses{' '}
-              {missingVars.map((v, i) => (
-                <span key={v}>
-                  <code className="font-mono">{`{{${v}}}`}</code>
-                  {i < missingVars.length - 1 ? ', ' : ''}
-                </span>
-              ))}
-              {' '}but {recipients.length > 1 ? 'some recipients lack' : 'this row lacks'} that value — those tokens will render empty.
-            </div>
-          )}
-
-          <div className="divider" />
-
-          {/* Template picker — body editing lives in the Templates tab or in
-              the inline body editor below. */}
-          <div>
-            <div className="mb-1.5 flex items-end justify-between gap-3">
-              <label className="label !mb-0" htmlFor="template-picker">Template</label>
-              {templates.length > 0 && templateSearch.trim() && (
-                <span className="hint">
-                  {filteredTemplates.length}/{templates.length} shown
-                </span>
-              )}
-            </div>
-            {templates.length > 4 && (
-              <input
-                type="search"
-                className="input !h-8 !py-1 mb-1.5 text-xs"
-                placeholder="Filter templates by name or tag..."
-                value={templateSearch}
-                onChange={(e) => setTemplateSearch(e.target.value)}
-                aria-label="Filter templates"
-              />
-            )}
-            <select
-              id="template-picker"
-              className="input"
-              value={selectedTemplateId}
-              onChange={(e) => onPickTemplate(e.target.value)}
-            >
-              <option value={DEFAULT_TEMPLATE_ID}>(Default)</option>
-              {filteredTemplates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.tags?.length ? `${t.name}  ·  ${t.tags.join(', ')}` : t.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Subject */}
-          <div>
-            <div className="mb-1.5 flex items-end justify-between gap-3">
-              <label className="label !mb-0" htmlFor="subject">Subject</label>
-              <VariableChips inputRef={subjectRef} extra={detectedVars} />
-            </div>
-            <input
-              ref={subjectRef}
-              id="subject"
-              type="text"
-              className="input"
-              placeholder="Quick question for {{company}}"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-            />
-          </div>
-
-          {/* Inline body editor (collapsible) */}
-          <div>
-            <div className="mb-1.5 flex items-end justify-between gap-3">
-              <label className="label !mb-0">Body (HTML)</label>
-              <div className="flex items-center gap-3">
-                {bodyEditOpen && <VariableChips inputRef={bodyRef} extra={detectedVars} />}
-                <button
-                  type="button"
-                  className="btn-ghost btn-xs"
-                  onClick={() => setBodyEditOpen((v) => !v)}
-                  title={bodyEditOpen ? 'Hide body editor' : 'Edit body inline'}
-                >
-                  {bodyEditOpen ? 'Hide editor' : 'Edit body'}
-                </button>
-              </div>
-            </div>
-            {bodyEditOpen ? (
-              <textarea
-                ref={bodyRef}
-                className="input-mono min-h-[200px] resize-y"
-                value={template}
-                onChange={(e) => setTemplate(e.target.value)}
-                placeholder="<h2>Hello {{name}}</h2>"
-              />
-            ) : (
-              <p className="text-xs text-ink-500 dark:text-ink-400">
-                {template.trim().length
-                  ? `${template.length} chars · using ${selectedTemplateId === DEFAULT_TEMPLATE_ID ? '(Default)' : templates.find(t => t.id === selectedTemplateId)?.name || 'custom'}.`
-                  : 'No body set yet.'}
-                {' '}Click <strong>Edit body</strong> to tweak inline, or use the Templates tab for a full editor.
-              </p>
-            )}
-          </div>
-
-          {/* Attachment */}
-          <div>
-            <div className="mb-1.5 flex items-end justify-between gap-3">
-              <label className="label !mb-0" htmlFor="attachment-picker">Attachment</label>
-            </div>
-            {resumes.length > 4 && (
-              <input
-                type="search"
-                className="input !h-8 !py-1 mb-1.5 text-xs"
-                placeholder="Filter resumes by name or tag..."
-                value={resumeSearch}
-                onChange={(e) => setResumeSearch(e.target.value)}
-                aria-label="Filter resumes"
-              />
-            )}
-            <div className="flex gap-2">
-              <select
-                id="attachment-picker"
-                className="input flex-1"
-                value={attachmentSelectValue}
-                onChange={(e) => onAttachmentSelect(e.target.value)}
-              >
-                <option value="">(None)</option>
-                <option value={ATTACH_DEVICE}>Upload from device...</option>
-                {filteredResumes.length > 0 && (
-                  <optgroup label="Saved resumes">
-                    {filteredResumes.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.tags?.length ? `${r.name}  ·  ${r.tags.join(', ')}` : r.name}
-                      </option>
-                    ))}
-                  </optgroup>
+              {/* Recipients — driven by the active mode. */}
+              <div className={MODE_PANEL_CLASS[mode]}>
+                {mode === "mailid" && (
+                  <MailIDPanel
+                    company={mailidCompany}
+                    setCompany={setMailidCompany}
+                    recipients={mailidRecipients}
+                    setRecipients={setMailidRecipients}
+                    aiEnabled={aiEnabled}
+                    sendStatuses={sendStatuses}
+                  />
                 )}
-              </select>
-              {/* One-click "Browse" — bypasses the dropdown indirection. */}
-              <button
-                type="button"
-                className="btn-secondary btn-xs whitespace-nowrap"
-                onClick={() => deviceFileRef.current?.click()}
-                title="Pick a PDF from this device"
-              >
-                Browse...
-              </button>
-            </div>
-            {/* Hidden file input — opened by either the dropdown choice or
-                the Browse button above. */}
-            <input
-              ref={deviceFileRef}
-              id="attachment-device-file"
-              type="file"
-              accept="application/pdf,.pdf"
-              className="hidden"
-              onChange={(e) => onDeviceFilePicked(e.target.files?.[0] || null)}
-            />
-            {attachment.deviceFile && (
-              <p className="mt-1 text-2xs text-ink-500 dark:text-ink-400">
-                Device file: <span className="font-mono">{attachment.deviceFile.name}</span> · {fmtSize(attachment.deviceFile.size)}
-                <button
-                  type="button"
-                  className="ml-2 underline hover:text-ink-700 dark:hover:text-ink-200"
-                  onClick={() => setAttachment({ resumeId: '', deviceFile: null })}
+                {mode === "bulk" && (
+                  <CsvUploader
+                    recipients={csvRecipients}
+                    onChange={setCsvRecipients}
+                    sendStatuses={sendStatuses}
+                  />
+                )}
+                {mode === "linkedin" && (
+                  <LinkedInPanel
+                    name={linkedinName}
+                    setName={setLinkedinName}
+                    company={linkedinCompany}
+                    setCompany={setLinkedinCompany}
+                    subject={subject}
+                    template={template}
+                    attachmentArgs={attachmentArgs}
+                    aiEnabled={aiEnabled}
+                  />
+                )}
+              </div>
+
+              {/* Variable validation warning */}
+              {missingVars.length > 0 && (
+                <div className="rounded-lg border border-amber-300/70 bg-amber-50/70 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-200">
+                  <span className="font-semibold">Heads up: </span>
+                  the template uses{""}
+                  {missingVars.map((v, i) => (
+                    <span key={v}>
+                      <code className="font-mono">{`{{${v}}}`}</code>
+                      {i < missingVars.length - 1 ? "," : ""}
+                    </span>
+                  ))}
+                  {""}
+                  but{""}
+                  {recipients.length > 1
+                    ? "some recipients lack"
+                    : "this row lacks"}
+                  {""}
+                  that value — those tokens will render empty.
+                </div>
+              )}
+
+              <div className="divider" />
+
+              {/* Template picker — body editing lives in the Templates tab or in
+ the inline body editor below. */}
+              <div>
+                <div className="mb-1.5 flex items-end justify-between gap-3">
+                  <label className="label !mb-0" htmlFor="template-picker">
+                    Template
+                  </label>
+                  {templates.length > 0 && templateSearch.trim() && (
+                    <span className="hint">
+                      {filteredTemplates.length}/{templates.length} shown
+                    </span>
+                  )}
+                </div>
+                {templates.length > 4 && (
+                  <input
+                    type="search"
+                    className="input !h-8 !py-1 mb-1.5 text-xs"
+                    placeholder="Filter templates by name or tag..."
+                    value={templateSearch}
+                    onChange={(e) => setTemplateSearch(e.target.value)}
+                    aria-label="Filter templates"
+                  />
+                )}
+                <select
+                  id="template-picker"
+                  className="input"
+                  value={selectedTemplateId}
+                  onChange={(e) => onPickTemplate(e.target.value)}
                 >
-                  remove
-                </button>
-              </p>
-            )}
-          </div>
+                  <option value={DEFAULT_TEMPLATE_ID}>(Default)</option>
+                  {filteredTemplates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.tags?.length
+                        ? `${t.name} · ${t.tags.join(",")}`
+                        : t.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Subject */}
+              <div>
+                <div className="mb-1.5 flex items-end justify-between gap-3">
+                  <label className="label !mb-0" htmlFor="subject">
+                    Subject
+                  </label>
+                  <VariableChips inputRef={subjectRef} extra={detectedVars} />
+                </div>
+                <input
+                  ref={subjectRef}
+                  id="subject"
+                  type="text"
+                  className="input"
+                  placeholder="Quick question for {{company}}"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                />
+              </div>
+
+              {/* Inline body editor (collapsible) */}
+              <div>
+                <div className="mb-1.5 flex items-end justify-between gap-3">
+                  <label className="label !mb-0">Body (HTML)</label>
+                  <div className="flex items-center gap-3">
+                    {bodyEditOpen && (
+                      <VariableChips inputRef={bodyRef} extra={detectedVars} />
+                    )}
+                    <button
+                      type="button"
+                      className="btn-ghost btn-xs"
+                      onClick={() => setBodyEditOpen((v) => !v)}
+                      title={
+                        bodyEditOpen ? "Hide body editor" : "Edit body inline"
+                      }
+                    >
+                      {bodyEditOpen ? "Hide editor" : "Edit body"}
+                    </button>
+                  </div>
+                </div>
+                {bodyEditOpen ? (
+                  <textarea
+                    ref={bodyRef}
+                    className="input-mono min-h-[200px] resize-y"
+                    value={template}
+                    onChange={(e) => setTemplate(e.target.value)}
+                    placeholder="<h2>Hello {{name}}</h2>"
+                  />
+                ) : (
+                  <p className="text-xs text-ui-fg-muted">
+                    {template.trim().length
+                      ? `${template.length} chars · using ${selectedTemplateId === DEFAULT_TEMPLATE_ID ? "(Default)" : templates.find((t) => t.id === selectedTemplateId)?.name || "custom"}.`
+                      : "No body set yet."}
+                    {""}
+                    Click <strong>Edit body</strong> to tweak inline, or use the
+                    Templates tab for a full editor.
+                  </p>
+                )}
+              </div>
+
+              {/* Attachment */}
+              <div>
+                <div className="mb-1.5 flex items-end justify-between gap-3">
+                  <label className="label !mb-0" htmlFor="attachment-picker">
+                    Attachment
+                  </label>
+                </div>
+                {resumes.length > 4 && (
+                  <input
+                    type="search"
+                    className="input !h-8 !py-1 mb-1.5 text-xs"
+                    placeholder="Filter resumes by name or tag..."
+                    value={resumeSearch}
+                    onChange={(e) => setResumeSearch(e.target.value)}
+                    aria-label="Filter resumes"
+                  />
+                )}
+                <div className="flex gap-2">
+                  <select
+                    id="attachment-picker"
+                    className="input flex-1"
+                    value={attachmentSelectValue}
+                    onChange={(e) => onAttachmentSelect(e.target.value)}
+                  >
+                    <option value="">(None)</option>
+                    <option value={ATTACH_DEVICE}>Upload from device...</option>
+                    {filteredResumes.length > 0 && (
+                      <optgroup label="Saved resumes">
+                        {filteredResumes.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.tags?.length
+                              ? `${r.name} · ${r.tags.join(",")}`
+                              : r.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </select>
+                  {/* One-click"Browse" — bypasses the dropdown indirection. */}
+                  <button
+                    type="button"
+                    className="btn-secondary btn-xs whitespace-nowrap"
+                    onClick={() => deviceFileRef.current?.click()}
+                    title="Pick a PDF from this device"
+                  >
+                    Browse...
+                  </button>
+                </div>
+                {/* Hidden file input — opened by either the dropdown choice or
+ the Browse button above. */}
+                <input
+                  ref={deviceFileRef}
+                  id="attachment-device-file"
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  className="hidden"
+                  onChange={(e) =>
+                    onDeviceFilePicked(e.target.files?.[0] || null)
+                  }
+                />
+                {attachment.deviceFile && (
+                  <p className="mt-1 text-2xs text-ui-fg-muted">
+                    Device file:{""}
+                    <span className="font-mono">
+                      {attachment.deviceFile.name}
+                    </span>
+                    {""}· {fmtSize(attachment.deviceFile.size)}
+                    <button
+                      type="button"
+                      className="ml-2 underline hover:text-ui-fg"
+                      onClick={() =>
+                        setAttachment({ resumeId: "", deviceFile: null })
+                      }
+                    >
+                      remove
+                    </button>
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* Footer actions */}
-            <div className="flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-ink-200/60 bg-ink-50/40 px-6 py-3.5 dark:border-ink-800/60 dark:bg-ink-800/40">
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-ui-border/70 bg-ui-inset/50 px-6 py-3.5">
               <button
                 type="submit"
                 className="btn-gradient"
@@ -725,8 +784,20 @@ export default function EmailForm({
                       viewBox="0 0 24 24"
                       fill="none"
                     >
-                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
-                      <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeOpacity="0.25"
+                        strokeWidth="3"
+                      />
+                      <path
+                        d="M22 12a10 10 0 0 1-10 10"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                      />
                     </svg>
                     {submitLabel}
                   </>
@@ -752,7 +823,7 @@ export default function EmailForm({
             </div>
           </form>
 
-          <div className="flex min-h-[min(50vh,480px)] flex-col border-t border-ink-200/60 dark:border-ink-800 lg:min-h-0 lg:border-l lg:border-t-0">
+          <div className="flex min-h-[min(50vh,480px)] flex-col border-t border-ui-border/70 lg:min-h-0 lg:border-l lg:border-t-0">
             <LivePreview
               subject={renderedSubject}
               template={template}

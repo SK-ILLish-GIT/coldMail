@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
 
+import { api } from '../../lib/api.js';
 import { tailorApi } from '../../lib/tailorApi.js';
 import { useJd } from '../../lib/jdContext.jsx';
+import AutoTagModal from '../AutoTagModal.jsx';
 import { TagInput } from '../Tags.jsx';
 
 const TARGET_LABEL = (target) => {
@@ -147,6 +150,7 @@ export default function TemplateTailorPanel({
   // When true, automatically start the session as soon as the JD + template
   // are ready. Used together with hideInputsForm by the Tailor tab.
   autoStart = false,
+  aiEnabled = false,
   onClose,
   onSaved,
 }) {
@@ -174,6 +178,8 @@ export default function TemplateTailorPanel({
   const [saveTags, setSaveTags] = useState([]);
   const [saving, setSaving] = useState(false);
   const [savedTemplate, setSavedTemplate] = useState(null);
+  const [autoTagLoading, setAutoTagLoading] = useState(false);
+  const [autoTagSession, setAutoTagSession] = useState(null);
   // 'suggestions' = chat-iterative approval flow (default)
   // 'preview'     = live snapshot of the working subject + body so the user
   //                 can see what the saved template will look like.
@@ -260,6 +266,36 @@ export default function TemplateTailorPanel({
     } finally {
       setBusy(false);
     }
+  };
+
+  const onAutoTagSave = async () => {
+    if (!session) return;
+    if (!aiEnabled) {
+      return toast.error('AI is disabled on the server — set GEMINI_API_KEY to enable.');
+    }
+    setAutoTagLoading(true);
+    try {
+      const res = await api.suggestTemplateTags({
+        subject: session.subject || '',
+        body: session.body || '',
+        tags: saveTags,
+      });
+      const proposed = Array.isArray(res?.tags) ? res.tags : [];
+      setAutoTagSession({
+        existingTags: saveTags,
+        proposed,
+      });
+    } catch (err) {
+      toast.error(err.message || 'Auto-tag failed.');
+    } finally {
+      setAutoTagLoading(false);
+    }
+  };
+
+  const applyAutoTags = (finalTags) => {
+    setSaveTags(finalTags);
+    setAutoTagSession(null);
+    toast.success('Tags updated. Save when ready.');
   };
 
   const save = async () => {
@@ -378,7 +414,20 @@ export default function TemplateTailorPanel({
                       <input className="input" value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="My template — Stripe SDE · 2026-05-23" />
                     </div>
                     <div>
-                      <label className="label">Tags</label>
+                      <div className="mb-1.5 flex flex-wrap items-end justify-between gap-2">
+                        <label className="label !mb-0">Tags</label>
+                        {aiEnabled && (
+                          <button
+                            type="button"
+                            className="btn-ghost btn-xs text-indigo-700 hover:bg-indigo-50 dark:text-indigo-300 dark:ring-indigo-800/50 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/40"
+                            onClick={onAutoTagSave}
+                            disabled={autoTagLoading || saving}
+                            title="Suggest tags from the tailored subject and body"
+                          >
+                            {autoTagLoading ? 'Tagging...' : 'Auto tag'}
+                          </button>
+                        )}
+                      </div>
                       <TagInput tags={saveTags} onChange={setSaveTags} placeholder="backend, kubernetes..." />
                     </div>
                     <div className="flex justify-end gap-2">
@@ -403,29 +452,46 @@ export default function TemplateTailorPanel({
     </>
   );
 
+  const autoTagModal = (
+    <AutoTagModal
+      open={!!autoTagSession}
+      onClose={() => setAutoTagSession(null)}
+      onApply={applyAutoTags}
+      existingTags={autoTagSession?.existingTags || []}
+      proposed={autoTagSession?.proposed || []}
+      title="Auto-tag this tailored template"
+      subtitle="Selected tags will be used when you save. You can still edit them before saving."
+    />
+  );
+
   if (embedded) {
-    return <div className="flex h-full flex-col">{content}</div>;
+    return (
+      <>
+        <div className="flex h-full flex-col">{content}</div>
+        {autoTagModal}
+      </>
+    );
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-start justify-center bg-ink-900/60 px-4 py-8 backdrop-blur-sm dark:bg-black/70">
-      <div className="card flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden">
-        <header className="flex items-center justify-between border-b border-ink-200/70 px-5 py-3 dark:border-ink-800">
-          <div>
+    <>
+      <div className="fixed inset-0 z-40 flex items-start justify-center bg-ink-900/60 px-4 py-8 backdrop-blur-sm dark:bg-black/70">
+        <div className="card flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden">
+          <header className="flex items-center justify-between border-b border-ink-200/70 px-5 py-3 dark:border-ink-800">
+            <div>
             <h2 className="text-base font-semibold text-ink-900 dark:text-white">
               Tailor template — {template.name}
             </h2>
-            <p className="text-xs text-ink-500 dark:text-ink-400">
-              Saves a new template; the original stays untouched.
-            </p>
-          </div>
-          <button className="btn-ghost btn-xs" onClick={onClose} aria-label="Close">
-            Close
-          </button>
-        </header>
-        <div className="flex-1 overflow-y-auto px-5 py-4">{content}</div>
+            </div>
+            <button className="btn-ghost btn-xs" onClick={onClose} aria-label="Close">
+              Close
+            </button>
+          </header>
+          <div className="flex-1 overflow-y-auto px-5 py-4">{content}</div>
+        </div>
       </div>
-    </div>
+      {autoTagModal}
+    </>
   );
 }
 

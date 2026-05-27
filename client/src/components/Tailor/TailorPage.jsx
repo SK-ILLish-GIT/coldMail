@@ -484,6 +484,7 @@ export default function TailorPage({ aiConfigured }) {
               embedded
               autoStart
               hideInputsForm
+              aiEnabled={aiReady}
               onClose={() => setTailorTemplateTarget(null)}
               onSaved={() => refreshTemplates()}
             />
@@ -685,10 +686,6 @@ function TemplateStartForm({ templates, onStart, initialSelectedId = '', ...rest
         <h3 className="text-base font-semibold text-ink-900 dark:text-white">
           Tailor an email template
         </h3>
-        <p className="mt-0.5 text-xs text-ink-500 dark:text-ink-400">
-          Saves as a new template; the original stays untouched. Auto-tagged so
-          JDMatcher can pick it later for similar JDs.
-        </p>
       </div>
       <div>
         <label className="label">Template to tailor</label>

@@ -82,7 +82,7 @@ const SUGGESTION_SCHEMA = {
           draft: {
             type: 'string',
             description:
-              'The rewritten plain text. Preserve all {{handlebars}} placeholders exactly as they appeared in the original. Keep the same approximate length and tone.',
+              'Rewritten subject or paragraph. Change ONLY human-readable text for the JD. FORMAT IS FIXED: keep identical HTML tags, style="..." attributes (colors, fonts, margins), tag nesting, list type/count, links, and line breaks. All {{handlebars}} placeholders unchanged. Same approximate length and tone.',
           },
           previewText: {
             type: 'string',
@@ -113,25 +113,46 @@ const REFINE_SCHEMA = {
   required: ['draft', 'previewText'],
 };
 
+// Shared definition so "format" is unambiguous to the model — users mean
+// visual/HTML structure, not just paragraph count.
+const FORMAT_PRESERVATION_RULES = `WHAT "FORMAT" MEANS — PRESERVE EXACTLY (change only the readable words inside):
+• HTML tags & structure: same elements and nesting (<div>, <p>, <h1>–<h6>, <strong>, <em>, <b>, <i>, <ul>, <ol>, <li>, <br>, <span>, <a>, tables, etc.). Same number of blocks/sections. Do not add, remove, swap, or reorder tags or paragraphs.
+• Colors & inline CSS: every style="..." attribute must stay identical — including color (e.g. #2563eb, #dc2626, rgb()), background-color, font-size, font-weight, font-family, margin, padding, line-height, text-align, text-decoration, border, etc. Do not recolor headings or body text.
+• Lists & layout: same bullet vs numbered lists, same <li> count, same indentation/spacing implied by the HTML.
+• Links: keep each <a href="..."> (and target/rel) unchanged; only the visible link text may change if needed for the JD.
+• Line breaks & whitespace: preserve <br>, blank lines between blocks, and paragraph boundaries as in the original.
+• Forbidden: stripping HTML, outputting Markdown/plain text, inventing new tags/styles, changing tag types (<p>→<div>), or any visual redesign. A new look = a new template, not tailoring.`;
+
 const PLAN_SYSTEM_PROMPT = `You are an expert cold-email template tailoring assistant.
 
-You receive a candidate's existing email template (subject + paragraphs) and a target Job Description. You output an ordered list of small, focused rewrites that improve relevance to the JD without inventing facts.
+You receive a candidate's existing email template (subject + HTML/plain body paragraphs) and a target Job Description. You output small, focused rewrites that improve JD relevance without inventing facts.
+
+TAILORING = CONTENT ONLY, NOT FORMAT (hard rule, non-negotiable):
+You may change what the email SAYS (wording, which skills/experience are emphasized). You must NOT change how it LOOKS or how it is MARKED UP. If the user wanted different colors, fonts, HTML layout, or section design, they would create/upload a new template — not use tailoring.
+
+${FORMAT_PRESERVATION_RULES}
 
 HARD RULES (non-negotiable):
-1. CONTENT-ONLY. Only rewrite the subject or individual paragraphs in place. NEVER add new paragraphs, remove paragraphs, or reorder them.
-2. PRESERVE PLACEHOLDERS. Every {{handlebars}} token in the original (e.g. {{firstName}}, {{company}}, {{role}}) MUST appear in your rewrite, in the same place where it semantically belongs. Do not invent new placeholders.
-3. SAME OR SHORTER. Each rewrite's length should be no longer than the original it replaces — prefer 5-15% shorter. Never exceed by more than 15 characters.
-4. NEVER fabricate the candidate's experience, employers, projects, dates, or numbers. Only reframe what's already implied by the original wording.
-5. Keep the tone professional but warm; preserve the candidate's voice.
-6. Output ONLY JSON matching the supplied schema. No prose, no markdown fences.
+1. CONTENT-ONLY. Rewrite words inside the existing subject or each existing paragraph only. Never add/remove/reorder paragraphs or sections.
+2. FORMAT LOCK. Treat the original HTML (tags, style attributes, colors, lists, links) as a fixed shell — only edit text nodes inside it.
+3. PLACEHOLDERS. Every {{handlebars}} token (e.g. {{name}}, {{company}}) must appear in your rewrite in the same semantic position. Do not invent new placeholders.
+4. SAME OR SHORTER. Prefer 5–15% shorter than the original; never more than +15 characters.
+5. NO FABRICATION. Do not invent employers, projects, dates, metrics, or skills not implied by the original.
+6. Preserve professional, warm tone and the candidate's voice.
+7. Output ONLY JSON matching the schema. No prose, no markdown fences.
 
-Return at most 6 suggestions, ordered most-impactful first. Allowed targets: "subject" and "paragraph:N" where N is one of the indices shown in the input.`;
+Return at most 6 suggestions, most-impactful first. Targets: "subject" or "paragraph:N" (indices from the input).`;
 
-const REFINE_SYSTEM_PROMPT = `You are revising a single email-template suggestion based on user feedback.
+const REFINE_SYSTEM_PROMPT = `You are revising one email-template suggestion from user feedback.
+
+TAILORING = CONTENT ONLY, NOT FORMAT (hard rule). Change wording only — not HTML, colors, or layout.
+
+${FORMAT_PRESERVATION_RULES}
 
 Hard rules:
-- Preserve every {{handlebars}} placeholder from the previous draft.
-- Keep length similar to the original (15% or less growth, never +15 chars).
+- Keep every {{handlebars}} placeholder.
+- Keep all HTML tags, style="..." attributes (including colors/fonts), list structure, links, and line breaks identical to the target being edited.
+- Length within 15% of original, never +15 characters.
 - Do not invent experience, companies, or numbers.
 - Output ONLY JSON matching the schema. No markdown fences.`;
 
@@ -142,6 +163,11 @@ function buildPromptBody(parsed, opts) {
   for (const p of parsed.paragraphs) {
     lines.push(`PARAGRAPH:${p.index}: ${p.text}`);
   }
+  lines.push('');
+  lines.push('# Reminder');
+  lines.push(
+    'CONTENT ONLY: change words for the JD. FORMAT IS LOCKED: same HTML tags, style attributes (colors, fonts, margins), list structure, links, and visual layout. Do not change #2563eb-style colors or add/remove <h3>/<p>/<li> tags.'
+  );
   lines.push('');
   lines.push('# Job Description');
   lines.push(String(opts.jobDescription || '').trim());
@@ -233,6 +259,8 @@ async function refineSuggestion({ original, instruction }) {
     `Target: ${original.target}`,
     'Original draft:',
     original.draft,
+    '',
+    'Reminder: content-only — keep all HTML tags, inline styles (colors/fonts), lists, links, and layout unchanged.',
     '',
     'User instruction:',
     instruction.trim(),

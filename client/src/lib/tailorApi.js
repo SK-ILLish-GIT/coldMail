@@ -1,5 +1,7 @@
 import axios from 'axios';
 
+import { attachGeminiModelRequest } from './geminiModel.js';
+
 const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const client = axios.create({
@@ -7,6 +9,8 @@ const client = axios.create({
   timeout: 120_000,
   headers: { 'Content-Type': 'application/json' },
 });
+
+client.interceptors.request.use(attachGeminiModelRequest);
 
 function unwrapError(err) {
   if (err.response?.data?.error) {

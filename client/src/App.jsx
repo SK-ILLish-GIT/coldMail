@@ -7,9 +7,9 @@ import EmailForm from './components/EmailForm.jsx';
 import TemplateLibrary from './components/TemplateLibrary.jsx';
 import ResumeLibrary from './components/ResumeLibrary.jsx';
 import SentLog from './components/SentLog.jsx';
-import StatusPill from './components/StatusPill.jsx';
+import HeaderSettingsMenu from './components/HeaderSettingsMenu.jsx';
 import TailorPage from './components/Tailor/TailorPage.jsx';
-import ThemeToggle, { useTheme } from './components/ThemeToggle.jsx';
+import { useTheme } from './components/ThemeToggle.jsx';
 
 const TABS = [
   { id: 'compose', label: 'Compose' },
@@ -147,57 +147,10 @@ export default function App() {
                   Personalised email campaigns, sent right.
                 </p>
               </div>
-              {/* Theme toggle pinned next to the brand on mobile so it never
-                  scrolls inside the tab strip. */}
-              <div className="ml-auto sm:hidden">
-                <ThemeToggle theme={theme} onToggle={toggleTheme} />
-              </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusPill
-                label="DB"
-                state={
-                  health.loading
-                    ? 'loading'
-                    : health.ok
-                      ? 'ok'
-                      : 'down'
-                }
-                title={
-                  health.loading
-                    ? 'Checking server health...'
-                    : health.ok
-                      ? `MongoDB connected (${health.storage || 'mongodb'})`
-                      : 'Server or database unreachable'
-                }
-              />
-              <button
-                type="button"
-                onClick={handleAiPillClick}
-                className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
-                title={
-                  health.features?.aiEnrich
-                    ? 'AI email finder enabled (GEMINI_API_KEY set)'
-                    : 'AI is off — click to copy the env key prefix. Paste it into server/.env then restart.'
-                }
-              >
-                <StatusPill
-                  label="AI"
-                  state={
-                    health.loading
-                      ? 'loading'
-                      : health.features?.aiEnrich
-                        ? 'ok'
-                        : 'off'
-                  }
-                />
-              </button>
-              {/* Theme toggle on the right side on desktop only. */}
-              <div className="hidden sm:block">
-                <ThemeToggle theme={theme} onToggle={toggleTheme} />
-              </div>
-              <nav className="tabs tabs-scroll ml-1 max-w-full" role="tablist">
+            <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+              <nav className="tabs tabs-scroll max-w-full" role="tablist">
                 {TABS.map((t) => (
                   <button
                     key={t.id}
@@ -210,6 +163,12 @@ export default function App() {
                   </button>
                 ))}
               </nav>
+              <HeaderSettingsMenu
+                health={health}
+                theme={theme}
+                onToggleTheme={toggleTheme}
+                onAiPillClick={handleAiPillClick}
+              />
             </div>
           </div>
         </header>

@@ -1,5 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+import { getGeminiModel } from '../geminiModel.js';
+
 // We reuse the same env vars as services/enrich.js so the user only has to
 // configure GEMINI_API_KEY once.
 
@@ -18,10 +20,6 @@ function getKey() {
 function getClient() {
   if (!cachedClient) cachedClient = new GoogleGenerativeAI(getKey());
   return cachedClient;
-}
-
-function modelName() {
-  return (process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim();
 }
 
 const SUGGESTION_SCHEMA = {
@@ -175,7 +173,7 @@ export async function generateSuggestions(parsed, opts) {
 
   const gen = getClient();
   const model = gen.getGenerativeModel({
-    model: modelName(),
+    model: getGeminiModel(),
     systemInstruction: PLAN_SYSTEM_PROMPT,
     generationConfig: {
       temperature: 0.35,
@@ -266,7 +264,7 @@ export async function refineSuggestion({ original, instruction }) {
 
   const gen = getClient();
   const model = gen.getGenerativeModel({
-    model: modelName(),
+    model: getGeminiModel(),
     systemInstruction: REFINE_SYSTEM_PROMPT,
     generationConfig: {
       temperature: 0.3,

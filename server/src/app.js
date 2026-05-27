@@ -7,6 +7,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 
 import { sendLimiter } from './middleware/rateLimit.js';
+import { geminiModelMiddleware } from './middleware/geminiModel.js';
 import { errorHandler, notFound } from './middleware/error.js';
 import emailRoutes from './routes/email.js';
 import templateRoutes from './routes/templates.js';
@@ -14,6 +15,7 @@ import logRoutes from './routes/log.js';
 import enrichRoutes from './routes/enrich.js';
 import resumeRoutes from './routes/resumes.js';
 import tailorRoutes from './routes/tailor.js';
+import aiRoutes from './routes/ai.js';
 import { ping } from './services/db.js';
 import { isEnrichmentEnabled } from './services/enrich.js';
 import { isGeminiConfigured as isTailorConfigured } from './services/tailor/gemini.js';
@@ -42,6 +44,7 @@ export function createApp() {
         if (!origin || origins.includes(origin)) return cb(null, true);
         return cb(new Error(`Origin ${origin} not allowed by CORS`));
       },
+      allowedHeaders: ['Content-Type', 'X-Gemini-Model'],
     })
   );
 
@@ -49,6 +52,9 @@ export function createApp() {
   if (process.env.NODE_ENV !== 'test') {
     app.use(morgan('dev'));
   }
+
+  // Browser model picker sends X-Gemini-Model; applies to all AI routes this request.
+  app.use('/api', geminiModelMiddleware);
 
   app.get('/api/health', async (_req, res) => {
     const dbOk = await ping();
@@ -71,6 +77,7 @@ export function createApp() {
   app.use('/api/resumes', resumeRoutes);
   // Tailor endpoints hit Gemini and (optionally) texlive.net; rate-limited.
   app.use('/api/tailor', sendLimiter, tailorRoutes);
+  app.use('/api/ai', aiRoutes);
 
   // In production we run as a single process: Express serves the built React
   // SPA from client/dist and falls back to index.html for client-side routes.

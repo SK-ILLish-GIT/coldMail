@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { nanoid } from 'nanoid';
 
+import { getGeminiModel } from '../geminiModel.js';
 import { templatesStore } from '../store.js';
 import { normalizeTags } from '../../utils/tags.js';
 import { buildTailoredForMeta } from './tailoredFor.js';
@@ -24,10 +25,6 @@ function getClient() {
   if (!cachedClient) cachedClient = new GoogleGenerativeAI(getKey());
   return cachedClient;
 }
-function modelName() {
-  return (process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim();
-}
-
 // ---------------------------------------------------------------------------
 // Template parsing — split body into ordered paragraphs. Subject is its own
 // targetable unit. Handlebars-style placeholders ({{firstName}}) inside the
@@ -223,7 +220,7 @@ function normalizeSuggestions(raw, parsed) {
 async function generateSuggestions(parsed, opts) {
   const gen = getClient();
   const model = gen.getGenerativeModel({
-    model: modelName(),
+    model: getGeminiModel(),
     systemInstruction: PLAN_SYSTEM_PROMPT,
     generationConfig: {
       temperature: 0.35,
@@ -247,7 +244,7 @@ async function refineSuggestion({ original, instruction }) {
   if (!instruction?.trim()) throw new Error('instruction is required.');
   const gen = getClient();
   const model = gen.getGenerativeModel({
-    model: modelName(),
+    model: getGeminiModel(),
     systemInstruction: REFINE_SYSTEM_PROMPT,
     generationConfig: {
       temperature: 0.3,

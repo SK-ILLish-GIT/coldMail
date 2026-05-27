@@ -1,3 +1,5 @@
+import { getGeminiModel } from './geminiModel.js';
+
 function parseRetrySeconds(message) {
   const direct = message.match(/retry in ([\d.]+)s/i);
   if (direct) return Math.ceil(Number(direct[1]));
@@ -30,7 +32,7 @@ export function mapGeminiError(err) {
     const retrySec = parseRetrySeconds(message);
     const dailyLimit = /PerDay|per day|free_tier_requests/i.test(message);
     const modelMatch = message.match(/model:\s*([^\s,\]]+)/i);
-    const model = modelMatch?.[1] || process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+    const model = modelMatch?.[1] || getGeminiModel();
 
     let friendly = dailyLimit
       ? `Gemini free-tier daily limit reached for ${model} (typically 20 requests/day on the free plan).`
@@ -45,7 +47,7 @@ export function mapGeminiError(err) {
     }
 
     friendly +=
-      ' Options: wait, switch GEMINI_MODEL in server/.env (e.g. gemini-2.5-flash-lite), or add billing at https://aistudio.google.com/';
+      ' Options: pick another model in the header dropdown, wait for quota reset, or add billing at https://aistudio.google.com/';
 
     const e = new Error(friendly);
     e.status = 429;

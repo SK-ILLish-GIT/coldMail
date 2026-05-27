@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+import { getGeminiModel } from './geminiModel.js';
 import { normalizeTags } from '../utils/tags.js';
 
 // Mirrors pdfTags.js. Kept as its own client so resume and template flows
@@ -14,10 +15,6 @@ function getClient() {
   }
   if (!cachedClient) cachedClient = new GoogleGenerativeAI(key);
   return cachedClient;
-}
-
-function modelName() {
-  return (process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim();
 }
 
 const TAG_SCHEMA = {
@@ -84,7 +81,7 @@ export async function suggestTagsForTemplate(input) {
   }
   const gen = getClient();
   const model = gen.getGenerativeModel({
-    model: modelName(),
+    model: getGeminiModel(),
     systemInstruction: SYSTEM_PROMPT,
     generationConfig: {
       temperature: 0.2,

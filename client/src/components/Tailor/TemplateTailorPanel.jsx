@@ -420,7 +420,7 @@ export default function TemplateTailorPanel({
           disabled={quotaBlocked}
           title={
             quotaBlocked
-              ? 'Daily Gemini free-tier limit — wait for reset or change GEMINI_MODEL'
+              ? 'Daily Gemini free-tier limit — pick another model in the header or wait for reset'
               : undefined
           }
         >

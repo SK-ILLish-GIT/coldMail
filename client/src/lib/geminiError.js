@@ -12,7 +12,7 @@ export function formatGeminiError(err) {
     }
     return (
       'Gemini API quota reached (free tier is often ~20 requests/day per model). ' +
-      'Wait for the limit to reset, set GEMINI_MODEL in server/.env to another model, ' +
+      'Wait for the limit to reset, choose another model from the header dropdown, ' +
       'or enable billing at https://aistudio.google.com/'
     );
   }

@@ -1,6 +1,8 @@
 import { resolveMx } from 'node:dns/promises';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+import { getGeminiModel } from './geminiModel.js';
+
 let client = null;
 
 function getKey() {
@@ -148,10 +150,9 @@ function validateModelOutput(raw) {
 }
 
 async function callGemini({ company, domain }) {
-  const modelName = (process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim();
   const gen = getClient();
   const model = gen.getGenerativeModel({
-    model: modelName,
+    model: getGeminiModel(),
     systemInstruction: SYSTEM_PROMPT,
     generationConfig: {
       temperature: 0.2,
@@ -241,10 +242,9 @@ function algoExtractName(email) {
  * @returns {Promise<Array<{ email: string, name: string }>>}
  */
 export async function extractNamesFromEmails({ emails, company }) {
-  const modelName = (process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim();
   const gen = getClient();
   const model = gen.getGenerativeModel({
-    model: modelName,
+    model: getGeminiModel(),
     systemInstruction: NAMES_SYSTEM_PROMPT,
     generationConfig: {
       temperature: 0,
@@ -342,10 +342,9 @@ function summariseList(items) {
  * @param {{ jobDescription: string, templates: Array, resumes: Array }} input
  */
 export async function matchJobDescription({ jobDescription, templates, resumes }) {
-  const modelName = (process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim();
   const gen = getClient();
   const model = gen.getGenerativeModel({
-    model: modelName,
+    model: getGeminiModel(),
     systemInstruction: JD_MATCH_SYSTEM_PROMPT,
     generationConfig: {
       temperature: 0.1,

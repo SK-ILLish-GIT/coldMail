@@ -4,20 +4,15 @@ import { parseResume } from './texParser.js';
 import { computeScores } from './scorer.js';
 import { generateSuggestions, refineSuggestion } from './gemini.js';
 import { applySuggestion, rollbackAll } from './texEditor.js';
-
-const TTL_MS = 60 * 60 * 1000; // 1 hour
-const sessions = new Map();
-
-function evictExpired() {
-  const now = Date.now();
-  for (const [id, s] of sessions.entries()) {
-    if (s.expiresAt < now) sessions.delete(id);
-  }
-}
-
-function touch(session) {
-  session.expiresAt = Date.now() + TTL_MS;
-}
+import {
+  abandonSession,
+  cacheSession,
+  evictExpiredFromDb,
+  findLatestActiveDoc,
+  loadSessionDoc,
+  persistSessionDoc,
+  touchSessionTimestamps,
+} from './sessionPersistence.js';
 
 function publicSuggestion(s) {
   if (!s) return null;
@@ -57,6 +52,77 @@ function nextPending(session) {
   return session.queue.find((s) => s.status === 'pending') || null;
 }
 
+function serializeResume(session) {
+  return {
+    id: session.id,
+    kind: 'resume',
+    status: session.status || 'active',
+    cvRoot: session.cvRoot,
+    jobDescription: session.jobDescription,
+    targetRole: session.targetRole,
+    targetCompany: session.targetCompany,
+    seniority: session.seniority,
+    tone: session.tone,
+    initialScores: session.initialScores,
+    currentScores: session.currentScores,
+    queue: session.queue,
+    totalSuggestions: session.totalSuggestions,
+    changeLog: session.changeLog,
+    touchedFiles: [...session.touchedFiles],
+    createdAt: session.createdAt,
+    expiresAt: session.expiresAt,
+    updatedAt: session.updatedAt,
+  };
+}
+
+async function hydrateResume(doc) {
+  const session = {
+    id: doc.id,
+    status: doc.status || 'active',
+    cvRoot: doc.cvRoot,
+    jobDescription: doc.jobDescription,
+    targetRole: doc.targetRole || '',
+    targetCompany: doc.targetCompany || '',
+    seniority: doc.seniority || '',
+    tone: doc.tone || '',
+    initialScores: doc.initialScores,
+    currentScores: doc.currentScores,
+    queue: doc.queue || [],
+    totalSuggestions: doc.totalSuggestions,
+    changeLog: doc.changeLog || [],
+    touchedFiles: new Set(doc.touchedFiles || []),
+    createdAt: doc.createdAt,
+    expiresAt: doc.expiresAt,
+    updatedAt: doc.updatedAt,
+  };
+  session.parsed = await parseResume(session.cvRoot);
+  session.currentScores = computeScores(session.parsed, session.jobDescription);
+  return session;
+}
+
+async function persistResume(session) {
+  touchSessionTimestamps(session);
+  const doc = serializeResume(session);
+  await persistSessionDoc(doc);
+  cacheSession('resume', session);
+}
+
+export function buildResumeRestorePayload(session) {
+  const np = nextPending(session);
+  return {
+    session: publicState(session),
+    jobDescription: session.jobDescription,
+    targetRole: session.targetRole,
+    targetCompany: session.targetCompany,
+    seniority: session.seniority,
+    tone: session.tone,
+    firstSuggestion: publicSuggestion(np),
+    done: !np,
+    initialScores: session.initialScores,
+    currentScores: session.currentScores,
+  };
+}
+
 /**
  * Create a new tailoring session. Parses the resume, computes initial scores,
  * asks Gemini for the suggestion plan, and queues up suggestions.
@@ -69,7 +135,7 @@ export async function createSession({
   seniority = '',
   tone = '',
 }) {
-  evictExpired();
+  await evictExpiredFromDb();
   if (!cvRoot) throw new Error('cvRoot is required.');
   if (!jobDescription || !jobDescription.trim()) {
     throw new Error('jobDescription is required.');
@@ -93,8 +159,10 @@ export async function createSession({
   }));
 
   const id = nanoid(12);
+  const now = Date.now();
   const session = {
     id,
+    status: 'active',
     cvRoot,
     parsed,
     jobDescription,
@@ -108,25 +176,43 @@ export async function createSession({
     totalSuggestions: queue.length,
     changeLog: [],
     touchedFiles: new Set(),
-    createdAt: Date.now(),
-    expiresAt: Date.now() + TTL_MS,
+    createdAt: now,
+    expiresAt: now,
+    updatedAt: now,
   };
-  sessions.set(id, session);
+  await persistResume(session);
   return {
     ...publicState(session),
     firstSuggestion: publicSuggestion(nextPending(session)),
   };
 }
 
-export function getSession(id) {
-  evictExpired();
-  return sessions.get(id) || null;
+export async function getSession(id) {
+  await evictExpiredFromDb();
+  const doc = await loadSessionDoc(id, 'resume');
+  if (!doc) return null;
+  const session = await hydrateResume(doc);
+  cacheSession('resume', session);
+  return session;
 }
 
-export function nextSuggestion(id) {
-  const s = getSession(id);
+export async function getActiveResumeSession() {
+  await evictExpiredFromDb();
+  const doc = await findLatestActiveDoc('resume');
+  if (!doc) return null;
+  const session = await hydrateResume(doc);
+  cacheSession('resume', session);
+  return session;
+}
+
+export async function abandonResumeSession(id) {
+  await abandonSession(id, 'resume');
+}
+
+export async function nextSuggestion(id) {
+  const s = await getSession(id);
   if (!s) throw httpErr(404, 'Session not found or expired.');
-  touch(s);
+  await persistResume(s);
   const np = nextPending(s);
   if (!np) {
     return { done: true, state: publicState(s) };
@@ -136,10 +222,6 @@ export function nextSuggestion(id) {
 
 // Roll the session's files back to their .bak baseline, reparse, then
 // re-apply every queue entry currently marked 'approved' in queue order.
-// Used whenever a previously-decided suggestion is re-decided (rejected,
-// re-edited, re-approved): we always rebuild from baseline so the on-disk
-// state stays in sync with the queue, no matter how many times the user
-// flip-flops.
 async function replayApprovedQueue(s) {
   await rollbackAll(s.touchedFiles);
   s.parsed = await parseResume(s.cvRoot);
@@ -148,9 +230,6 @@ async function replayApprovedQueue(s) {
     try {
       await applySuggestion(s.parsed, q, s.touchedFiles);
     } catch (err) {
-      // A previously-approved suggestion may no longer fit (e.g. the user
-      // edited an earlier one that changed the target text). Mark it failed
-      // and keep going so the rest of the approved queue still lands.
       q.status = 'failed';
       q.error = err.message;
     }
@@ -170,9 +249,8 @@ function logEntry(action, sug, extra = {}) {
 }
 
 export async function decideSuggestion(id, { suggestionId, decision, editInstruction }) {
-  const s = getSession(id);
+  const s = await getSession(id);
   if (!s) throw httpErr(404, 'Session not found or expired.');
-  touch(s);
   const sug = s.queue.find((q) => q.id === suggestionId);
   if (!sug) throw httpErr(404, 'Suggestion not found in session.');
   const wasApproved = sug.status === 'approved';
@@ -184,11 +262,13 @@ export async function decideSuggestion(id, { suggestionId, decision, editInstruc
 
   if (decision === 'reject' || decision === 'skip') {
     if (sug.status === 'rejected') {
+      await persistResume(s);
       return respond({ result: 'rejected' });
     }
     sug.status = 'rejected';
     s.changeLog.push(logEntry('reject', sug));
     if (wasApproved) await replayApprovedQueue(s);
+    await persistResume(s);
     return respond({ result: 'rejected' });
   }
 
@@ -201,21 +281,22 @@ export async function decideSuggestion(id, { suggestionId, decision, editInstruc
     sug.previewText = refined.previewText;
     if (refined.reason) sug.reason = refined.reason;
     if (wasApproved) {
-      // Re-apply with the refined content so disk matches the new draft.
       await replayApprovedQueue(s);
       s.changeLog.push(logEntry('re-edit', sug));
+      await persistResume(s);
       return { result: 'refined-applied', next: publicSuggestion(sug), state: publicState(s) };
     }
     sug.status = 'pending';
+    await persistResume(s);
     return { result: 'refined', next: publicSuggestion(sug), state: publicState(s) };
   }
 
   if (decision === 'approve') {
     if (wasApproved) {
+      await persistResume(s);
       return respond({ result: 'noop' });
     }
     if (sug.status === 'pending') {
-      // Fast path: apply directly without a full replay.
       try {
         const change = await applySuggestion(s.parsed, sug, s.touchedFiles);
         sug.status = 'approved';
@@ -223,30 +304,32 @@ export async function decideSuggestion(id, { suggestionId, decision, editInstruc
           logEntry('approve', sug, { file: change.file, opAction: change.action })
         );
         s.currentScores = computeScores(s.parsed, s.jobDescription);
+        await persistResume(s);
         return respond({ result: 'applied', change });
       } catch (err) {
         sug.status = 'failed';
         sug.error = err.message;
         s.changeLog.push(logEntry('failed', sug, { error: err.message }));
+        await persistResume(s);
         return respond({ result: 'failed', error: err.message });
       }
     }
-    // Re-approving a previously rejected/failed suggestion: do a full replay
-    // so it lands consistently with everything else still approved.
     sug.status = 'approved';
     try {
       await replayApprovedQueue(s);
-      // If replayApprovedQueue marked our own suggestion as failed, surface that.
       if (sug.status === 'failed') {
         s.changeLog.push(logEntry('failed', sug, { error: sug.error }));
+        await persistResume(s);
         return respond({ result: 'failed', error: sug.error });
       }
       s.changeLog.push(logEntry('approve', sug, { opAction: sug.action }));
+      await persistResume(s);
       return respond({ result: 'applied' });
     } catch (err) {
       sug.status = 'failed';
       sug.error = err.message;
       s.changeLog.push(logEntry('failed', sug, { error: err.message }));
+      await persistResume(s);
       return respond({ result: 'failed', error: err.message });
     }
   }
@@ -255,9 +338,8 @@ export async function decideSuggestion(id, { suggestionId, decision, editInstruc
 }
 
 export async function rollbackSession(id) {
-  const s = getSession(id);
+  const s = await getSession(id);
   if (!s) throw httpErr(404, 'Session not found or expired.');
-  touch(s);
   const restored = await rollbackAll(s.touchedFiles);
   s.parsed = await parseResume(s.cvRoot);
   s.currentScores = computeScores(s.parsed, s.jobDescription);
@@ -266,17 +348,17 @@ export async function rollbackSession(id) {
     action: 'rollback',
     restoredFiles: restored.length,
   });
-  // Mark any approved suggestions as pending again so the user can re-run.
   for (const q of s.queue) {
     if (q.status === 'approved') q.status = 'pending';
   }
+  await persistResume(s);
   return { ok: true, restored, state: publicState(s) };
 }
 
-export function buildReport(id) {
-  const s = getSession(id);
+export async function buildReport(id) {
+  const s = await getSession(id);
   if (!s) throw httpErr(404, 'Session not found or expired.');
-  touch(s);
+  await persistResume(s);
   const lines = [];
   lines.push(`# Resume Tailor Report`);
   if (s.targetCompany || s.targetRole) {

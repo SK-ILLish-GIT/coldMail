@@ -24,6 +24,12 @@ async function ensureIndexes(database) {
     database.collection('sent_log').createIndex({ id: 1 }, { unique: true }),
     database.collection('resumes').createIndex({ createdAt: -1 }),
     database.collection('resumes').createIndex({ id: 1 }, { unique: true }),
+    database.collection('tailor_sessions').createIndex({ id: 1 }, { unique: true }),
+    database.collection('tailor_sessions').createIndex({ kind: 1, updatedAt: -1 }),
+    database.collection('tailor_sessions').createIndex(
+      { expiresAt: 1 },
+      { expireAfterSeconds: 0 }
+    ),
   ]);
   indexesEnsured = true;
 }

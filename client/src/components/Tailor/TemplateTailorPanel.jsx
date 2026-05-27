@@ -7,6 +7,10 @@ import {
   isGeminiQuotaError,
 } from "../../lib/geminiError.js";
 import { tailorApi } from "../../lib/tailorApi.js";
+import {
+  getStoredTemplateSessionId,
+  setStoredTemplateSessionId,
+} from "../../lib/tailorSessionStorage.js";
 import { useJd } from "../../lib/jdContext.jsx";
 import AutoTagModal from "../AutoTagModal.jsx";
 import { TagInput } from "../Tags.jsx";
@@ -217,10 +221,66 @@ export default function TemplateTailorPanel({
   const [autoTagSession, setAutoTagSession] = useState(null);
   const chatBottomRef = useRef(null);
   const autoStartLaunchedRef = useRef(false);
+  const templateRestoreAttempted = useRef(false);
+
+  const applyTemplateRestore = (data) => {
+    if (!data?.restored || !data.session) return false;
+    if (data.templateId && data.templateId !== template.id) return false;
+    setSession(data.session);
+    if (data.jobDescription) setJd(data.jobDescription);
+    if (data.targetRole) setTargetRole(data.targetRole);
+    if (data.targetCompany) setTargetCompany(data.targetCompany);
+    if (data.seniority) setSeniority(data.seniority);
+    setStoredTemplateSessionId(data.session.sessionId);
+    const date = new Date().toISOString().slice(0, 10);
+    setSaveName(
+      [template.name, data.targetCompany || targetCompany, date]
+        .filter(Boolean)
+        .join(" —"),
+    );
+    if (data.done) {
+      setDone(true);
+      setCurrent(null);
+    } else if (data.firstSuggestion) {
+      setCurrent(data.firstSuggestion);
+      setDone(false);
+    }
+    return true;
+  };
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [history, current, done]);
+
+  useEffect(() => {
+    if (session || starting || autoStart) return;
+    if (templateRestoreAttempted.current) return;
+    templateRestoreAttempted.current = true;
+    (async () => {
+      try {
+        let data = null;
+        const storedId = getStoredTemplateSessionId();
+        if (storedId) {
+          try {
+            data = await tailorApi.restoreTemplateSession(storedId);
+          } catch {
+            setStoredTemplateSessionId("");
+          }
+        }
+        if (!data?.restored) {
+          data = await tailorApi.activeTemplateSession();
+        }
+        if (applyTemplateRestore(data)) {
+          toast.success("Resumed your template tailoring session", {
+            duration: 3500,
+          });
+        }
+      } catch {
+        /* no saved session */
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [template.id, session, starting, autoStart]);
 
   // Auto-start once when caller passes `autoStart` and the inputs are ready.
   // Guard with a ref so a failed start (e.g. 429) does not re-fire endlessly.
@@ -256,6 +316,7 @@ export default function TemplateTailorPanel({
         seniority: seniority || undefined,
       });
       setSession(result);
+      setStoredTemplateSessionId(result.sessionId);
       const date = new Date().toISOString().slice(0, 10);
       setSaveName(
         [template.name, targetCompany, date].filter(Boolean).join(" —"),
@@ -357,6 +418,12 @@ export default function TemplateTailorPanel({
         name: saveName.trim(),
         tags: saveTags,
       });
+      try {
+        await tailorApi.abandonTemplateSession(session.sessionId);
+      } catch {
+        /* ignore */
+      }
+      setStoredTemplateSessionId("");
       setSavedTemplate(created);
       onSaved?.(created);
     } catch (err) {

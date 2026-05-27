@@ -44,6 +44,14 @@ export const tailorApi = {
 
   startSession: (payload) => call("post", "/session", payload),
 
+  activeResumeSession: () => call("get", "/session/active"),
+
+  restoreResumeSession: (sessionId) =>
+    call("get", `/session/${sessionId}/restore`),
+
+  abandonResumeSession: (sessionId) =>
+    call("post", `/session/${sessionId}/abandon`),
+
   next: (sessionId) => call("get", `/session/${sessionId}/next`),
 
   // Full queue snapshot — drives the bulk-triage view.
@@ -73,6 +81,14 @@ export const tailorApi = {
 
   // ---- Template tailoring -------------------------------------------------
   startTemplateSession: (payload) => call("post", "/template-session", payload),
+
+  activeTemplateSession: () => call("get", "/template-session/active"),
+
+  restoreTemplateSession: (sessionId) =>
+    call("get", `/template-session/${sessionId}/restore`),
+
+  abandonTemplateSession: (sessionId) =>
+    call("post", `/template-session/${sessionId}/abandon`),
 
   templateNext: (sessionId) =>
     call("get", `/template-session/${sessionId}/next`),

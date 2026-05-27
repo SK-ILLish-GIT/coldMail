@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import toast from "react-hot-toast";
 
 import { api } from "../../lib/api.js";
 import { tabClick, tabMouseDown } from "../../lib/tabButton.js";
 import { tailorApi } from "../../lib/tailorApi.js";
+import {
+  getStoredResumeSessionId,
+  setStoredResumeSessionId,
+} from "../../lib/tailorSessionStorage.js";
 import { useJd } from "../../lib/jdContext.jsx";
 import { useTailorTarget } from "../../lib/tailorTarget.jsx";
 import { confirmAsync } from "../../lib/confirm.jsx";
@@ -84,6 +89,41 @@ export default function TailorPage({ aiConfigured }) {
   const [prefilledTemplateId, setPrefilledTemplateId] = useState("");
 
   const chatBottomRef = useRef(null);
+  const resumeRestoreAttempted = useRef(false);
+
+  const applyResumeRestore = (data) => {
+    if (!data?.restored || !data.session) return false;
+    setSession({
+      ...data.session,
+      initialScores: data.initialScores,
+      currentScores: data.currentScores,
+    });
+    if (data.jobDescription) setJd(data.jobDescription);
+    if (data.targetRole) setTargetRole(data.targetRole);
+    if (data.targetCompany) setTargetCompany(data.targetCompany);
+    if (data.seniority) setSeniority(data.seniority);
+    setStoredResumeSessionId(data.session.sessionId);
+    if (data.done) {
+      setDone(true);
+      setCurrent(null);
+      setMessages([
+        {
+          role: "assistant",
+          text: "Restored your session — all suggestions were already reviewed.",
+        },
+      ]);
+    } else if (data.firstSuggestion) {
+      setCurrent(data.firstSuggestion);
+      setDone(false);
+      setMessages([
+        {
+          role: "assistant",
+          text: `Restored tailoring (${data.session.pending} pending, ${data.session.applied} applied).`,
+        },
+      ]);
+    }
+    return true;
+  };
 
   useEffect(() => {
     tailorApi
@@ -134,6 +174,36 @@ export default function TailorPage({ aiConfigured }) {
   const aiReady = aiConfigured || status?.aiConfigured;
   const cvInfo = status?.cvInfo;
 
+  useEffect(() => {
+    if (!aiReady || session || resumeRestoreAttempted.current) return;
+    if (rightPane !== "resume") return;
+    if (pendingResumeTailor || pendingTemplate) return;
+
+    resumeRestoreAttempted.current = true;
+    (async () => {
+      try {
+        let data = null;
+        const storedId = getStoredResumeSessionId();
+        if (storedId) {
+          try {
+            data = await tailorApi.restoreResumeSession(storedId);
+          } catch {
+            setStoredResumeSessionId("");
+          }
+        }
+        if (!data?.restored) {
+          data = await tailorApi.activeResumeSession();
+        }
+        if (applyResumeRestore(data)) {
+          toast.success("Resumed your resume tailoring session", { duration: 3500 });
+        }
+      } catch {
+        /* no saved session */
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiReady, session, rightPane, pendingResumeTailor, pendingTemplate]);
+
   const handleStart = async () => {
     if (!jd.trim()) {
       setError("Paste a job description first.");
@@ -155,6 +225,7 @@ export default function TailorPage({ aiConfigured }) {
         seniority: seniority || undefined,
       });
       setSession(result);
+      setStoredResumeSessionId(result.sessionId);
       if (result.firstSuggestion) {
         setCurrent(result.firstSuggestion);
         setMessages((m) => [
@@ -340,7 +411,16 @@ export default function TailorPage({ aiConfigured }) {
     }
   };
 
-  const restart = () => {
+  const restart = async () => {
+    const id = session?.sessionId;
+    if (id) {
+      try {
+        await tailorApi.abandonResumeSession(id);
+      } catch {
+        /* ignore */
+      }
+    }
+    setStoredResumeSessionId("");
     setSession(null);
     setCurrent(null);
     setDone(false);

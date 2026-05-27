@@ -5,8 +5,11 @@ import { Router } from 'express';
 
 import { HttpError } from '../middleware/error.js';
 import {
+  abandonResumeSession,
+  buildResumeRestorePayload,
   createSession,
   decideSuggestion,
+  getActiveResumeSession,
   getSession,
   nextSuggestion,
   rollbackSession,
@@ -17,8 +20,12 @@ import { isGeminiConfigured } from '../services/tailor/gemini.js';
 import { extractAutoTags } from '../services/tailor/autoTags.js';
 import { buildTailoredForMeta } from '../services/tailor/tailoredFor.js';
 import {
+  abandonTemplateSession,
+  buildTemplateRestorePayload,
   createTemplateSession,
   decideTemplateSuggestion,
+  getActiveTemplateSession,
+  getTemplateSession,
   nextTemplateSuggestion,
   saveTemplateSession,
   isTailorTemplateEnabled,
@@ -119,9 +126,38 @@ router.get('/status', async (_req, res) => {
 
 // Public list of every suggestion in the session — pending, approved,
 // rejected, failed. Powers the bulk-triage view in the Tailor tab.
-router.get('/session/:id/queue', (req, res, next) => {
+router.get('/session/active', async (req, res, next) => {
   try {
-    const s = getSession(req.params.id);
+    const s = await getActiveResumeSession();
+    if (!s) return res.json({ restored: false });
+    res.json({ restored: true, ...buildResumeRestorePayload(s) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/session/:id/restore', async (req, res, next) => {
+  try {
+    const s = await getSession(req.params.id);
+    if (!s) throw new HttpError(404, 'Session not found or expired.');
+    res.json({ restored: true, ...buildResumeRestorePayload(s) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/session/:id/abandon', async (req, res, next) => {
+  try {
+    await abandonResumeSession(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/session/:id/queue', async (req, res, next) => {
+  try {
+    const s = await getSession(req.params.id);
     if (!s) throw new HttpError(404, 'Session not found or expired.');
     res.json({
       sessionId: s.id,
@@ -168,17 +204,17 @@ router.post('/session', async (req, res, next) => {
   }
 });
 
-router.get('/session/:id/next', (req, res, next) => {
+router.get('/session/:id/next', async (req, res, next) => {
   try {
-    res.json(nextSuggestion(req.params.id));
+    res.json(await nextSuggestion(req.params.id));
   } catch (err) {
     next(err);
   }
 });
 
-router.get('/session/:id/auto-tags', (req, res, next) => {
+router.get('/session/:id/auto-tags', async (req, res, next) => {
   try {
-    const s = getSession(req.params.id);
+    const s = await getSession(req.params.id);
     if (!s) throw new HttpError(404, 'Session not found or expired.');
     res.json({ tags: extractAutoTags(s.parsed, s) });
   } catch (err) {
@@ -204,7 +240,7 @@ router.post('/session/:id/decide', async (req, res, next) => {
 
 router.post('/session/:id/compile', async (req, res, next) => {
   try {
-    const s = getSession(req.params.id);
+    const s = await getSession(req.params.id);
     if (!s) throw new HttpError(404, 'Session not found or expired.');
 
     const result = await compileResume(s.cvRoot, { engine: req.body?.engine });
@@ -255,7 +291,7 @@ router.post('/session/:id/compile', async (req, res, next) => {
 
 router.get('/session/:id/zip', async (req, res, next) => {
   try {
-    const s = getSession(req.params.id);
+    const s = await getSession(req.params.id);
     if (!s) throw new HttpError(404, 'Session not found or expired.');
     const buf = await buildResumeZip(s.cvRoot);
     const name = (s.targetCompany || s.targetRole || 'tailored-resume')
@@ -279,9 +315,9 @@ router.post('/session/:id/rollback', async (req, res, next) => {
   }
 });
 
-router.get('/session/:id/report', (req, res, next) => {
+router.get('/session/:id/report', async (req, res, next) => {
   try {
-    res.json(buildReport(req.params.id));
+    res.json(await buildReport(req.params.id));
   } catch (err) {
     next(err);
   }
@@ -315,9 +351,38 @@ router.post('/template-session', async (req, res, next) => {
   }
 });
 
-router.get('/template-session/:id/next', (req, res, next) => {
+router.get('/template-session/active', async (req, res, next) => {
   try {
-    res.json(nextTemplateSuggestion(req.params.id));
+    const s = await getActiveTemplateSession();
+    if (!s) return res.json({ restored: false });
+    res.json({ restored: true, ...buildTemplateRestorePayload(s) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/template-session/:id/restore', async (req, res, next) => {
+  try {
+    const s = await getTemplateSession(req.params.id);
+    if (!s) throw new HttpError(404, 'Session not found or expired.');
+    res.json({ restored: true, ...buildTemplateRestorePayload(s) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/template-session/:id/abandon', async (req, res, next) => {
+  try {
+    await abandonTemplateSession(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/template-session/:id/next', async (req, res, next) => {
+  try {
+    res.json(await nextTemplateSuggestion(req.params.id));
   } catch (err) {
     next(err);
   }

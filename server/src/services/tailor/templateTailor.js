@@ -5,6 +5,15 @@ import { getGeminiModel } from '../geminiModel.js';
 import { templatesStore } from '../store.js';
 import { normalizeTags } from '../../utils/tags.js';
 import { buildTailoredForMeta } from './tailoredFor.js';
+import {
+  abandonSession,
+  cacheSession,
+  evictExpiredFromDb,
+  findLatestActiveDoc,
+  loadSessionDoc,
+  persistSessionDoc,
+  touchSessionTimestamps,
+} from './sessionPersistence.js';
 
 // ---------------------------------------------------------------------------
 // Gemini wiring (mirrors the resume gemini.js client — kept private to keep
@@ -333,17 +342,63 @@ export function applySuggestion(parsed, sug) {
 }
 
 // ---------------------------------------------------------------------------
-// Session map
+// Session persistence (Mongo tailor_sessions, kind=template)
 // ---------------------------------------------------------------------------
 
-const TTL_MS = 60 * 60 * 1000;
-const sessions = new Map();
-function touch(s) {
-  s.expiresAt = Date.now() + TTL_MS;
+function serializeTemplate(session) {
+  return {
+    id: session.id,
+    kind: 'template',
+    status: session.status || 'active',
+    original: session.original,
+    jobDescription: session.jobDescription,
+    targetRole: session.targetRole,
+    targetCompany: session.targetCompany,
+    seniority: session.seniority,
+    queue: session.queue,
+    createdAt: session.createdAt,
+    expiresAt: session.expiresAt,
+    updatedAt: session.updatedAt,
+  };
 }
-function evictExpired() {
-  const now = Date.now();
-  for (const [id, s] of sessions.entries()) if (s.expiresAt < now) sessions.delete(id);
+
+function hydrateTemplate(doc) {
+  const session = {
+    id: doc.id,
+    status: doc.status || 'active',
+    original: doc.original,
+    jobDescription: doc.jobDescription,
+    targetRole: doc.targetRole || '',
+    targetCompany: doc.targetCompany || '',
+    seniority: doc.seniority || '',
+    queue: doc.queue || [],
+    createdAt: doc.createdAt,
+    expiresAt: doc.expiresAt,
+    updatedAt: doc.updatedAt,
+  };
+  session.working = parseTemplate(session.original);
+  replayApprovedQueue(session);
+  return session;
+}
+
+async function persistTemplate(session) {
+  touchSessionTimestamps(session);
+  await persistSessionDoc(serializeTemplate(session));
+  cacheSession('template', session);
+}
+
+export function buildTemplateRestorePayload(session) {
+  const np = nextPending(session);
+  return {
+    session: publicState(session),
+    jobDescription: session.jobDescription,
+    targetRole: session.targetRole,
+    targetCompany: session.targetCompany,
+    seniority: session.seniority,
+    templateId: session.original?.id,
+    firstSuggestion: publicSuggestion(np),
+    done: !np,
+  };
 }
 
 function publicSuggestion(sug) {
@@ -406,7 +461,7 @@ export async function createTemplateSession({
   targetCompany = '',
   seniority = '',
 }) {
-  evictExpired();
+  await evictExpiredFromDb();
   if (!templateId) throw new Error('templateId is required.');
   if (!jobDescription || !jobDescription.trim()) {
     throw new Error('jobDescription is required.');
@@ -431,8 +486,10 @@ export async function createTemplateSession({
     status: 'pending',
   }));
   const id = nanoid(12);
+  const now = Date.now();
   const s = {
     id,
+    status: 'active',
     original,
     working,
     jobDescription,
@@ -440,42 +497,59 @@ export async function createTemplateSession({
     targetCompany,
     seniority,
     queue,
-    createdAt: Date.now(),
-    expiresAt: Date.now() + TTL_MS,
+    createdAt: now,
+    expiresAt: now,
+    updatedAt: now,
   };
-  sessions.set(id, s);
+  await persistTemplate(s);
   return {
     ...publicState(s),
     firstSuggestion: publicSuggestion(nextPending(s)),
   };
 }
 
-export function getTemplateSession(id) {
-  evictExpired();
-  return sessions.get(id) || null;
+export async function getTemplateSession(id) {
+  await evictExpiredFromDb();
+  const doc = await loadSessionDoc(id, 'template');
+  if (!doc) return null;
+  const session = hydrateTemplate(doc);
+  cacheSession('template', session);
+  return session;
 }
 
-export function nextTemplateSuggestion(id) {
-  const s = getTemplateSession(id);
+export async function getActiveTemplateSession() {
+  await evictExpiredFromDb();
+  const doc = await findLatestActiveDoc('template');
+  if (!doc) return null;
+  const session = hydrateTemplate(doc);
+  cacheSession('template', session);
+  return session;
+}
+
+export async function abandonTemplateSession(id) {
+  await abandonSession(id, 'template');
+}
+
+export async function nextTemplateSuggestion(id) {
+  const s = await getTemplateSession(id);
   if (!s) {
     const e = new Error('Session not found or expired.');
     e.status = 404;
     throw e;
   }
-  touch(s);
+  await persistTemplate(s);
   const np = nextPending(s);
   if (!np) return { done: true, state: publicState(s) };
   return { done: false, suggestion: publicSuggestion(np), state: publicState(s) };
 }
 
 export async function decideTemplateSuggestion(id, { suggestionId, decision, editInstruction }) {
-  const s = getTemplateSession(id);
+  const s = await getTemplateSession(id);
   if (!s) {
     const e = new Error('Session not found or expired.');
     e.status = 404;
     throw e;
   }
-  touch(s);
   const sug = s.queue.find((q) => q.id === suggestionId);
   if (!sug) {
     const e = new Error('Suggestion not found.');
@@ -490,9 +564,13 @@ export async function decideTemplateSuggestion(id, { suggestionId, decision, edi
   });
 
   if (decision === 'reject' || decision === 'skip') {
-    if (sug.status === 'rejected') return respond({ result: 'rejected' });
+    if (sug.status === 'rejected') {
+      await persistTemplate(s);
+      return respond({ result: 'rejected' });
+    }
     sug.status = 'rejected';
     if (wasApproved) replayApprovedQueue(s);
+    await persistTemplate(s);
     return respond({ result: 'rejected' });
   }
 
@@ -503,31 +581,39 @@ export async function decideTemplateSuggestion(id, { suggestionId, decision, edi
     if (refined.reason) sug.reason = refined.reason;
     if (wasApproved) {
       replayApprovedQueue(s);
+      await persistTemplate(s);
       return { result: 'refined-applied', next: publicSuggestion(sug), state: publicState(s) };
     }
     sug.status = 'pending';
+    await persistTemplate(s);
     return { result: 'refined', next: publicSuggestion(sug), state: publicState(s) };
   }
 
   if (decision === 'approve') {
-    if (wasApproved) return respond({ result: 'noop' });
+    if (wasApproved) {
+      await persistTemplate(s);
+      return respond({ result: 'noop' });
+    }
     if (sug.status === 'pending') {
       try {
         applySuggestion(s.working, sug);
         sug.status = 'approved';
+        await persistTemplate(s);
         return respond({ result: 'applied' });
       } catch (err) {
         sug.status = 'failed';
         sug.error = err.message;
+        await persistTemplate(s);
         return respond({ result: 'failed', error: err.message });
       }
     }
-    // rejected/failed → flip to approved + replay
     sug.status = 'approved';
     replayApprovedQueue(s);
     if (sug.status === 'failed') {
+      await persistTemplate(s);
       return respond({ result: 'failed', error: sug.error });
     }
+    await persistTemplate(s);
     return respond({ result: 'applied' });
   }
 
@@ -541,13 +627,12 @@ export async function decideTemplateSuggestion(id, { suggestionId, decision, edi
  * untouched. Tags merge: original.tags + auto-tags from the session context.
  */
 export async function saveTemplateSession(id, { name, tags } = {}) {
-  const s = getTemplateSession(id);
+  const s = await getTemplateSession(id);
   if (!s) {
     const e = new Error('Session not found or expired.');
     e.status = 404;
     throw e;
   }
-  touch(s);
   const date = new Date().toISOString().slice(0, 10);
   const niceName =
     String(name || '').trim() ||

@@ -171,7 +171,7 @@ export default function FinalActions({
         </div>
         {texliveOptOut ? (
           <div className="flex items-end">
-            <p className="rounded-md bg-amber-50/70 px-3 py-2 text-2xs text-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+            <p className="callout-warning text-2xs">
               Compile disabled (texlive.net opt-out is on). Use Download .tex
               zip below and compile locally.
             </p>

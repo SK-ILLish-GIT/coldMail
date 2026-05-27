@@ -15,9 +15,17 @@ const DOT_CLASS = {
 /**
  * Tiny"DB" /"AI" health pill for the app header.
  */
-export default function StatusPill({ label, state = "loading", title }) {
+export default function StatusPill({
+  label,
+  state = "loading",
+  title,
+  className = "",
+}) {
   return (
-    <span className={STATE_CLASS[state] || "pill-ink"} title={title}>
+    <span
+      className={`${STATE_CLASS[state] || "pill-ink"} ${className}`.trim()}
+      title={title}
+    >
       <span className={`status-dot ${DOT_CLASS[state] || DOT_CLASS.loading}`} />
       <span className="font-mono text-[10px] uppercase tracking-wider">
         {label}

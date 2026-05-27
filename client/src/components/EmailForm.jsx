@@ -79,14 +79,11 @@ const MODES = [
   { id: "linkedin", label: "By LinkedIn", tone: "sky" },
 ];
 
-// Subtle wash + ring applied to the recipient block per active mode so
-// the channel context is obvious at a glance, not just in the tab pill.
+// Neutral panel + left accent per channel (readable in light and dark).
 const MODE_PANEL_CLASS = {
-  mailid:
-    "rounded-xl bg-rose-50/60 ring-1 ring-rose-200/60 dark:bg-rose-900/10 dark:ring-rose-800/40 p-4",
-  bulk: "rounded-xl bg-emerald-50/60 ring-1 ring-emerald-200/60 dark:bg-emerald-900/10 dark:ring-emerald-800/40 p-4",
-  linkedin:
-    "rounded-xl bg-sky-50/60 ring-1 ring-sky-200/60 dark:bg-sky-900/10 dark:ring-sky-800/40 p-4",
+  mailid: "panel-mode panel-mode-rose",
+  bulk: "panel-mode panel-mode-emerald",
+  linkedin: "panel-mode panel-mode-sky",
 };
 
 const DEFAULT_TEMPLATE_ID = "__default__";
@@ -567,7 +564,7 @@ export default function EmailForm({
 
               {/* Variable validation warning */}
               {missingVars.length > 0 && (
-                <div className="rounded-lg border border-amber-300/70 bg-amber-50/70 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-200">
+                <div className="callout-warning">
                   <span className="font-semibold">Heads up: </span>
                   the template uses{""}
                   {missingVars.map((v, i) => (

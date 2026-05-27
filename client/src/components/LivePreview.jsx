@@ -127,7 +127,7 @@ export default function LivePreview({
         )}
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col bg-ui-inset/40">
+      <div className="preview-pane flex min-h-0 flex-1 flex-col">
         <div className="flex min-h-0 flex-1 flex-col p-4">
           {empty ? (
             <div className="grid min-h-[280px] flex-1 place-items-center rounded-lg border border-dashed border-ui-border bg-ui-panel-muted text-center text-sm text-ui-fg-muted">
@@ -160,7 +160,7 @@ export default function LivePreview({
               title="Live email preview"
               srcDoc={renderedHtml}
               sandbox=""
-              className="preview-frame min-h-[320px] w-full flex-1 rounded-lg border border-ui-border"
+              className="preview-frame min-h-[320px] w-full flex-1 rounded-lg"
             />
           )}
         </div>

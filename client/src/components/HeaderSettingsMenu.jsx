@@ -70,10 +70,11 @@ export default function HeaderSettingsMenu({
           <p className="px-3 pb-1 text-2xs font-semibold uppercase tracking-wider text-ui-fg-muted">
             Status
           </p>
-          <div className="flex flex-wrap items-center gap-2 px-3 pb-3">
+          <div className="grid grid-cols-2 gap-2 px-3 pb-3">
             <StatusPill
               label="DB"
               state={dbState}
+              className="w-full justify-center"
               title={
                 health.loading
                   ? "Checking server health..."
@@ -85,20 +86,35 @@ export default function HeaderSettingsMenu({
             <button
               type="button"
               onClick={onAiPillClick}
-              className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
+              className="flex min-w-0 justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
               title={
                 health.features?.aiEnrich
                   ? "AI enabled (GEMINI_API_KEY set)"
                   : "AI off — click to copy GEMINI_API_KEY="
               }
             >
-              <StatusPill label="AI" state={aiState} />
+              <StatusPill
+                label="AI"
+                state={aiState}
+                className="w-full justify-center"
+              />
             </button>
+          </div>
+
+          <div className="border-t border-ui-border/70" />
+          <p className="px-3 pb-1 pt-2 text-2xs font-semibold uppercase tracking-wider text-ui-fg-muted">
+            Appearance
+          </p>
+          <div className="flex items-center justify-between gap-2 px-3 pb-2">
+            <span className="text-xs text-ui-fg-subtle">
+              {theme === "dark" ? "Dark mode" : "Light mode"}
+            </span>
+            <ThemeToggle theme={theme} onToggle={onToggleTheme} />
           </div>
 
           {health.features?.aiEnrich ? (
             <>
-              <div className="border-t border-ink-100" />
+              <div className="border-t border-ui-border/70" />
               <p className="px-3 pb-1 pt-2 text-2xs font-semibold uppercase tracking-wider text-ui-fg-muted">
                 AI model
               </p>
@@ -111,17 +127,6 @@ export default function HeaderSettingsMenu({
               </div>
             </>
           ) : null}
-
-          <div className="border-t border-ink-100" />
-          <p className="px-3 pb-1 pt-2 text-2xs font-semibold uppercase tracking-wider text-ui-fg-muted">
-            Appearance
-          </p>
-          <div className="flex items-center justify-between gap-2 px-3 pb-1">
-            <span className="text-xs text-ui-fg-subtle">
-              {theme === "dark" ? "Dark mode" : "Light mode"}
-            </span>
-            <ThemeToggle theme={theme} onToggle={onToggleTheme} />
-          </div>
         </div>
       ) : null}
     </div>

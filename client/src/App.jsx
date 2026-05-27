@@ -125,7 +125,7 @@ export default function App() {
   return (
     <TailorTargetProvider onRequestTab={setTab}>
       <div className="flex min-h-full flex-col">
-        <header className="sticky top-0 z-30 border-b border-ui-border/80 bg-ui-panel/90 backdrop-blur-md">
+        <header className="sticky top-0 z-30 border-b border-ui-border/80 bg-ui-panel/95 shadow-sm backdrop-blur-md dark:shadow-none">
           <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-3.5">
             <div className="flex items-center gap-3">
               <div className="icon-brand flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-md">

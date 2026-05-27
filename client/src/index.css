@@ -75,7 +75,27 @@
   }
 
   .surface-brand {
-    @apply bg-brand-50/50 dark:bg-brand-500/10;
+    @apply border border-brand-200/40 bg-brand-50/50
+           dark:border-brand-500/15 dark:bg-brand-500/10;
+  }
+
+  .callout-warning {
+    @apply rounded-lg border border-amber-200/80 bg-amber-50/80 px-3 py-2 text-xs text-amber-900
+           dark:border-amber-700/35 dark:bg-amber-500/10 dark:text-amber-100/90;
+  }
+
+  .panel-mode {
+    @apply rounded-xl border border-ui-border/80 bg-ui-panel-muted/60 p-4
+           ring-1 ring-inset ring-ui-border/50;
+  }
+  .panel-mode-rose {
+    @apply border-l-[3px] border-l-rose-400/75 dark:border-l-rose-500/40;
+  }
+  .panel-mode-emerald {
+    @apply border-l-[3px] border-l-emerald-500/70 dark:border-l-emerald-500/40;
+  }
+  .panel-mode-sky {
+    @apply border-l-[3px] border-l-sky-500/70 dark:border-l-sky-500/40;
   }
 
   .icon-brand {
@@ -187,22 +207,22 @@
     @apply text-rose-700 dark:text-rose-200;
   }
   .tab-active-rose::before {
-    @apply bg-rose-50 shadow-[inset_0_0_0_1px_rgb(251_207_232/0.9)]
-           dark:bg-rose-900/30 dark:shadow-[inset_0_0_0_1px_rgb(159_18_57/0.45)];
+    @apply bg-rose-50/90 shadow-[inset_0_0_0_1px_rgb(251_207_232/0.85)]
+           dark:bg-rose-500/12 dark:shadow-[inset_0_0_0_1px_rgb(244_63_94/0.25)];
   }
   .tab-active-emerald {
     @apply text-emerald-700 dark:text-emerald-200;
   }
   .tab-active-emerald::before {
-    @apply bg-emerald-50 shadow-[inset_0_0_0_1px_rgb(167_243_208/0.9)]
-           dark:bg-emerald-900/30 dark:shadow-[inset_0_0_0_1px_rgb(6_78_59/0.5)];
+    @apply bg-emerald-50/90 shadow-[inset_0_0_0_1px_rgb(167_243_208/0.85)]
+           dark:bg-emerald-500/12 dark:shadow-[inset_0_0_0_1px_rgb(16_185_129/0.25)];
   }
   .tab-active-sky {
     @apply text-sky-700 dark:text-sky-200;
   }
   .tab-active-sky::before {
-    @apply bg-sky-50 shadow-[inset_0_0_0_1px_rgb(186_230_253/0.9)]
-           dark:bg-sky-900/30 dark:shadow-[inset_0_0_0_1px_rgb(12_74_110/0.5)];
+    @apply bg-sky-50/90 shadow-[inset_0_0_0_1px_rgb(186_230_253/0.85)]
+           dark:bg-sky-500/12 dark:shadow-[inset_0_0_0_1px_rgb(14_165_233/0.25)];
   }
   /* Equal-width segments so switching active tab never reflows siblings */
   .tabs-2 {
@@ -227,7 +247,12 @@
 
   /* Email body preview — always paper white */
   .preview-frame {
-    @apply bg-ui-preview;
+    @apply bg-ui-preview shadow-sm ring-1 ring-inset ring-ui-border/60
+           dark:shadow-none dark:ring-ui-border/80;
+  }
+
+  .preview-pane {
+    @apply bg-ui-inset/35 dark:bg-ui-inset/55;
   }
 
   .anim-in {

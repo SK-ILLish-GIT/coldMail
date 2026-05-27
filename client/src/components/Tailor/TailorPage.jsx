@@ -676,7 +676,7 @@ function CvInfoCard({ cvInfo }) {
 
 function TexliveNotice({ optedOut, onChange, texliveUrl }) {
   return (
-    <div className="rounded-lg border border-amber-200/70 bg-amber-50/70 px-3 py-2 text-xs text-amber-800 dark:border-amber-800/60 dark:bg-amber-900/20 dark:text-amber-200">
+    <div className="callout-warning">
       <p className="font-semibold">Where your resume goes when you compile</p>
       <p className="mt-0.5">
         PDF compilation uses{""}

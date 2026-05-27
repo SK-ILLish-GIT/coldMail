@@ -424,7 +424,33 @@ export default function EmailForm({
     [template, previewVars]
   );
 
-  const attachmentCount = (attachment.resumeId || attachment.deviceFile) ? 1 : 0;
+  const previewAttachment = useMemo(() => {
+    if (attachment.resumeId) {
+      const r = resumes.find((x) => x.id === attachment.resumeId);
+      if (!r) {
+        return { kind: 'resume', name: 'Saved resume', id: attachment.resumeId };
+      }
+      return {
+        kind: 'resume',
+        name: r.name,
+        filename: r.filename,
+        size: r.size,
+        mimeType: r.contentType,
+        tags: r.tags,
+        tailoredFor: r.tailoredFor,
+      };
+    }
+    if (attachment.deviceFile) {
+      return {
+        kind: 'device',
+        name: attachment.deviceFile.name,
+        filename: attachment.deviceFile.name,
+        size: attachment.deviceFile.size,
+        mimeType: attachment.deviceFile.type || 'application/pdf',
+      };
+    }
+    return null;
+  }, [attachment, resumes]);
 
   // Footer CTA shape depends on mode. LinkedIn keeps the button visible so
   // the layout doesn't change between modes — it's just disabled with a
@@ -443,10 +469,9 @@ export default function EmailForm({
         : '';
 
   return (
-    <div className="grid gap-6 lg:grid-cols-5">
-      {/* ---------- Form card ---------- */}
-      <form onSubmit={handleSubmit} className="card overflow-hidden lg:col-span-3">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-200/60 dark:border-ink-800/60 px-6 py-4">
+    <>
+      <section className="card flex min-h-[min(85vh,900px)] flex-col overflow-hidden lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)]">
+        <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-ink-200/60 px-6 py-4 dark:border-ink-800/60">
           <h2 className="text-base font-semibold text-ink-900 dark:text-white">Compose</h2>
           <div className="tabs text-xs">
             {MODES.map((m) => (
@@ -463,9 +488,11 @@ export default function EmailForm({
               </button>
             ))}
           </div>
-        </div>
+        </header>
 
-        <div className="space-y-6 px-6 py-5">
+        <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(380px,46%)]">
+          <form onSubmit={handleSubmit} className="flex min-h-0 flex-col">
+            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
           {/* JD-based auto-picker — explicit "Step 0" at the top so the
               relationship between JD and the pickers below is obvious. */}
           <JDMatcher
@@ -680,64 +707,63 @@ export default function EmailForm({
               </p>
             )}
           </div>
-        </div>
+            </div>
 
-        {/* Footer actions */}
-        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-ink-200/60 dark:border-ink-800/60 bg-ink-50/40 dark:bg-ink-800/40 px-6 py-3.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="submit"
-              className="btn-gradient"
-              disabled={submitDisabled}
-              title={submitTitle}
-            >
-              {sending ? (
-                <>
-                  <svg
-                    className="h-4 w-4 animate-spin"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                  >
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
-                    <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                  </svg>
-                  {submitLabel}
-                </>
-              ) : (
-                <>
-                  {submitLabel}
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="h-3.5 w-3.5"
-                  >
-                    <line x1="22" y1="2" x2="11" y2="13" />
-                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                  </svg>
-                </>
-              )}
-            </button>
+            {/* Footer actions */}
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-ink-200/60 bg-ink-50/40 px-6 py-3.5 dark:border-ink-800/60 dark:bg-ink-800/40">
+              <button
+                type="submit"
+                className="btn-gradient"
+                disabled={submitDisabled}
+                title={submitTitle}
+              >
+                {sending ? (
+                  <>
+                    <svg
+                      className="h-4 w-4 animate-spin"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                    >
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
+                      <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                    </svg>
+                    {submitLabel}
+                  </>
+                ) : (
+                  <>
+                    {submitLabel}
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-3.5 w-3.5"
+                    >
+                      <line x1="22" y1="2" x2="11" y2="13" />
+                      <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                    </svg>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+
+          <div className="flex min-h-[min(50vh,480px)] flex-col border-t border-ink-200/60 dark:border-ink-800 lg:min-h-0 lg:border-l lg:border-t-0">
+            <LivePreview
+              subject={renderedSubject}
+              template={template}
+              vars={previewVars}
+              to={previewTo}
+              attachment={previewAttachment}
+              onOpenFull={() => setPreviewOpen(true)}
+            />
           </div>
         </div>
-      </form>
-
-      {/* ---------- LivePreview side panel ---------- */}
-      <aside className="card overflow-hidden lg:col-span-2 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)]">
-        <LivePreview
-          subject={renderedSubject}
-          template={template}
-          vars={previewVars}
-          to={previewTo}
-          attachmentCount={attachmentCount}
-          onOpenFull={() => setPreviewOpen(true)}
-        />
-      </aside>
+      </section>
 
       <PreviewModal
         open={previewOpen}
@@ -746,6 +772,6 @@ export default function EmailForm({
         html={renderedHtml}
         to={previewTo}
       />
-    </div>
+    </>
   );
 }

@@ -116,6 +116,11 @@ export function TagInput({
   );
 }
 
+/** Readable label for a stored tag slug (display only). */
+export function formatTagLabel(tag) {
+  return String(tag || "").replace(/[-_]/g, " ");
+}
+
 /**
  * Read-only display of tags as pills. When `onToggle` is provided, each pill
  * becomes a button: clicking adds/removes the tag from `activeTags`, useful
@@ -126,43 +131,81 @@ export function TagInput({
  * - activeTags?: string[]
  * - onToggle?: (tag: string) => void
  * - size?: 'sm' | 'xs'
+ * - maxVisible?: number — collapse overflow behind "+N more"
  */
 export function TagPills({
   tags = [],
   activeTags = [],
   onToggle,
   size = "xs",
+  maxVisible,
 }) {
-  if (!tags?.length) return null;
+  const [expanded, setExpanded] = useState(false);
+  const list = normalizeTags(tags);
+  if (!list.length) return null;
+
   const interactive = typeof onToggle === "function";
+  const limit =
+    typeof maxVisible === "number" && maxVisible > 0 && !expanded
+      ? maxVisible
+      : list.length;
+  const visible = list.slice(0, limit);
+  const hidden = list.length - visible.length;
+
   const sizeClass =
-    size === "sm" ? "px-2 py-0.5 text-xs" : "px-1.5 py-0.5 text-2xs";
+    size === "sm"
+      ? "px-2.5 py-0.5 text-xs"
+      : "px-2 py-0.5 text-2xs leading-tight";
+
+  const idleClass = interactive
+    ? "bg-ui-inset text-ui-fg ring-1 ring-inset ring-ui-border hover:bg-ui-panel-muted"
+    : "bg-ui-inset/90 text-ui-fg-subtle ring-1 ring-inset ring-ui-border/80";
+
   return (
-    <div className="flex flex-wrap items-center gap-1">
-      {tags.map((t) => {
+    <div className="flex flex-wrap items-center gap-1.5">
+      {visible.map((t) => {
         const active = activeTags.includes(t);
         const Component = interactive ? "button" : "span";
         return (
           <Component
             key={t}
             type={interactive ? "button" : undefined}
+            title={t}
             onClick={interactive ? () => onToggle(t) : undefined}
             className={[
-              "rounded-full font-medium",
+              "inline-flex max-w-[14rem] truncate rounded-full font-medium",
               sizeClass,
-              active ? "bg-brand-500 text-white" : "bg-ink-100 text-ui-fg",
-              interactive
-                ? "cursor-pointer transition hover:bg-ink-200 dark:hover:bg-ink-800"
-                : "",
-              interactive && active ? "hover:bg-brand-600" : "",
+              active
+                ? "bg-brand-600 text-white ring-1 ring-inset ring-brand-700/30 dark:bg-brand-500"
+                : idleClass,
+              interactive ? "cursor-pointer transition" : "",
+              interactive && active ? "hover:bg-brand-700 dark:hover:bg-brand-400" : "",
             ]
               .filter(Boolean)
-              .join("")}
+              .join(" ")}
           >
-            {t}
+            {formatTagLabel(t)}
           </Component>
         );
       })}
+      {hidden > 0 ? (
+        <button
+          type="button"
+          className={`rounded-full font-medium text-ui-fg-muted ring-1 ring-inset ring-ui-border/80 bg-ui-panel hover:bg-ui-inset hover:text-ui-fg ${sizeClass}`}
+          onClick={() => setExpanded(true)}
+        >
+          +{hidden} more
+        </button>
+      ) : null}
+      {expanded && list.length > (maxVisible || 0) ? (
+        <button
+          type="button"
+          className={`rounded-full font-medium text-brand-600 hover:underline dark:text-brand-300 ${size === "sm" ? "text-xs" : "text-2xs"}`}
+          onClick={() => setExpanded(false)}
+        >
+          Show less
+        </button>
+      ) : null}
     </div>
   );
 }

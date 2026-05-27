@@ -303,7 +303,7 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
                   ) : null}
                   {tpl.tags?.length > 0 && (
                     <div className="mt-1.5">
-                      <TagPills tags={tpl.tags} />
+                      <TagPills tags={tpl.tags} size="sm" maxVisible={8} />
                     </div>
                   )}
                   <p className="mt-1 text-2xs text-ui-fg-muted">
@@ -313,7 +313,7 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
                 <div className="flex shrink-0 items-center gap-1">
                   <button
                     type="button"
-                    className="btn-primary btn-xs"
+                    className="btn-primary btn-sm"
                     onClick={() => onUseTemplate(tpl)}
                   >
                     Use

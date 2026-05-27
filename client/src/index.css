@@ -129,6 +129,10 @@
     @apply px-2.5 py-1 text-xs;
   }
 
+  .btn-sm {
+    @apply min-h-[2rem] px-3.5 py-1.5 text-xs;
+  }
+
   .card {
     @apply rounded-2xl border border-ui-border/80 bg-ui-panel shadow-soft;
   }

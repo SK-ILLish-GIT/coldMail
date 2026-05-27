@@ -402,7 +402,11 @@ export default function ResumeLibrary({
                           <TailoredForPill tailoredFor={r.tailoredFor} />
                         </div>
                       ) : null}
-                      {r.tags?.length > 0 && <TagPills tags={r.tags} />}
+                      {r.tags?.length > 0 ? (
+                        <div className="mt-1.5">
+                          <TagPills tags={r.tags} size="sm" maxVisible={8} />
+                        </div>
+                      ) : null}
                     </>
                   )}
                   <p className="truncate text-2xs text-ui-fg-muted">
@@ -433,7 +437,7 @@ export default function ResumeLibrary({
                     <>
                       <button
                         type="button"
-                        className="btn-primary btn-xs"
+                        className="btn-primary btn-sm"
                         onClick={() => onUseResume?.(r)}
                         disabled={!onUseResume}
                         title="Attach this resume in Compose"

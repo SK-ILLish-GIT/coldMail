@@ -72,14 +72,14 @@ export default function RowActionsMenu({ items, label = "More actions" }) {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={label}
-        className="btn-ghost btn-xs px-2"
+        className="btn-ghost btn-sm min-w-[2rem] px-2.5"
         title={label}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
           fill="currentColor"
-          className="h-3.5 w-3.5"
+          className="h-4 w-4"
         >
           <circle cx="12" cy="5" r="1.6" />
           <circle cx="12" cy="12" r="1.6" />

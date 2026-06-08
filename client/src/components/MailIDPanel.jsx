@@ -275,53 +275,45 @@ export default function MailIDPanel({
               Recipients ({recipients.length})
             </span>
           </div>
-          <div className="max-h-[360px] overflow-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-ui-panel text-2xs uppercase tracking-[0.08em] text-ui-fg-muted">
-                <tr>
-                  <th className="px-4 py-2 font-semibold">Email</th>
-                  <th className="px-4 py-2 font-semibold">Name (editable)</th>
-                  <th className="px-4 py-2 font-semibold">Status</th>
-                  <th className="px-4 py-2"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-ink-100 dark:divide-ink-800">
-                {recipients.map((r, i) => {
-                  const status = sendStatuses[r.email.toLowerCase()];
-                  return (
-                    <tr
-                      key={r.email}
-                      className="transition hover:bg-ui-inset/50"
+          <div className="max-h-[360px] divide-y divide-ink-100 overflow-y-auto dark:divide-ink-800">
+            {recipients.map((r, i) => {
+              const status = sendStatuses[r.email.toLowerCase()];
+              return (
+                <div
+                  key={r.email}
+                  className="space-y-2 px-3 py-2.5 transition hover:bg-ui-inset/50"
+                >
+                  <div className="flex items-center gap-2">
+                    <p
+                      className="min-w-0 flex-1 truncate font-mono text-xs text-ui-fg"
+                      title={r.email}
                     >
-                      <td className="px-4 py-2 font-mono text-xs text-ui-fg">
-                        {r.email}
-                      </td>
-                      <td className="px-4 py-2">
-                        <input
-                          type="text"
-                          className="input !h-8 !py-1 text-sm"
-                          placeholder="(no name)"
-                          value={r.name}
-                          onChange={(e) => updateName(i, e.target.value)}
-                        />
-                      </td>
-                      <td className="px-4 py-2">
-                        <StatusDot status={status} />
-                      </td>
-                      <td className="px-4 py-2 text-right">
-                        <button
-                          type="button"
-                          className="btn-ghost btn-xs text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:ring-rose-800/50 dark:bg-rose-900/20 dark:hover:bg-rose-900/40"
-                          onClick={() => removeRow(i)}
-                        >
-                          Remove
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      {r.email}
+                    </p>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <StatusDot status={status} />
+                      <button
+                        type="button"
+                        className="btn-ghost btn-xs w-7 shrink-0 px-0 text-rose-700 hover:bg-rose-50 dark:text-rose-300 dark:ring-rose-800/50 dark:bg-rose-900/20 dark:hover:bg-rose-900/40"
+                        onClick={() => removeRow(i)}
+                        title="Remove this recipient"
+                        aria-label={`Remove ${r.email}`}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </div>
+                  <input
+                    type="text"
+                    className="input !h-8 w-full !py-1 text-sm"
+                    placeholder="Name (editable)"
+                    value={r.name}
+                    onChange={(e) => updateName(i, e.target.value)}
+                    aria-label={`Name for ${r.email}`}
+                  />
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

@@ -118,6 +118,24 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
     setFormOpen(true);
   };
 
+  // "Edit a copy": duplicate the template first, then open the edit modal on
+  // the new copy so the original stays untouched.
+  const editCopy = async (tpl) => {
+    try {
+      const created = await api.createTemplate({
+        name: `${tpl.name} (copy)`,
+        subject: tpl.subject || "",
+        body: tpl.body || "",
+        tags: tpl.tags || [],
+      });
+      toast.success(`Created a copy of "${tpl.name}".`);
+      await refresh();
+      startEdit(created);
+    } catch (err) {
+      toast.error(err.message || "Failed to create a copy.");
+    }
+  };
+
   const closeForm = () => {
     if (saving) return;
     setFormOpen(false);
@@ -361,6 +379,11 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
                       {
                         label: "Edit",
                         onClick: () => startEdit(tpl),
+                        tone: "amber",
+                      },
+                      {
+                        label: "Edit a copy",
+                        onClick: () => editCopy(tpl),
                         tone: "amber",
                       },
                       {

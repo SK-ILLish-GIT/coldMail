@@ -31,6 +31,7 @@ export default function EnrichPanel({
   company,
   subject,
   template,
+  jobLink = "",
   attachmentArgs = { extraPayload: {}, files: [] },
   onLoggedSend,
 }) {
@@ -55,6 +56,7 @@ export default function EnrichPanel({
         company,
         subject,
         template,
+        extra: { jobLink },
         ...attachmentArgs.extraPayload,
         meta: {
           enriched: true,

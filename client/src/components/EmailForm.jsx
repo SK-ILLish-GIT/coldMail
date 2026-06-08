@@ -132,6 +132,13 @@ export default function EmailForm({
   // Inline body editor (collapsed by default so the existing flow is unchanged).
   const [bodyEditOpen, setBodyEditOpen] = useState(false);
 
+  // Optional job link, surfaced to templates via the {{jobLink}} merge token.
+  const [jobLink, setJobLink] = useState("");
+
+  // The Template → Attachment block is collapsible as a single unit so the
+  // composer can be condensed. Expanded by default to preserve the flow.
+  const [contentOpen, setContentOpen] = useState(true);
+
   // Single attachment per draft: either a saved-library resume (resumeId)
   // or a one-shot device upload (deviceFile). Mutually exclusive.
   const [attachment, setAttachment] = useState({
@@ -333,6 +340,7 @@ export default function EmailForm({
         name: linkedinName,
         company: linkedinCompany,
         email: "",
+        jobLink,
         ...sample,
       };
     }
@@ -340,9 +348,17 @@ export default function EmailForm({
       name: sample.name || "",
       company: sample.company || mailidCompany,
       email: sample.email || "",
+      jobLink,
       ...sample,
     };
-  }, [mode, recipients, mailidCompany, linkedinName, linkedinCompany]);
+  }, [mode, recipients, mailidCompany, linkedinName, linkedinCompany, jobLink]);
+
+  // Quick-insert chips: always offer {{jobLink}} so users can place it where
+  // they want, in addition to any tokens already present in the template.
+  const chipVars = useMemo(
+    () => Array.from(new Set([...detectedVars, "jobLink"])),
+    [detectedVars],
+  );
 
   const previewTo = mode === "linkedin" ? "" : recipients[0]?.email || "";
 
@@ -386,8 +402,9 @@ export default function EmailForm({
               email: r.email,
               name: r.name || "",
               company: r.company || mailidCompany,
-              // Forward any extra CSV columns so {{column}} tokens render.
-              extra: r,
+              // Forward any extra CSV columns plus the shared job link so
+              // {{column}} and {{jobLink}} tokens render.
+              extra: { ...r, jobLink },
               subject,
               template,
               ...attachmentArgs.extraPayload,
@@ -556,6 +573,7 @@ export default function EmailForm({
                     setCompany={setLinkedinCompany}
                     subject={subject}
                     template={template}
+                    jobLink={jobLink}
                     attachmentArgs={attachmentArgs}
                     aiEnabled={aiEnabled}
                   />
@@ -585,184 +603,265 @@ export default function EmailForm({
 
               <div className="divider" />
 
-              {/* Template picker — body editing lives in the Templates tab or in
- the inline body editor below. */}
-              <div>
-                <div className="mb-1.5 flex items-end justify-between gap-3">
-                  <label className="label !mb-0" htmlFor="template-picker">
-                    Template
-                  </label>
-                  {templates.length > 0 && templateSearch.trim() && (
-                    <span className="hint">
-                      {filteredTemplates.length}/{templates.length} shown
-                    </span>
-                  )}
-                </div>
-                {templates.length > 4 && (
-                  <input
-                    type="search"
-                    className="input !h-8 !py-1 mb-1.5 text-xs"
-                    placeholder="Filter templates by name or tag..."
-                    value={templateSearch}
-                    onChange={(e) => setTemplateSearch(e.target.value)}
-                    aria-label="Filter templates"
-                  />
-                )}
-                <select
-                  id="template-picker"
-                  className="input"
-                  value={selectedTemplateId}
-                  onChange={(e) => onPickTemplate(e.target.value)}
+              {/* Email content (collapsible card) — Template → Attachment as a
+ single condensable unit, mirroring the JD"Step 0" pattern. */}
+              <section className="rounded-lg border border-ui-border/80">
+                <button
+                  type="button"
+                  onClick={() => setContentOpen((v) => !v)}
+                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                  aria-expanded={contentOpen}
                 >
-                  <option value={DEFAULT_TEMPLATE_ID}>(Default)</option>
-                  {filteredTemplates.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.tags?.length
-                        ? `${t.name} · ${t.tags.join(",")}`
-                        : t.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Subject */}
-              <div>
-                <div className="mb-1.5 flex items-end justify-between gap-3">
-                  <label className="label !mb-0" htmlFor="subject">
-                    Subject
-                  </label>
-                  <VariableChips inputRef={subjectRef} extra={detectedVars} />
-                </div>
-                <input
-                  ref={subjectRef}
-                  id="subject"
-                  type="text"
-                  className="input"
-                  placeholder="Quick question for {{company}}"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                />
-              </div>
-
-              {/* Inline body editor (collapsible) */}
-              <div>
-                <div className="mb-1.5 flex items-end justify-between gap-3">
-                  <label className="label !mb-0">Body (HTML)</label>
-                  <div className="flex items-center gap-3">
-                    {bodyEditOpen && (
-                      <VariableChips inputRef={bodyRef} extra={detectedVars} />
-                    )}
-                    <button
-                      type="button"
-                      className="btn-ghost btn-xs"
-                      onClick={() => setBodyEditOpen((v) => !v)}
-                      title={
-                        bodyEditOpen ? "Hide body editor" : "Edit body inline"
-                      }
-                    >
-                      {bodyEditOpen ? "Hide editor" : "Edit body"}
-                    </button>
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-md bg-ui-inset text-ui-fg-muted">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-3.5 w-3.5"
+                      >
+                        <rect x="2" y="4" width="20" height="16" rx="2" />
+                        <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                      </svg>
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-ui-fg">
+                        Email content
+                      </p>
+                      <p className="text-2xs text-ui-fg-muted">
+                        Template, subject, job link, body &amp; attachment.
+                      </p>
+                    </div>
                   </div>
-                </div>
-                {bodyEditOpen ? (
-                  <textarea
-                    ref={bodyRef}
-                    className="input-mono min-h-[200px] resize-y"
-                    value={template}
-                    onChange={(e) => setTemplate(e.target.value)}
-                    placeholder="<h2>Hello {{name}}</h2>"
-                  />
-                ) : (
-                  <p className="text-xs text-ui-fg-muted">
-                    {template.trim().length
-                      ? `${template.length} chars · using ${selectedTemplateId === DEFAULT_TEMPLATE_ID ? "(Default)" : templates.find((t) => t.id === selectedTemplateId)?.name || "custom"}.`
-                      : "No body set yet."}
-                    {""}
-                    Click <strong>Edit body</strong> to tweak inline, or use the
-                    Templates tab for a full editor.
-                  </p>
-                )}
-              </div>
-
-              {/* Attachment */}
-              <div>
-                <div className="mb-1.5 flex items-end justify-between gap-3">
-                  <label className="label !mb-0" htmlFor="attachment-picker">
-                    Attachment
-                  </label>
-                </div>
-                {resumes.length > 4 && (
-                  <input
-                    type="search"
-                    className="input !h-8 !py-1 mb-1.5 text-xs"
-                    placeholder="Filter resumes by name or tag..."
-                    value={resumeSearch}
-                    onChange={(e) => setResumeSearch(e.target.value)}
-                    aria-label="Filter resumes"
-                  />
-                )}
-                <div className="flex gap-2">
-                  <select
-                    id="attachment-picker"
-                    className="input flex-1"
-                    value={attachmentSelectValue}
-                    onChange={(e) => onAttachmentSelect(e.target.value)}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={`h-4 w-4 text-ui-fg-muted transition-transform ${contentOpen ? "rotate-180" : ""}`}
                   >
-                    <option value="">(None)</option>
-                    <option value={ATTACH_DEVICE}>Upload from device...</option>
-                    {filteredResumes.length > 0 && (
-                      <optgroup label="Saved resumes">
-                        {filteredResumes.map((r) => (
-                          <option key={r.id} value={r.id}>
-                            {r.tags?.length
-                              ? `${r.name} · ${r.tags.join(",")}`
-                              : r.name}
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+
+                {contentOpen && (
+                  <div className="anim-in space-y-6 border-t border-ui-border/70 px-4 py-4">
+                    {/* Template picker — body editing lives in the Templates tab or in
+ the inline body editor below. */}
+                    <div>
+                      <div className="mb-1.5 flex items-end justify-between gap-3">
+                        <label
+                          className="label !mb-0"
+                          htmlFor="template-picker"
+                        >
+                          Template
+                        </label>
+                        {templates.length > 0 && templateSearch.trim() && (
+                          <span className="hint">
+                            {filteredTemplates.length}/{templates.length} shown
+                          </span>
+                        )}
+                      </div>
+                      {templates.length > 4 && (
+                        <input
+                          type="search"
+                          className="input !h-8 !py-1 mb-1.5 text-xs"
+                          placeholder="Filter templates by name or tag..."
+                          value={templateSearch}
+                          onChange={(e) => setTemplateSearch(e.target.value)}
+                          aria-label="Filter templates"
+                        />
+                      )}
+                      <select
+                        id="template-picker"
+                        className="input"
+                        value={selectedTemplateId}
+                        onChange={(e) => onPickTemplate(e.target.value)}
+                      >
+                        <option value={DEFAULT_TEMPLATE_ID}>(Default)</option>
+                        {filteredTemplates.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.tags?.length
+                              ? `${t.name} · ${t.tags.join(",")}`
+                              : t.name}
                           </option>
                         ))}
-                      </optgroup>
-                    )}
-                  </select>
-                  {/* One-click"Browse" — bypasses the dropdown indirection. */}
-                  <button
-                    type="button"
-                    className="btn-secondary btn-xs whitespace-nowrap"
-                    onClick={() => deviceFileRef.current?.click()}
-                    title="Pick a PDF from this device"
-                  >
-                    Browse...
-                  </button>
-                </div>
-                {/* Hidden file input — opened by either the dropdown choice or
+                      </select>
+                    </div>
+
+                    {/* Subject */}
+                    <div>
+                      <div className="mb-1.5 flex items-end justify-between gap-3">
+                        <label className="label !mb-0" htmlFor="subject">
+                          Subject
+                        </label>
+                        <VariableChips inputRef={subjectRef} extra={chipVars} />
+                      </div>
+                      <input
+                        ref={subjectRef}
+                        id="subject"
+                        type="text"
+                        className="input"
+                        placeholder="Quick question for {{company}}"
+                        value={subject}
+                        onChange={(e) => setSubject(e.target.value)}
+                      />
+                    </div>
+
+                    {/* Job link — feeds the {{jobLink}} merge token. */}
+                    <div>
+                      <label className="label" htmlFor="job-link">
+                        Job link
+                      </label>
+                      <input
+                        id="job-link"
+                        type="url"
+                        className="input"
+                        placeholder="https://company.com/careers/role-123"
+                        value={jobLink}
+                        onChange={(e) => setJobLink(e.target.value)}
+                      />
+                    </div>
+
+                    {/* Inline body editor (collapsible) */}
+                    <div>
+                      <div className="mb-1.5 flex items-end justify-between gap-3">
+                        <label className="label !mb-0">Body (HTML)</label>
+                        <div className="flex items-center gap-3">
+                          {bodyEditOpen && (
+                            <VariableChips
+                              inputRef={bodyRef}
+                              extra={chipVars}
+                            />
+                          )}
+                          <button
+                            type="button"
+                            className="btn-ghost btn-xs"
+                            onClick={() => setBodyEditOpen((v) => !v)}
+                            title={
+                              bodyEditOpen
+                                ? "Hide body editor"
+                                : "Edit body inline"
+                            }
+                          >
+                            {bodyEditOpen ? "Hide editor" : "Edit body"}
+                          </button>
+                        </div>
+                      </div>
+                      {bodyEditOpen ? (
+                        <textarea
+                          ref={bodyRef}
+                          className="input-mono min-h-[200px] resize-y"
+                          value={template}
+                          onChange={(e) => setTemplate(e.target.value)}
+                          placeholder="<h2>Hello {{name}}</h2>"
+                        />
+                      ) : (
+                        <p className="text-xs text-ui-fg-muted">
+                          {template.trim().length
+                            ? `${template.length} chars · using ${selectedTemplateId === DEFAULT_TEMPLATE_ID ? "(Default)" : templates.find((t) => t.id === selectedTemplateId)?.name || "custom"}.`
+                            : "No body set yet."}
+                          {""}
+                          Click <strong>Edit body</strong> to tweak inline, or
+                          use the Templates tab for a full editor.
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Attachment */}
+                    <div>
+                      <div className="mb-1.5 flex items-end justify-between gap-3">
+                        <label
+                          className="label !mb-0"
+                          htmlFor="attachment-picker"
+                        >
+                          Attachment
+                        </label>
+                      </div>
+                      {resumes.length > 4 && (
+                        <input
+                          type="search"
+                          className="input !h-8 !py-1 mb-1.5 text-xs"
+                          placeholder="Filter resumes by name or tag..."
+                          value={resumeSearch}
+                          onChange={(e) => setResumeSearch(e.target.value)}
+                          aria-label="Filter resumes"
+                        />
+                      )}
+                      <div className="flex gap-2">
+                        <select
+                          id="attachment-picker"
+                          className="input flex-1"
+                          value={attachmentSelectValue}
+                          onChange={(e) => onAttachmentSelect(e.target.value)}
+                        >
+                          <option value="">(None)</option>
+                          <option value={ATTACH_DEVICE}>
+                            Upload from device...
+                          </option>
+                          {filteredResumes.length > 0 && (
+                            <optgroup label="Saved resumes">
+                              {filteredResumes.map((r) => (
+                                <option key={r.id} value={r.id}>
+                                  {r.tags?.length
+                                    ? `${r.name} · ${r.tags.join(",")}`
+                                    : r.name}
+                                </option>
+                              ))}
+                            </optgroup>
+                          )}
+                        </select>
+                        {/* One-click"Browse" — bypasses the dropdown indirection. */}
+                        <button
+                          type="button"
+                          className="btn-secondary btn-xs whitespace-nowrap"
+                          onClick={() => deviceFileRef.current?.click()}
+                          title="Pick a PDF from this device"
+                        >
+                          Browse...
+                        </button>
+                      </div>
+                      {/* Hidden file input — opened by either the dropdown choice or
  the Browse button above. */}
-                <input
-                  ref={deviceFileRef}
-                  id="attachment-device-file"
-                  type="file"
-                  accept="application/pdf,.pdf"
-                  className="hidden"
-                  onChange={(e) =>
-                    onDeviceFilePicked(e.target.files?.[0] || null)
-                  }
-                />
-                {attachment.deviceFile && (
-                  <p className="mt-1 text-2xs text-ui-fg-muted">
-                    Device file:{""}
-                    <span className="font-mono">
-                      {attachment.deviceFile.name}
-                    </span>
-                    {""}· {fmtSize(attachment.deviceFile.size)}
-                    <button
-                      type="button"
-                      className="ml-2 underline hover:text-ui-fg"
-                      onClick={() =>
-                        setAttachment({ resumeId: "", deviceFile: null })
-                      }
-                    >
-                      remove
-                    </button>
-                  </p>
+                      <input
+                        ref={deviceFileRef}
+                        id="attachment-device-file"
+                        type="file"
+                        accept="application/pdf,.pdf"
+                        className="hidden"
+                        onChange={(e) =>
+                          onDeviceFilePicked(e.target.files?.[0] || null)
+                        }
+                      />
+                      {attachment.deviceFile && (
+                        <p className="mt-1 text-2xs text-ui-fg-muted">
+                          Device file:{""}
+                          <span className="font-mono">
+                            {attachment.deviceFile.name}
+                          </span>
+                          {""}· {fmtSize(attachment.deviceFile.size)}
+                          <button
+                            type="button"
+                            className="ml-2 underline hover:text-ui-fg"
+                            onClick={() =>
+                              setAttachment({ resumeId: "", deviceFile: null })
+                            }
+                          >
+                            remove
+                          </button>
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 )}
-              </div>
+              </section>
             </div>
 
             {/* Footer actions */}

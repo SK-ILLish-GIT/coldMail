@@ -99,6 +99,7 @@ export default function LinkedInPanel({
   setCompany,
   subject,
   template,
+  jobLink = "",
   attachmentArgs = { extraPayload: {}, files: [] },
   aiEnabled = false,
 }) {
@@ -252,6 +253,7 @@ export default function LinkedInPanel({
             company={company}
             subject={subject}
             template={template}
+            jobLink={jobLink}
             attachmentArgs={attachmentArgs}
           />
         </div>

@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { api } from "../lib/api.js";
 import { useJd } from "../lib/jdContext.jsx";
 import { useTailorTarget } from "../lib/tailorTarget.jsx";
+import Spinner from "./Spinner.jsx";
 
 /**
  * Collapsible panel that asks Gemini to pick the best template + resume for
@@ -191,6 +192,7 @@ export default function JDMatcher({
                       : "Ask AI to pick the best fit"
               }
             >
+              {busy && <Spinner />}
               {busy ? "Analysing..." : "Find best fit"}
             </button>
             <button

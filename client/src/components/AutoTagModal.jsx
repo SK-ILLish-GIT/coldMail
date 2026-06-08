@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
+import Spinner from "./Spinner.jsx";
 import { normalizeTags, TagInput } from "./Tags.jsx";
 
 /**
@@ -250,6 +251,7 @@ export default function AutoTagModal({
             onClick={() => onApply(finalTags)}
             disabled={applying}
           >
+            {applying && <Spinner />}
             {applying ? "Applying..." : "Apply tags"}
           </button>
         </footer>

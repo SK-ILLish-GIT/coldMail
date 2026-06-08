@@ -9,6 +9,7 @@ import AutoTagModal from "./AutoTagModal.jsx";
 import EmptyState from "./EmptyState.jsx";
 import PreviewModal from "./PreviewModal.jsx";
 import RowActionsMenu from "./RowActionsMenu.jsx";
+import Spinner from "./Spinner.jsx";
 import { TagInput, TagPills } from "./Tags.jsx";
 import TailoredForPill from "./TailoredForPill.jsx";
 import VariableChips from "./VariableChips.jsx";
@@ -493,9 +494,14 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
                         disabled={autoTagLoading}
                         title="Ask AI for tag suggestions based on the current subject + body"
                       >
-                        {autoTagLoading && autoTagSession?.mode === "form"
-                          ? "Tagging..."
-                          : "Auto tag"}
+                        {autoTagLoading ? (
+                          <>
+                            <Spinner className="h-3 w-3" />
+                            Tagging...
+                          </>
+                        ) : (
+                          "Auto tag"
+                        )}
                       </button>
                     )}
                   </div>

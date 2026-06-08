@@ -13,6 +13,7 @@ import {
 } from "../../lib/tailorSessionStorage.js";
 import { useJd } from "../../lib/jdContext.jsx";
 import AutoTagModal from "../AutoTagModal.jsx";
+import Spinner from "../Spinner.jsx";
 import { TagInput } from "../Tags.jsx";
 import TemplateLivePreview, {
   TemplateTailorSplit,
@@ -480,6 +481,7 @@ export default function TemplateTailorPanel({
                     disabled={autoTagLoading || saving}
                     title="Suggest tags from the tailored subject and body"
                   >
+                    {autoTagLoading && <Spinner className="h-3 w-3" />}
                     {autoTagLoading ? "Tagging..." : "Auto tag"}
                   </button>
                 )}

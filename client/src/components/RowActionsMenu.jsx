@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 // Tone -> menu-item color classes. Mirrors the tone language used by the
 // standalone buttons elsewhere so muscle-memory carries over (Edit = amber,
@@ -16,10 +17,15 @@ const TONE_CLASS = {
     "text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/30",
 };
 
+// Approximate width of the menu (min-w-[10rem]); used to right-align it to
+// the trigger when positioned via the fixed-coordinate portal.
+const MENU_WIDTH = 160;
+
 /**
  * Per-row overflow menu. Closes on outside-click, Escape, and after an item
- * is invoked. Flips above the trigger when there isn't enough viewport room
- * below — so the last row in a list doesn't clip the menu.
+ * is invoked. Rendered in a portal with fixed positioning so it's never
+ * clipped by an `overflow-hidden` ancestor (e.g. a card), and flips above the
+ * trigger when there isn't enough viewport room below.
  *
  * items: Array<{
  * label: string,
@@ -33,23 +39,34 @@ const TONE_CLASS = {
  */
 export default function RowActionsMenu({ items, label = "More actions" }) {
   const [open, setOpen] = useState(false);
-  const [placeAbove, setPlaceAbove] = useState(false);
-  const wrapperRef = useRef(null);
+  const [coords, setCoords] = useState(null);
   const buttonRef = useRef(null);
+  const menuRef = useRef(null);
 
   useEffect(() => {
     if (!open) return;
     const onPointer = (e) => {
-      if (!wrapperRef.current?.contains(e.target)) setOpen(false);
+      if (
+        !buttonRef.current?.contains(e.target) &&
+        !menuRef.current?.contains(e.target)
+      ) {
+        setOpen(false);
+      }
     };
     const onKey = (e) => {
       if (e.key === "Escape") setOpen(false);
     };
+    // The fixed-positioned menu would drift if the page scrolls, so close it.
+    const onScrollOrResize = () => setOpen(false);
     document.addEventListener("mousedown", onPointer);
     document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", onScrollOrResize, true);
+    window.addEventListener("resize", onScrollOrResize);
     return () => {
       document.removeEventListener("mousedown", onPointer);
       document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", onScrollOrResize, true);
+      window.removeEventListener("resize", onScrollOrResize);
     };
   }, [open]);
 
@@ -58,13 +75,20 @@ export default function RowActionsMenu({ items, label = "More actions" }) {
       const rect = buttonRef.current.getBoundingClientRect();
       const estimatedMenuHeight = Math.min(items.length * 36 + 12, 240);
       const spaceBelow = window.innerHeight - rect.bottom;
-      setPlaceAbove(spaceBelow < estimatedMenuHeight + 16);
+      const placeAbove = spaceBelow < estimatedMenuHeight + 16;
+      setCoords({
+        placeAbove,
+        // Right-align the menu to the trigger's right edge.
+        left: Math.max(8, rect.right - MENU_WIDTH),
+        top: placeAbove ? undefined : rect.bottom + 4,
+        bottom: placeAbove ? window.innerHeight - rect.top + 4 : undefined,
+      });
     }
     setOpen((v) => !v);
   };
 
   return (
-    <div ref={wrapperRef} className="relative">
+    <div className="relative">
       <button
         ref={buttonRef}
         type="button"
@@ -86,61 +110,68 @@ export default function RowActionsMenu({ items, label = "More actions" }) {
           <circle cx="12" cy="19" r="1.6" />
         </svg>
       </button>
-      {open && (
-        <div
-          role="menu"
-          className={[
-            "absolute right-0 z-40 min-w-[10rem] overflow-hidden rounded-lg border border-ui-border/70 bg-ui-panel shadow-lift anim-in",
-            placeAbove ? "bottom-full mb-1" : "top-full mt-1",
-          ].join("")}
-        >
-          <ul className="py-1">
-            {items.map((it, idx) => {
-              const tone = TONE_CLASS[it.tone || "default"];
-              const baseClass = [
-                "flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs font-medium transition disabled:opacity-50",
-                tone,
-              ].join("");
-              return (
-                <li key={`${it.label}-${idx}`}>
-                  {it.separated && idx > 0 ? (
-                    <div className="my-1 h-px bg-ui-inset" />
-                  ) : null}
-                  {it.href ? (
-                    <a
-                      role="menuitem"
-                      href={it.href}
-                      target={it.target}
-                      rel={
-                        it.target === "_blank"
-                          ? "noopener noreferrer"
-                          : undefined
-                      }
-                      onClick={() => setOpen(false)}
-                      className={baseClass}
-                    >
-                      {it.label}
-                    </a>
-                  ) : (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      disabled={it.disabled}
-                      onClick={() => {
-                        setOpen(false);
-                        it.onClick?.();
-                      }}
-                      className={baseClass}
-                    >
-                      {it.label}
-                    </button>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
+      {open &&
+        coords &&
+        createPortal(
+          <div
+            ref={menuRef}
+            role="menu"
+            style={{
+              position: "fixed",
+              left: coords.left,
+              top: coords.top,
+              bottom: coords.bottom,
+            }}
+            className="z-[60] min-w-[10rem] overflow-hidden rounded-lg border border-ui-border/70 bg-ui-panel shadow-lift anim-in"
+          >
+            <ul className="py-1">
+              {items.map((it, idx) => {
+                const tone = TONE_CLASS[it.tone || "default"];
+                const baseClass = [
+                  "flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs font-medium transition disabled:opacity-50",
+                  tone,
+                ].join("");
+                return (
+                  <li key={`${it.label}-${idx}`}>
+                    {it.separated && idx > 0 ? (
+                      <div className="my-1 h-px bg-ui-inset" />
+                    ) : null}
+                    {it.href ? (
+                      <a
+                        role="menuitem"
+                        href={it.href}
+                        target={it.target}
+                        rel={
+                          it.target === "_blank"
+                            ? "noopener noreferrer"
+                            : undefined
+                        }
+                        onClick={() => setOpen(false)}
+                        className={baseClass}
+                      >
+                        {it.label}
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        disabled={it.disabled}
+                        onClick={() => {
+                          setOpen(false);
+                          it.onClick?.();
+                        }}
+                        className={baseClass}
+                      >
+                        {it.label}
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

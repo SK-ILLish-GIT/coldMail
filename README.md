@@ -14,11 +14,14 @@ Built as a React + Express monorepo, persisted in MongoDB Atlas, AI'd with Googl
   - **By CSV** (emerald) — upload a CSV with `email,name,company,...` columns; every column becomes a `{{token}}` available in the template/subject.
   - **By LinkedIn** (sky) — paste a `linkedin.com/in/<slug>` URL, the app parses the name, you fill the company, AI proposes 5 likely email addresses with confidence + MX checks, you save one as a draft.
 - **Match by JD** — paste a job description, Gemini reads your template + resume library (names + tags only) and auto-picks the best-fit pair.
-- Template variables: `{{name}}`, `{{company}}`, `{{email}}` plus any extra CSV columns.
+- Template variables: `{{name}}`, `{{company}}`, `{{email}}`, `{{jobLink}}` plus any extra CSV columns.
+- **Job link** — an optional field that feeds the `{{jobLink}}` token; one link applies to the whole batch across all three modes.
+- **Insert variable** dropdown next to Subject and Body inserts any merge token at the cursor (compact + extensible as new tokens are added).
+- **Email content** (Template → Attachment) is one collapsible card so the composer can be condensed.
 - Full-preview modal in a sandboxed iframe.
 
 **Library**
-- **Templates** — name + subject + body + tags. Edit in-place; pick from the Compose dropdown.
+- **Templates** — name + subject + body + tags. Edit in-place or **Edit a copy** (duplicates first, then opens the editor on the copy); the editor has the same **Insert variable** dropdown and a live preview. Pick from the Compose dropdown.
 - **Resumes** — PDF library stored inline in MongoDB. Upload, rename, tag, view, delete. Pick one as the attachment from Compose.
 - **Tags** filter both pickers (OR semantics) so the compose dropdowns only show what's relevant for the current channel.
 
@@ -29,7 +32,9 @@ Built as a React + Express monorepo, persisted in MongoDB Atlas, AI'd with Googl
 
 **Polish**
 - Light + dark theme with neutral grays (no slate-blue cast); persisted toggle.
+- Wide, responsive layout (`max-w-screen-2xl`) that stacks to a single column on smaller devices.
 - Mobile-friendly header with horizontal tab scroll on narrow screens.
+- Row action menus render in a portal so they're never clipped, even when a list has a single row.
 - Toast notifications, helmet headers, CORS allowlist, per-IP rate limits on send + AI endpoints.
 
 ---
@@ -205,6 +210,10 @@ Upload a CSV with `email,name,company,...`. Any extra columns become `{{column}}
 
 Paste a LinkedIn profile URL. **Extract name** parses the slug (strips trailing alphanumeric hashes, drops job-title tokens like `software-engineer`, title-cases the rest). Fill the company manually (LinkedIn URLs don't carry it). Click **Find emails with AI** — Gemini returns 5 ranked patterns; each row has its own **Draft** button.
 
+### Job link
+
+An optional URL field in the Email content card. Whatever you enter is exposed as the `{{jobLink}}` token and applies to every recipient in the batch (all three modes). Drop `{{jobLink}}` into the subject or body via the **Insert variable** dropdown — e.g. `<a href="{{jobLink}}">this role</a>`. It's delivered through the same `extra` merge path as CSV columns, so no server changes are required; templates that don't reference the token are unaffected.
+
 ---
 
 ## Library
@@ -213,13 +222,15 @@ Paste a LinkedIn profile URL. **Extract name** parses the slug (strips trailing 
 
 Subject + body + tags. Edit body HTML in the Templates tab; pick from the Compose dropdown. Default template ships baked-in as `(Default)` so it works without any setup.
 
+Each row's overflow menu offers **Preview**, **AI Tailor**, **Auto tag**, **Edit**, **Edit a copy**, and **Delete**. **Edit a copy** persists a duplicate named `"<original> (copy)"` and opens the editor on it, leaving the original untouched. The Subject and Body fields both have an **Insert variable** dropdown (`{{name}}`, `{{company}}`, `{{email}}`, `{{jobLink}}`, plus any tokens already present).
+
 ### Resumes
 
 Upload PDFs (≤10 MB), tag them, pick one as the attachment from Compose. Whichever you pick — saved library row or one-off device upload — is renamed server-side to `DRAFT_ATTACHMENT_FILENAME.pdf` so the recipient always sees a consistent file.
 
 ### Tags
 
-Comma-separated chips on both resumes and templates. Tags are normalised (lower-case, deduped, alphanumeric + `+./-_`, capped at 10 per item × 24 chars). Above each picker in Compose, an OR-filter pill bar narrows the dropdown.
+Comma-separated chips on both resumes and templates. Tags are normalised (lower-case, deduped, alphanumeric + `+./-_`, capped at 25 per item × 24 chars). Above each picker in Compose, an OR-filter pill bar narrows the dropdown.
 
 ### JD matcher
 

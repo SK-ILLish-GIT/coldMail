@@ -4,7 +4,7 @@
 // so the same tag typed two different ways collapses to one canonical form
 // and can be safely compared with === / Set membership.
 
-const MAX_TAGS = 10;
+const MAX_TAGS = 25;
 const MAX_TAG_LEN = 24;
 
 // First char must be a letter or digit; rest can include letters/digits and

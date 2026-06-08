@@ -24,7 +24,7 @@ const TAG_SCHEMA = {
       type: 'array',
       items: { type: 'string' },
       description:
-        'Short, lowercase, hyphenated email-template tags representing the role types, technologies, seniority, and target audience this template fits. 4-10 tags.',
+        'Short, lowercase, hyphenated email-template tags. Be thorough: include a separate tag for EVERY distinct technology, language, framework, library, database, and tool explicitly mentioned, plus role types, seniority, and target audience. Up to 25 tags.',
     },
   },
   required: ['tags'],
@@ -33,12 +33,13 @@ const TAG_SCHEMA = {
 const SYSTEM_PROMPT = `You read a cold-outreach email template (subject + HTML/plain body) and emit a clean, lowercase, hyphenated tag list that describes WHO this template targets and WHAT roles it fits — so it can later be auto-matched to job descriptions.
 
 Hard rules:
-1. 4-10 tags total. Aim for high-signal, JD-matchable terms.
-2. Each tag is lowercase, words joined by hyphens (e.g. "backend", "java-spring-boot", "entry-level", "microsoft", "react", "data-platform").
-3. Tags should describe one or more of: role family (backend/frontend/fullstack/data/ml/devops/sre/...), key technologies, target seniority, target company or industry if explicitly mentioned, and template intent ("cold-outreach", "referral-ask", "follow-up") only when clearly applicable.
-4. Skip filler/personal-name/handlebars tokens (e.g. "{{company}}", "hello", "sk-sahil", "name", "subject").
-5. Do not invent technologies that are not implied by the template text.
-6. Output ONLY JSON matching the supplied schema. No prose, no markdown fences.`;
+1. Be thorough — up to 25 tags. Prefer completeness over brevity; it's better to capture every relevant signal than to keep the list short.
+2. CRITICAL: emit a SEPARATE tag for EVERY distinct technology, programming language, framework, library, database, cloud/platform, and tool explicitly mentioned anywhere in the subject or body (e.g. "react", "golang", "mongodb", "graphql", "javascript", "ruby", "docker", "ci-cd", "opentelemetry", "prometheus", "grafana", "sql", "python"). Do NOT merge multiple technologies into a single tag, and do NOT skip any that appear.
+3. Each tag is lowercase, words joined by hyphens (e.g. "backend", "java-spring-boot", "entry-level", "microsoft", "data-platform").
+4. In addition to the tech stack, also tag role family (backend/frontend/fullstack/data/ml/devops/sre/...), target seniority, target company or industry if explicitly mentioned, and template intent ("cold-outreach", "referral-ask", "follow-up") when clearly applicable.
+5. Skip filler/personal-name/handlebars tokens (e.g. "{{company}}", "hello", "sk-sahil", "name", "subject").
+6. Do not invent technologies that are not present in the template text.
+7. Output ONLY JSON matching the supplied schema. No prose, no markdown fences.`;
 
 function stripHtml(input) {
   return String(input || '')

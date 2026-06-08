@@ -5,7 +5,7 @@ import { useState } from "react";
 
 const VALID_TAG = /^[a-z0-9][a-z0-9+./_-]*$/;
 const MAX_TAG_LEN = 24;
-const MAX_TAGS = 10;
+const MAX_TAGS = 25;
 
 /**
  * Normalise a raw token (or array of tokens) into a clean string[].

@@ -23,7 +23,7 @@ const TAG_SCHEMA = {
       type: 'array',
       items: { type: 'string' },
       description:
-        'Short, lowercase, hyphenated resume tags representing the strongest skills, technologies, domains, and role types in the PDF. 5-12 tags.',
+        'Short, lowercase, hyphenated resume tags. Be thorough: include a separate tag for EVERY distinct technology, language, framework, library, database, and tool found in the PDF, plus domains and role types. Up to 25 tags.',
     },
   },
   required: ['tags'],
@@ -32,11 +32,12 @@ const TAG_SCHEMA = {
 const SYSTEM_PROMPT = `You read a candidate's resume PDF and emit a clean, lowercase, hyphenated tag list that describes their strongest skills, technologies, domains, and role types.
 
 Hard rules:
-1. 5-12 tags total. Aim for the most JD-matchable signals.
-2. Each tag is lowercase, words joined by hyphens (e.g. "java-spring-boot", "distributed-systems", "backend").
-3. Prefer concrete technologies and well-known stacks over filler words.
-4. Skip generic filler like "team", "skills", "experience", "year", "candidate".
-5. Output ONLY JSON matching the supplied schema. No prose, no markdown fences.`;
+1. Be thorough — up to 25 tags. Prefer completeness over brevity.
+2. CRITICAL: emit a SEPARATE tag for EVERY distinct technology, programming language, framework, library, database, cloud/platform, and tool found anywhere in the resume (skills section, experience bullets, projects). Do NOT merge multiple technologies into one tag, and do NOT skip any.
+3. Each tag is lowercase, words joined by hyphens (e.g. "java-spring-boot", "distributed-systems", "backend", "react", "postgresql", "kubernetes").
+4. In addition to the tech stack, also tag domains and role family/seniority where clear.
+5. Skip generic filler like "team", "skills", "experience", "year", "candidate".
+6. Output ONLY JSON matching the supplied schema. No prose, no markdown fences.`;
 
 /**
  * Ask Gemini to summarise a resume PDF into a normalised tag list.

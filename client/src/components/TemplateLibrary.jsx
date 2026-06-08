@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
 import { api } from "../lib/api.js";
 import { confirmAsync } from "../lib/confirm.jsx";
-import { renderTemplate } from "../lib/render.js";
+import { extractVariables, renderTemplate } from "../lib/render.js";
 import { useTailorTarget } from "../lib/tailorTarget.jsx";
 import AutoTagModal from "./AutoTagModal.jsx";
 import EmptyState from "./EmptyState.jsx";
@@ -11,6 +11,7 @@ import PreviewModal from "./PreviewModal.jsx";
 import RowActionsMenu from "./RowActionsMenu.jsx";
 import { TagInput, TagPills } from "./Tags.jsx";
 import TailoredForPill from "./TailoredForPill.jsx";
+import VariableChips from "./VariableChips.jsx";
 
 function fmtDate(iso) {
   if (!iso) return "";
@@ -51,6 +52,24 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
   const [autoTagLoading, setAutoTagLoading] = useState(false);
   const [autoTagApplying, setAutoTagApplying] = useState(false);
   const [autoTagSession, setAutoTagSession] = useState(null);
+
+  // Refs for the quick-insert variable chips (insert {{token}} at the caret).
+  const subjectRef = useRef(null);
+  const bodyRef = useRef(null);
+
+  // Tokens already present in the form, plus {{jobLink}} which Compose can
+  // supply at send time. Drives the chip list next to Subject + Body.
+  const chipVars = useMemo(
+    () =>
+      Array.from(
+        new Set([
+          ...extractVariables(form.subject || ""),
+          ...extractVariables(form.body || ""),
+          "jobLink",
+        ]),
+      ),
+    [form.subject, form.body],
+  );
 
   // Live preview of the in-progress form, rendered with sample merge vars so
   // {{name}} / {{company}} / {{email}} read as something concrete.
@@ -412,8 +431,12 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
                   />
                 </div>
                 <div>
-                  <label className="label">Subject</label>
+                  <div className="mb-1.5 flex items-end justify-between gap-3">
+                    <label className="label !mb-0">Subject</label>
+                    <VariableChips inputRef={subjectRef} extra={chipVars} />
+                  </div>
                   <input
+                    ref={subjectRef}
                     type="text"
                     className="input"
                     value={form.subject}
@@ -424,8 +447,12 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
                   />
                 </div>
                 <div>
-                  <label className="label">Body (HTML)</label>
+                  <div className="mb-1.5 flex items-end justify-between gap-3">
+                    <label className="label !mb-0">Body (HTML)</label>
+                    <VariableChips inputRef={bodyRef} extra={chipVars} />
+                  </div>
                   <textarea
+                    ref={bodyRef}
                     className="input-mono min-h-[260px]"
                     value={form.body}
                     onChange={(e) => setForm({ ...form, body: e.target.value })}

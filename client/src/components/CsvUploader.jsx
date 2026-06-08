@@ -152,7 +152,7 @@ export default function CsvUploader({
           dragOver
             ? "border-brand-400 bg-brand-50/50 dark:bg-brand-900/30"
             : "border-ui-border",
-        ].join("")}
+        ].join(" ")}
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">

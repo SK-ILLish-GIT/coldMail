@@ -151,7 +151,7 @@ export default function AutoTagModal({
                         active
                           ? "bg-brand-500 text-white hover:bg-brand-600"
                           : "bg-ink-100 text-ui-fg hover:bg-ink-200 dark:hover:bg-ink-800",
-                      ].join("")}
+                      ].join(" ")}
                     >
                       {active ? "✓" : "+"}
                       {t}
@@ -188,7 +188,7 @@ export default function AutoTagModal({
                         active
                           ? "bg-emerald-500 text-white hover:bg-emerald-600"
                           : "bg-ink-100 text-ui-fg-muted line-through hover:bg-ink-200 dark:hover:bg-ink-800",
-                      ].join("")}
+                      ].join(" ")}
                     >
                       {active ? "✓" : "×"}
                       {t}

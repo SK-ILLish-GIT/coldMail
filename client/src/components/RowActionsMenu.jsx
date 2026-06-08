@@ -130,7 +130,7 @@ export default function RowActionsMenu({ items, label = "More actions" }) {
                 const baseClass = [
                   "flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs font-medium transition disabled:opacity-50",
                   tone,
-                ].join("");
+                ].join(" ");
                 return (
                   <li key={`${it.label}-${idx}`}>
                     {it.separated && idx > 0 ? (

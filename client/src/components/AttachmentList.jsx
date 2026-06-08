@@ -70,7 +70,7 @@ export default function AttachmentList({ files, onChange }) {
         className={[
           "flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-dashed bg-ui-inset/50 px-4 py-3 transition",
           dragOver ? "border-brand-400 bg-brand-50/60" : "border-ui-border",
-        ].join("")}
+        ].join(" ")}
       >
         <div className="flex items-center gap-2.5">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-ui-panel text-ui-fg-muted ring-1 ring-inset ring-ink-200">

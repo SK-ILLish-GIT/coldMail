@@ -59,6 +59,9 @@ Thumbs.db
 *.temp
 *.bak
 
+# JD apply agent session snapshots (local only)
+.cursor/sessions/
+
 # Resume Tailor session artifacts
 **/.tailor-sessions/
 *.tmp-*

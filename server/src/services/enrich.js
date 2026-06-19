@@ -390,6 +390,145 @@ export async function matchJobDescription({ jobDescription, templates, resumes }
   };
 }
 
+// ===========================================================================
+// Job intake: normalise JD text and extract company + role (from pasted JD or
+// a job posting URL fetched server-side).
+// ===========================================================================
+
+const JOB_INTAKE_SCHEMA = {
+  type: 'object',
+  properties: {
+    jd: {
+      type: 'string',
+      description: 'Full job description text, cleaned and readable.',
+    },
+    company: {
+      type: 'string',
+      description: 'Employer or company name.',
+    },
+    roleTitle: {
+      type: 'string',
+      description: 'Job title or role name.',
+    },
+  },
+  required: ['jd', 'company', 'roleTitle'],
+};
+
+const JOB_INTAKE_SYSTEM_PROMPT = `You extract structured job posting details from raw text scraped from a careers page or pasted by the user.
+
+Rules:
+- "jd" must be the full job description in plain text (responsibilities, requirements, etc.).
+- "company" is the hiring company name only (no taglines).
+- "roleTitle" is the job title only.
+- If a field cannot be determined, use an empty string for that field but still return valid JSON.
+- Return ONLY JSON matching the schema; no markdown.`;
+
+const MAX_PAGE_CHARS = 80_000;
+const MAX_JD_EXTRACT_CHARS = 20_000;
+
+function stripHtml(html) {
+  return String(html || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+async function fetchJobPageText(jobUrl) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20_000);
+  try {
+    const res = await fetch(jobUrl, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (compatible; coldMail/1.0; +https://github.com/coldmail)',
+        Accept: 'text/html,application/xhtml+xml',
+      },
+      redirect: 'follow',
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to fetch job URL (${res.status} ${res.statusText}).`);
+    }
+    const html = await res.text();
+    const text = stripHtml(html).slice(0, MAX_PAGE_CHARS);
+    if (text.length < 80) {
+      throw new Error('Job page returned too little text — page may require JavaScript login.');
+    }
+    return text;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function extractJobFieldsFromText(pageText, { jobUrl = '' } = {}) {
+  const gen = getClient();
+  const model = gen.getGenerativeModel({
+    model: getGeminiModel(),
+    systemInstruction: JOB_INTAKE_SYSTEM_PROMPT,
+    generationConfig: {
+      temperature: 0.1,
+      responseMimeType: 'application/json',
+      responseSchema: JOB_INTAKE_SCHEMA,
+    },
+  });
+
+  const userPrompt = [
+    jobUrl ? `Source URL: ${jobUrl}` : 'Source: user-pasted job description',
+    '',
+    'Raw text:',
+    '"""',
+    pageText.slice(0, MAX_JD_EXTRACT_CHARS),
+    '"""',
+  ].join('\n');
+
+  const result = await model.generateContent(userPrompt);
+  const text = result?.response?.text?.();
+  if (!text) throw new Error('Gemini returned an empty response.');
+
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error('Gemini returned non-JSON content.');
+  }
+
+  return {
+    jd: String(parsed.jd || '').trim(),
+    company: String(parsed.company || '').trim(),
+    roleTitle: String(parsed.roleTitle || '').trim(),
+  };
+}
+
+/**
+ * @param {{ jobUrl?: string, jdText?: string, company?: string }} input
+ * @returns {Promise<{ jd: string, company: string, roleTitle: string, jobUrl: string }>}
+ */
+export async function extractJobIntake({ jobUrl = '', jdText = '', company = '' }) {
+  const url = String(jobUrl || '').trim();
+  const pasted = String(jdText || '').trim();
+  const companyOverride = String(company || '').trim();
+
+  let sourceText = pasted;
+  if (url) {
+    const fetched = await fetchJobPageText(url);
+    sourceText = pasted ? `${pasted}\n\n${fetched}` : fetched;
+  }
+  if (!sourceText || sourceText.length < 40) {
+    throw new Error('Provide a job URL and/or JD text (at least ~40 characters).');
+  }
+
+  const extracted = await extractJobFieldsFromText(sourceText, { jobUrl: url });
+  const jd = extracted.jd || pasted || sourceText.slice(0, MAX_JD_EXTRACT_CHARS);
+  return {
+    jd,
+    company: companyOverride || extracted.company,
+    roleTitle: extracted.roleTitle,
+    jobUrl: url,
+  };
+}
+
 /**
  * Find 5 candidate email addresses for a person at a company.
  *

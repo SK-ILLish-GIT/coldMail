@@ -8,7 +8,8 @@
     "dev": "concurrently -n server,client -c blue,magenta \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
     "build": "npm --prefix server install && npm --prefix client install --include=dev && npm --prefix client run build",
     "start": "node server/src/index.js",
-    "lint": "npm --prefix client run lint"
+    "lint": "npm --prefix client run lint",
+    "agent:apply": "node scripts/run-apply-pipeline.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.0.1"

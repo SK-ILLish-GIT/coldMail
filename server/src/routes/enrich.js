@@ -4,6 +4,7 @@ import { HttpError } from '../middleware/error.js';
 import {
   findEmailCandidates,
   extractNamesFromEmails,
+  extractJobIntake,
   matchJobDescription,
   isEnrichmentEnabled,
 } from '../services/enrich.js';
@@ -133,6 +134,55 @@ router.post('/names', async (req, res, next) => {
       );
     }
     next(new HttpError(502, `Gemini error: ${msg}`));
+  }
+});
+
+// POST /api/enrich/job-intake — fetch/normalise JD from URL and/or pasted text.
+router.post('/job-intake', async (req, res, next) => {
+  try {
+    if (!isEnrichmentEnabled()) {
+      throw new HttpError(
+        503,
+        'AI is disabled. Set GEMINI_API_KEY in server/.env to enable it.'
+      );
+    }
+
+    const { jobUrl, jdText, company } = req.body || {};
+    const hasUrl = nonEmpty(jobUrl);
+    const hasText = nonEmpty(jdText);
+    if (!hasUrl && !hasText) {
+      throw new HttpError(400, 'Provide jobUrl and/or jdText.');
+    }
+    if (hasUrl && String(jobUrl).length > 2000) {
+      throw new HttpError(400, 'jobUrl is too long.');
+    }
+    if (hasText && String(jdText).length > MAX_JD_CHARS) {
+      throw new HttpError(400, `jdText is too long (max ${MAX_JD_CHARS} chars).`);
+    }
+    if (typeof company === 'string' && company.length > MAX_FIELD) {
+      throw new HttpError(400, `company is too long (max ${MAX_FIELD} chars).`);
+    }
+
+    const result = await extractJobIntake({
+      jobUrl: hasUrl ? String(jobUrl).trim() : '',
+      jdText: hasText ? String(jdText).trim() : '',
+      company: typeof company === 'string' ? company.trim() : '',
+    });
+    res.json(result);
+  } catch (err) {
+    if (err.status && err.status >= 400 && err.status < 600 && err.message) {
+      return next(err);
+    }
+    const msg = err.message || 'Gemini request failed';
+    if (/quota|exceeded|rate/i.test(msg)) {
+      return next(
+        new HttpError(
+          429,
+          'Gemini quota exhausted. Check your free-tier limits at https://aistudio.google.com/'
+        )
+      );
+    }
+    next(new HttpError(502, `Job intake failed: ${msg}`));
   }
 });
 

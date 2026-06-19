@@ -57,19 +57,3 @@ export function parseEmails(raw) {
   }
   return out;
 }
-
-const GENERIC_LOCALS = new Set([
-  'sales', 'info', 'contact', 'hr', 'support', 'admin', 'team', 'hello',
-  'noreply', 'no-reply', 'careers', 'jobs', 'billing', 'accounts',
-]);
-
-export function algoExtractName(email) {
-  const local = email.split('@')[0]?.split('+')[0] ?? '';
-  if (!local) return '';
-  const tokens = local.split(/[._-]+/).filter((s) => s && !/^\d+$/.test(s));
-  if (!tokens.length) return '';
-  if (tokens.length === 1 && GENERIC_LOCALS.has(tokens[0].toLowerCase())) return '';
-  return tokens
-    .map((t) => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase())
-    .join(' ');
-}

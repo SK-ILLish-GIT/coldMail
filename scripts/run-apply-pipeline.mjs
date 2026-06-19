@@ -14,7 +14,7 @@ import {
   saveSession,
   sessionPath,
 } from './lib/apply-session.mjs';
-import { ApiError, createClient, parseEmails, algoExtractName } from './lib/coldmail-api.mjs';
+import { ApiError, createClient, parseEmails } from './lib/coldmail-api.mjs';
 import { DEFAULT_SUBJECT, DEFAULT_TEMPLATE } from './lib/defaults.mjs';
 
 function usage() {
@@ -112,35 +112,17 @@ async function stepPreflight(api, session) {
 
 async function stepJobIntake(api, session) {
   const { jobUrl, jdText, company } = session.inputs;
-  try {
-    const result = await api.jobIntake({
-      jobUrl: jobUrl || undefined,
-      jdText: jdText || undefined,
-      company: company || undefined,
-    });
-    session.extracted = {
-      company: result.company || session.inputs.company || '',
-      roleTitle: result.roleTitle || '',
-      jd: result.jd || jdText || '',
-    };
-    if (result.jobUrl) session.inputs.jobUrl = result.jobUrl;
-  } catch (err) {
-    // Render may not have /job-intake until latest code is deployed.
-    if (err instanceof ApiError && err.status === 404 && session.inputs.company) {
-      const co = session.inputs.company;
-      const link = session.inputs.jobUrl || '';
-      const jd =
-        jdText ||
-        `Software Engineer at ${co}. Bengaluru, India. Apply: ${link}`.trim();
-      session.extracted = {
-        company: co,
-        roleTitle: 'Software Engineer',
-        jd: jd.length >= 20 ? jd : `${co} — software engineering role.`,
-      };
-    } else {
-      throw err;
-    }
-  }
+  const result = await api.jobIntake({
+    jobUrl: jobUrl || undefined,
+    jdText: jdText || undefined,
+    company: company || undefined,
+  });
+  session.extracted = {
+    company: result.company || session.inputs.company || '',
+    roleTitle: result.roleTitle || '',
+    jd: result.jd || jdText || '',
+  };
+  if (result.jobUrl) session.inputs.jobUrl = result.jobUrl;
   if (!session.extracted.company) {
     throw new ApiError('Company could not be extracted — pass --company "Acme Inc."');
   }
@@ -156,20 +138,10 @@ async function stepRecruiterIntake(api, session) {
   if (!emails.length) {
     throw new ApiError('No recruiter emails — pass --emails "a@x.com,b@y.com"');
   }
-  let candidates;
-  try {
-    ({ candidates } = await api.extractNames({
-      emails,
-      company: session.extracted.company,
-    }));
-  } catch (err) {
-    // Fallback when Gemini is down or overloaded (mirrors MailIDPanel).
-    console.warn(`[recruiter-intake] AI names failed (${err.message}); using basic split.`);
-    candidates = emails.map((email) => ({
-      email,
-      name: algoExtractName(email),
-    }));
-  }
+  const { candidates } = await api.extractNames({
+    emails,
+    company: session.extracted.company,
+  });
   const jobLink = session.inputs.jobUrl || '';
   session.recipients = candidates.map((c) => ({
     email: c.email,

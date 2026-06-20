@@ -50,7 +50,7 @@ services:
       - key: GEMINI_MODEL
         value: gemini-2.5-flash
       - key: GROQ_MODEL
-        value: groq/compound
+        value: llama-3.3-70b-versatile
       - key: AI_PROVIDER
         value: gemini
       - key: ENRICH_CONFIDENCE_THRESHOLD

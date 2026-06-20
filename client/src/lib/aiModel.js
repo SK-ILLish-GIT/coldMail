@@ -8,7 +8,7 @@ export const GEMINI_MODEL_CHANGE_EVENT = AI_MODEL_CHANGE_EVENT;
 
 export const FALLBACK_PROVIDER = "gemini";
 export const FALLBACK_GEMINI_MODEL = "gemini-2.5-flash";
-export const FALLBACK_GROQ_MODEL = "groq/compound";
+export const FALLBACK_GROQ_MODEL = "llama-3.3-70b-versatile";
 
 export function getSelectedAiProvider() {
   try {

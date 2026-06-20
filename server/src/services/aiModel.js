@@ -36,17 +36,12 @@ export const GEMINI_MODEL_CANDIDATES = [
   },
 ];
 
-/** Popular Groq-hosted open models. */
+/** Popular Groq-hosted models (verified against Groq ListModels API). */
 export const GROQ_MODEL_CANDIDATES = [
-  {
-    id: 'groq/compound',
-    label: 'Groq Compound',
-    hint: 'Default — agentic model with built-in tools',
-  },
   {
     id: 'llama-3.3-70b-versatile',
     label: 'Llama 3.3 70B',
-    hint: 'Strong general purpose',
+    hint: 'Default — best for structured JSON tasks',
   },
   {
     id: 'llama-3.1-8b-instant',
@@ -54,14 +49,34 @@ export const GROQ_MODEL_CANDIDATES = [
     hint: 'Fastest — good for simple JSON tasks',
   },
   {
-    id: 'gemma2-9b-it',
-    label: 'Gemma 2 9B',
-    hint: 'Compact and efficient',
+    id: 'groq/compound',
+    label: 'Groq Compound',
+    hint: 'Agentic — web search, code exec (overkill for simple JSON)',
   },
   {
-    id: 'mixtral-8x7b-32768',
-    label: 'Mixtral 8x7B',
-    hint: 'Long context window',
+    id: 'groq/compound-mini',
+    label: 'Groq Compound Mini',
+    hint: 'Faster agentic variant — single tool per request',
+  },
+  {
+    id: 'openai/gpt-oss-20b',
+    label: 'GPT-OSS 20B',
+    hint: 'Open-weight — strong JSON on Groq',
+  },
+  {
+    id: 'openai/gpt-oss-120b',
+    label: 'GPT-OSS 120B',
+    hint: 'Larger open-weight model',
+  },
+  {
+    id: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    label: 'Llama 4 Scout 17B',
+    hint: 'Meta Llama 4 on Groq',
+  },
+  {
+    id: 'qwen/qwen3-32b',
+    label: 'Qwen3 32B',
+    hint: 'Strong reasoning — 32B',
   },
 ];
 
@@ -75,7 +90,7 @@ export function defaultGeminiModelFromEnv() {
 }
 
 export function defaultGroqModelFromEnv() {
-  return (process.env.GROQ_MODEL || 'groq/compound').trim();
+  return (process.env.GROQ_MODEL || 'llama-3.3-70b-versatile').trim();
 }
 
 export function defaultModelForProvider(provider) {

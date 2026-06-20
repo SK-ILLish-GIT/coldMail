@@ -1,6 +1,6 @@
 import axios from "axios";
 
-import { attachGeminiModelRequest } from "./geminiModel.js";
+import { attachAiModelRequest } from "./aiModel.js";
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || "/api";
 
@@ -10,7 +10,7 @@ const client = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-client.interceptors.request.use(attachGeminiModelRequest);
+client.interceptors.request.use(attachAiModelRequest);
 
 function unwrapError(err) {
   if (err.response?.data?.error) {
@@ -67,6 +67,11 @@ function buildSendFormData(payload, attachments) {
 export const api = {
   health: () => call("get", "/health"),
 
+  listAiModels: (provider) =>
+    call("get", provider ? `/ai/models?provider=${encodeURIComponent(provider)}` : "/ai/models"),
+  listAiProviders: () => call("get", "/ai/providers"),
+
+  /** @deprecated use listAiModels */
   listGeminiModels: () => call("get", "/ai/models"),
 
   preview: (payload) => call("post", "/preview", payload),

@@ -1,7 +1,6 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { nanoid } from 'nanoid';
 
-import { getGeminiModel } from '../geminiModel.js';
+import { generateStructuredJson, isLlmConfigured } from '../llm.js';
 import { templatesStore } from '../store.js';
 import { normalizeTags } from '../../utils/tags.js';
 import { buildTailoredForMeta } from './tailoredFor.js';
@@ -15,25 +14,6 @@ import {
   touchSessionTimestamps,
 } from './sessionPersistence.js';
 
-// ---------------------------------------------------------------------------
-// Gemini wiring (mirrors the resume gemini.js client — kept private to keep
-// the two systems independently testable).
-// ---------------------------------------------------------------------------
-
-let cachedClient = null;
-function getKey() {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key || !key.trim()) {
-    const err = new Error('GEMINI_API_KEY is not configured on the server.');
-    err.status = 503;
-    throw err;
-  }
-  return key.trim();
-}
-function getClient() {
-  if (!cachedClient) cachedClient = new GoogleGenerativeAI(getKey());
-  return cachedClient;
-}
 // ---------------------------------------------------------------------------
 // Template parsing — split body into ordered paragraphs. Subject is its own
 // targetable unit. Handlebars-style placeholders ({{firstName}}) inside the
@@ -223,44 +203,21 @@ function normalizeSuggestions(raw, parsed) {
 }
 
 // ---------------------------------------------------------------------------
-// Gemini calls
+// AI calls
 // ---------------------------------------------------------------------------
 
 async function generateSuggestions(parsed, opts) {
-  const gen = getClient();
-  const model = gen.getGenerativeModel({
-    model: getGeminiModel(),
-    systemInstruction: PLAN_SYSTEM_PROMPT,
-    generationConfig: {
-      temperature: 0.35,
-      responseMimeType: 'application/json',
-      responseSchema: SUGGESTION_SCHEMA,
-    },
+  const parsedJson = await generateStructuredJson({
+    systemPrompt: PLAN_SYSTEM_PROMPT,
+    userPrompt: buildPromptBody(parsed, opts),
+    schema: SUGGESTION_SCHEMA,
+    temperature: 0.35,
   });
-  const res = await model.generateContent(buildPromptBody(parsed, opts));
-  const text = res?.response?.text?.();
-  if (!text) throw new Error('Gemini returned an empty response.');
-  let parsedJson;
-  try {
-    parsedJson = JSON.parse(text);
-  } catch {
-    throw new Error('Gemini returned non-JSON content for suggestions.');
-  }
   return normalizeSuggestions(parsedJson, parsed);
 }
 
 async function refineSuggestion({ original, instruction }) {
   if (!instruction?.trim()) throw new Error('instruction is required.');
-  const gen = getClient();
-  const model = gen.getGenerativeModel({
-    model: getGeminiModel(),
-    systemInstruction: REFINE_SYSTEM_PROMPT,
-    generationConfig: {
-      temperature: 0.3,
-      responseMimeType: 'application/json',
-      responseSchema: REFINE_SCHEMA,
-    },
-  });
   const prompt = [
     `Target: ${original.target}`,
     'Original draft:',
@@ -271,10 +228,14 @@ async function refineSuggestion({ original, instruction }) {
     'User instruction:',
     instruction.trim(),
   ].join('\n');
-  const res = await model.generateContent(prompt);
-  const text = res?.response?.text?.();
-  if (!text) throw new Error('Gemini returned an empty response.');
-  const parsedJson = JSON.parse(text);
+
+  const parsedJson = await generateStructuredJson({
+    systemPrompt: REFINE_SYSTEM_PROMPT,
+    userPrompt: prompt,
+    schema: REFINE_SCHEMA,
+    temperature: 0.3,
+  });
+
   if (!parsedJson || typeof parsedJson.draft !== 'string' || !parsedJson.draft.trim()) {
     throw new Error('Refined draft missing draft field.');
   }
@@ -668,5 +629,5 @@ function collectApprovedKeywords(s) {
 }
 
 export function isTailorTemplateEnabled() {
-  return Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim());
+  return isLlmConfigured();
 }

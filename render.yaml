@@ -49,6 +49,10 @@ services:
       # the current free-tier model that returns 200 for this API key.
       - key: GEMINI_MODEL
         value: gemini-2.5-flash
+      - key: GROQ_MODEL
+        value: groq/compound
+      - key: AI_PROVIDER
+        value: gemini
       - key: ENRICH_CONFIDENCE_THRESHOLD
         value: '0.5'
       - key: RATE_LIMIT_WINDOW_MIN
@@ -79,4 +83,6 @@ services:
       - key: MAIL_FROM
         sync: false
       - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
         sync: false

@@ -26,7 +26,7 @@ router.post('/email', async (req, res, next) => {
     if (!isEnrichmentEnabled()) {
       throw new HttpError(
         503,
-        'AI email finder is disabled. Set GEMINI_API_KEY in server/.env to enable it.'
+        'AI email finder is disabled. Set GEMINI_API_KEY or GROQ_API_KEY in server/.env to enable it.'
       );
     }
 
@@ -81,7 +81,7 @@ router.post('/names', async (req, res, next) => {
     if (!isEnrichmentEnabled()) {
       throw new HttpError(
         503,
-        'AI is disabled. Set GEMINI_API_KEY in server/.env to enable it.'
+        'AI is disabled. Set GEMINI_API_KEY or GROQ_API_KEY in server/.env to enable it.'
       );
     }
 
@@ -143,7 +143,7 @@ router.post('/job-intake', async (req, res, next) => {
     if (!isEnrichmentEnabled()) {
       throw new HttpError(
         503,
-        'AI is disabled. Set GEMINI_API_KEY in server/.env to enable it.'
+        'AI is disabled. Set GEMINI_API_KEY or GROQ_API_KEY in server/.env to enable it.'
       );
     }
 
@@ -191,7 +191,7 @@ router.post('/job-intake', async (req, res, next) => {
 router.post('/jd-match', async (req, res, next) => {
   try {
     if (!isEnrichmentEnabled()) {
-      throw new HttpError(503, 'AI is disabled. Set GEMINI_API_KEY on the server.');
+      throw new HttpError(503, 'AI is disabled. Set GEMINI_API_KEY or GROQ_API_KEY on the server.');
     }
 
     const { jobDescription, templates, resumes } = req.body || {};

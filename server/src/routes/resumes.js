@@ -43,7 +43,7 @@ router.get('/', async (_req, res, next) => {
 router.post('/:id/suggest-tags', async (req, res, next) => {
   try {
     if (!isPdfTaggingEnabled()) {
-      throw new HttpError(503, 'GEMINI_API_KEY is not configured on the server.');
+      throw new HttpError(503, 'AI is disabled. Set GEMINI_API_KEY or GROQ_API_KEY on the server.');
     }
     const doc = await resumeStore.get(req.params.id);
     if (!doc) throw new HttpError(404, 'Resume not found.');
@@ -80,7 +80,7 @@ router.get('/:id', async (req, res, next) => {
 // signals, and a normalised tag list is returned. Nothing is stored.
 router.post('/suggest-tags', (req, res, next) => {
   if (!isPdfTaggingEnabled()) {
-    return next(new HttpError(503, 'GEMINI_API_KEY is not configured on the server.'));
+    return next(new HttpError(503, 'AI is disabled. Set GEMINI_API_KEY or GROQ_API_KEY on the server.'));
   }
   upload(req, res, async (uploadErr) => {
     if (uploadErr) {

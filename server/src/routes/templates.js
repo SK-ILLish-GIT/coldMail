@@ -20,7 +20,7 @@ const router = Router();
 router.post('/suggest-tags', async (req, res, next) => {
   try {
     if (!isTemplateTaggingEnabled()) {
-      throw new HttpError(503, 'GEMINI_API_KEY is not configured on the server.');
+      throw new HttpError(503, 'AI is disabled. Set GEMINI_API_KEY or GROQ_API_KEY on the server.');
     }
     const { subject, body, tags } = req.body || {};
     const tagsArr = Array.isArray(tags) ? tags : [];

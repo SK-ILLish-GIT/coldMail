@@ -1,21 +1,5 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
-import { getGeminiModel } from './geminiModel.js';
+import { generateStructuredJson, isLlmConfigured } from './llm.js';
 import { normalizeTags } from '../utils/tags.js';
-
-// Mirrors pdfTags.js. Kept as its own client so resume and template flows
-// share the same Gemini config but can evolve their prompts independently.
-let cachedClient = null;
-function getClient() {
-  const key = (process.env.GEMINI_API_KEY || '').trim();
-  if (!key) {
-    const err = new Error('GEMINI_API_KEY is not configured on the server.');
-    err.status = 503;
-    throw err;
-  }
-  if (!cachedClient) cachedClient = new GoogleGenerativeAI(key);
-  return cachedClient;
-}
 
 const TAG_SCHEMA = {
   type: 'object',
@@ -57,7 +41,7 @@ function buildPrompt({ subject, body, tags }) {
   lines.push(String(subject || '').trim() || '(empty)');
   lines.push('');
   lines.push('# Body (plain text)');
-  const plain = stripHtml(body).slice(0, 6000); // hard cap to keep token usage predictable
+  const plain = stripHtml(body).slice(0, 6000);
   lines.push(plain || '(empty)');
   if (Array.isArray(tags) && tags.length) {
     lines.push('');
@@ -68,11 +52,7 @@ function buildPrompt({ subject, body, tags }) {
 }
 
 /**
- * Ask Gemini to summarise a template's subject + body into a normalised tag
- * list. Stateless — the caller decides what to do with the returned tags.
- *
- * @param {{ subject?: string; body?: string; tags?: string[] }} input
- * @returns {Promise<string[]>}
+ * Ask the configured AI provider to summarise a template into tags.
  */
 export async function suggestTagsForTemplate(input) {
   const subject = String(input?.subject || '').trim();
@@ -80,30 +60,18 @@ export async function suggestTagsForTemplate(input) {
   if (!subject && !body.trim()) {
     throw new Error('subject or body is required to suggest tags.');
   }
-  const gen = getClient();
-  const model = gen.getGenerativeModel({
-    model: getGeminiModel(),
-    systemInstruction: SYSTEM_PROMPT,
-    generationConfig: {
-      temperature: 0.2,
-      responseMimeType: 'application/json',
-      responseSchema: TAG_SCHEMA,
-    },
+
+  const parsed = await generateStructuredJson({
+    systemPrompt: SYSTEM_PROMPT,
+    userPrompt: buildPrompt({ subject, body, tags: input?.tags }),
+    schema: TAG_SCHEMA,
+    temperature: 0.2,
   });
 
-  const res = await model.generateContent(buildPrompt({ subject, body, tags: input?.tags }));
-  const text = res?.response?.text?.();
-  if (!text) throw new Error('Gemini returned an empty response.');
-  let parsed;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new Error('Gemini returned non-JSON content for tags.');
-  }
   if (!parsed || !Array.isArray(parsed.tags)) return [];
   return normalizeTags(parsed.tags);
 }
 
 export function isTemplateTaggingEnabled() {
-  return Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim());
+  return isLlmConfigured();
 }

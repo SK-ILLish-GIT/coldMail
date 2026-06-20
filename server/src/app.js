@@ -7,7 +7,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 
 import { sendLimiter } from './middleware/rateLimit.js';
-import { geminiModelMiddleware } from './middleware/geminiModel.js';
+import { aiModelMiddleware } from './middleware/aiModel.js';
 import { errorHandler, notFound } from './middleware/error.js';
 import emailRoutes from './routes/email.js';
 import templateRoutes from './routes/templates.js';
@@ -17,8 +17,8 @@ import resumeRoutes from './routes/resumes.js';
 import tailorRoutes from './routes/tailor.js';
 import aiRoutes from './routes/ai.js';
 import { ping } from './services/db.js';
-import { isEnrichmentEnabled } from './services/enrich.js';
-import { isGeminiConfigured as isTailorConfigured } from './services/tailor/gemini.js';
+import { isAiEnabled, isProviderConfigured } from './services/aiModel.js';
+import { isLlmConfigured } from './services/llm.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIST = path.resolve(__dirname, '../../client/dist');
@@ -36,15 +36,25 @@ export function createApp() {
     .split(',')
     .map((o) => o.trim())
     .filter(Boolean);
+  const isDev = process.env.NODE_ENV !== 'production';
+
+  function isAllowedOrigin(origin) {
+    if (!origin) return true;
+    if (origins.includes(origin)) return true;
+    // Vite may fall back to another port when 5173 is taken.
+    if (isDev && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      return true;
+    }
+    return false;
+  }
 
   app.use(
     cors({
       origin: (origin, cb) => {
-        // Allow tools like curl/Postman (no Origin header) and configured origins
-        if (!origin || origins.includes(origin)) return cb(null, true);
+        if (isAllowedOrigin(origin)) return cb(null, true);
         return cb(new Error(`Origin ${origin} not allowed by CORS`));
       },
-      allowedHeaders: ['Content-Type', 'X-Gemini-Model'],
+      allowedHeaders: ['Content-Type', 'X-Gemini-Model', 'X-AI-Provider', 'X-AI-Model'],
     })
   );
 
@@ -53,8 +63,8 @@ export function createApp() {
     app.use(morgan('dev'));
   }
 
-  // Browser model picker sends X-Gemini-Model; applies to all AI routes this request.
-  app.use('/api', geminiModelMiddleware);
+  // Browser model picker sends X-AI-Provider + X-AI-Model (legacy: X-Gemini-Model).
+  app.use('/api', aiModelMiddleware);
 
   app.get('/api/health', async (_req, res) => {
     const dbOk = await ping();
@@ -63,8 +73,12 @@ export function createApp() {
       storage: 'mongodb',
       uptime: process.uptime(),
       features: {
-        aiEnrich: isEnrichmentEnabled(),
-        resumeTailor: isTailorConfigured(),
+        aiEnrich: isAiEnabled(),
+        aiProviders: {
+          gemini: isProviderConfigured('gemini'),
+          groq: isProviderConfigured('groq'),
+        },
+        resumeTailor: isLlmConfigured(),
       },
     });
   });

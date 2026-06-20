@@ -1,27 +1,46 @@
 import { Router } from 'express';
 
-import { HttpError } from '../middleware/error.js';
-import { getGeminiModel, listAccessibleGeminiModels } from '../services/geminiModel.js';
-import { isEnrichmentEnabled } from '../services/enrich.js';
+import {
+  AI_PROVIDERS,
+  getAiModel,
+  getAiProvider,
+  isAiEnabled,
+  isProviderConfigured,
+  listAccessibleModels,
+} from '../services/aiModel.js';
 
 const router = Router();
 
-router.get('/models', async (_req, res, next) => {
+router.get('/models', async (req, res, next) => {
   try {
-    if (!isEnrichmentEnabled()) {
-      throw new HttpError(
-        503,
-        'GEMINI_API_KEY is not configured. Set it in server/.env to list models.'
-      );
-    }
-    const listed = await listAccessibleGeminiModels();
+    const requested = String(req.query.provider || '').trim().toLowerCase();
+    const provider = AI_PROVIDERS.includes(requested) ? requested : getAiProvider();
+
+    const listed = await listAccessibleModels(provider);
     res.json({
       ...listed,
-      activeModel: getGeminiModel(),
+      activeProvider: getAiProvider(),
+      activeModel: getAiModel(),
+      providers: {
+        gemini: isProviderConfigured('gemini'),
+        groq: isProviderConfigured('groq'),
+      },
     });
   } catch (err) {
     next(err);
   }
+});
+
+router.get('/providers', async (_req, res) => {
+  res.json({
+    enabled: isAiEnabled(),
+    providers: AI_PROVIDERS.map((id) => ({
+      id,
+      configured: isProviderConfigured(id),
+    })),
+    activeProvider: getAiProvider(),
+    activeModel: getAiModel(),
+  });
 });
 
 export default router;

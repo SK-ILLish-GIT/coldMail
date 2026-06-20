@@ -1,5 +1,5 @@
 import multer from 'multer';
-import { mapGeminiError } from '../services/geminiErrors.js';
+import { mapAiError } from '../services/aiErrors.js';
 
 export class HttpError extends Error {
   constructor(status, message, details) {
@@ -32,8 +32,8 @@ export function errorHandler(err, _req, res, _next) {
   if (err instanceof multer.MulterError) {
     normalized = mapMulterError(err);
   } else if (!(err instanceof HttpError)) {
-    const gemini = mapGeminiError(err);
-    if (gemini) normalized = gemini;
+    const ai = mapAiError(err);
+    if (ai) normalized = ai;
   }
   const status = normalized.status || 500;
   if (status >= 500) {

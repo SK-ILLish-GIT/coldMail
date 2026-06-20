@@ -1,26 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
-import { getGeminiModel } from '../geminiModel.js';
-
-// We reuse the same env vars as services/enrich.js so the user only has to
-// configure GEMINI_API_KEY once.
-
-let cachedClient = null;
-
-function getKey() {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key || !key.trim()) {
-    const err = new Error('GEMINI_API_KEY is not configured on the server.');
-    err.status = 503;
-    throw err;
-  }
-  return key.trim();
-}
-
-function getClient() {
-  if (!cachedClient) cachedClient = new GoogleGenerativeAI(getKey());
-  return cachedClient;
-}
+import { generateStructuredJson, isLlmConfigured } from '../llm.js';
 
 const SUGGESTION_SCHEMA = {
   type: 'object',
@@ -154,10 +132,7 @@ function buildResumeSummaryForPrompt(parsed) {
 }
 
 /**
- * Ask Gemini for an ordered list of suggestions.
- * @param {object} parsed     output of parseResume()
- * @param {object} opts       { jobDescription, targetRole?, targetCompany?, seniority?, tone? }
- * @returns {Promise<{suggestions: Array}>}
+ * Ask the configured AI provider for an ordered list of suggestions.
  */
 export async function generateSuggestions(parsed, opts) {
   const {
@@ -170,17 +145,6 @@ export async function generateSuggestions(parsed, opts) {
   if (!jobDescription || !jobDescription.trim()) {
     throw new Error('jobDescription is required.');
   }
-
-  const gen = getClient();
-  const model = gen.getGenerativeModel({
-    model: getGeminiModel(),
-    systemInstruction: PLAN_SYSTEM_PROMPT,
-    generationConfig: {
-      temperature: 0.35,
-      responseMimeType: 'application/json',
-      responseSchema: SUGGESTION_SCHEMA,
-    },
-  });
 
   const userPrompt = [
     '# Resume',
@@ -198,15 +162,12 @@ export async function generateSuggestions(parsed, opts) {
     .filter(Boolean)
     .join('\n');
 
-  const res = await model.generateContent(userPrompt);
-  const text = res?.response?.text?.();
-  if (!text) throw new Error('Gemini returned an empty response.');
-  let parsedJson;
-  try {
-    parsedJson = JSON.parse(text);
-  } catch {
-    throw new Error('Gemini returned non-JSON content for suggestions.');
-  }
+  const parsedJson = await generateStructuredJson({
+    systemPrompt: PLAN_SYSTEM_PROMPT,
+    userPrompt,
+    schema: SUGGESTION_SCHEMA,
+    temperature: 0.35,
+  });
   return normalizeSuggestions(parsedJson);
 }
 
@@ -252,7 +213,7 @@ function normalizeSuggestions(raw) {
 }
 
 /**
- * Ask Gemini to refine a single suggestion based on user feedback.
+ * Refine a single suggestion based on user feedback.
  */
 export async function refineSuggestion({ original, instruction }) {
   if (!original || typeof original !== 'object') {
@@ -261,17 +222,6 @@ export async function refineSuggestion({ original, instruction }) {
   if (!instruction || !instruction.trim()) {
     throw new Error('instruction is required.');
   }
-
-  const gen = getClient();
-  const model = gen.getGenerativeModel({
-    model: getGeminiModel(),
-    systemInstruction: REFINE_SYSTEM_PROMPT,
-    generationConfig: {
-      temperature: 0.3,
-      responseMimeType: 'application/json',
-      responseSchema: REFINE_SCHEMA,
-    },
-  });
 
   const userPrompt = [
     `Section: ${original.section}`,
@@ -290,15 +240,13 @@ export async function refineSuggestion({ original, instruction }) {
     .filter(Boolean)
     .join('\n');
 
-  const res = await model.generateContent(userPrompt);
-  const text = res?.response?.text?.();
-  if (!text) throw new Error('Gemini returned an empty response.');
-  let parsedJson;
-  try {
-    parsedJson = JSON.parse(text);
-  } catch {
-    throw new Error('Gemini returned non-JSON content for refinement.');
-  }
+  const parsedJson = await generateStructuredJson({
+    systemPrompt: REFINE_SYSTEM_PROMPT,
+    userPrompt,
+    schema: REFINE_SCHEMA,
+    temperature: 0.3,
+  });
+
   if (
     !parsedJson ||
     typeof parsedJson.draftLatex !== 'string' ||
@@ -320,5 +268,5 @@ export async function refineSuggestion({ original, instruction }) {
 }
 
 export function isGeminiConfigured() {
-  return Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim());
+  return isLlmConfigured();
 }

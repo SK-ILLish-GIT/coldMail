@@ -1,20 +1,5 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
-import { getGeminiModel } from './geminiModel.js';
+import { generateStructuredJson, isLlmConfigured } from './llm.js';
 import { normalizeTags } from '../utils/tags.js';
-
-// Reuse the same Gemini config as the rest of the app.
-let cachedClient = null;
-function getClient() {
-  const key = (process.env.GEMINI_API_KEY || '').trim();
-  if (!key) {
-    const err = new Error('GEMINI_API_KEY is not configured on the server.');
-    err.status = 503;
-    throw err;
-  }
-  if (!cachedClient) cachedClient = new GoogleGenerativeAI(key);
-  return cachedClient;
-}
 
 const TAG_SCHEMA = {
   type: 'object',
@@ -40,28 +25,15 @@ Hard rules:
 6. Output ONLY JSON matching the supplied schema. No prose, no markdown fences.`;
 
 /**
- * Ask Gemini to summarise a resume PDF into a normalised tag list.
- * @param {Buffer} pdfBuffer
- * @param {string} mimeType  default 'application/pdf'
- * @returns {Promise<string[]>}
+ * Ask the configured AI provider to summarise a resume PDF into tags.
+ * PDF uploads use Gemini when available (Groq does not support PDF input).
  */
 export async function suggestTagsFromPdf(pdfBuffer, mimeType = 'application/pdf') {
   if (!Buffer.isBuffer(pdfBuffer) || pdfBuffer.length === 0) {
     throw new Error('PDF buffer is required.');
   }
-  const gen = getClient();
-  const model = gen.getGenerativeModel({
-    model: getGeminiModel(),
-    systemInstruction: SYSTEM_PROMPT,
-    generationConfig: {
-      temperature: 0.2,
-      responseMimeType: 'application/json',
-      responseSchema: TAG_SCHEMA,
-    },
-  });
 
-  // Gemini 2.5 Flash accepts PDFs natively via inlineData (base64).
-  const res = await model.generateContent([
+  const parts = [
     {
       inlineData: {
         mimeType: mimeType || 'application/pdf',
@@ -71,20 +43,20 @@ export async function suggestTagsFromPdf(pdfBuffer, mimeType = 'application/pdf'
     {
       text: 'Read this resume PDF and produce the JSON tag list per the schema.',
     },
-  ]);
+  ];
 
-  const text = res?.response?.text?.();
-  if (!text) throw new Error('Gemini returned an empty response.');
-  let parsed;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new Error('Gemini returned non-JSON content for tags.');
-  }
+  const parsed = await generateStructuredJson({
+    systemPrompt: SYSTEM_PROMPT,
+    userPrompt: 'Read this resume PDF and produce the JSON tag list per the schema.',
+    schema: TAG_SCHEMA,
+    temperature: 0.2,
+    parts,
+  });
+
   if (!parsed || !Array.isArray(parsed.tags)) return [];
   return normalizeTags(parsed.tags);
 }
 
 export function isPdfTaggingEnabled() {
-  return Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim());
+  return isLlmConfigured();
 }

@@ -89,8 +89,13 @@ export default function HeaderSettingsMenu({
               className="flex min-w-0 justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
               title={
                 health.features?.aiEnrich
-                  ? "AI enabled (GEMINI_API_KEY set)"
-                  : "AI off — click to copy GEMINI_API_KEY="
+                  ? `AI enabled (${[
+                      health.features?.aiProviders?.gemini ? "Gemini" : null,
+                      health.features?.aiProviders?.groq ? "Groq" : null,
+                    ]
+                      .filter(Boolean)
+                      .join(", ") || "configured"})`
+                  : "AI off — click to copy API key hints"
               }
             >
               <StatusPill

@@ -1,27 +1,11 @@
 import { resolveMx } from 'node:dns/promises';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
-import { getGeminiModel } from './geminiModel.js';
+import { isAiEnabled } from './aiModel.js';
+import { generateStructuredJson } from './llm.js';
 
-let client = null;
-
-function getKey() {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key || !key.trim()) {
-    const err = new Error('GEMINI_API_KEY is not configured on the server.');
-    err.status = 503;
-    throw err;
-  }
-  return key.trim();
-}
-
-function getClient() {
-  if (!client) client = new GoogleGenerativeAI(getKey());
-  return client;
-}
 
 export function isEnrichmentEnabled() {
-  return Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim());
+  return isAiEnabled();
 }
 
 // --- Tiny in-memory TTL cache keyed by company|domain ---
@@ -150,31 +134,16 @@ function validateModelOutput(raw) {
 }
 
 async function callGemini({ company, domain }) {
-  const gen = getClient();
-  const model = gen.getGenerativeModel({
-    model: getGeminiModel(),
-    systemInstruction: SYSTEM_PROMPT,
-    generationConfig: {
-      temperature: 0.2,
-      responseMimeType: 'application/json',
-      responseSchema: PATTERN_SCHEMA,
-    },
-  });
-
   const userPrompt = domain
     ? `Company: "${company}". Known domain: "${domain}".`
     : `Company: "${company}". Domain: unknown — infer the most likely primary email domain.`;
 
-  const result = await model.generateContent(userPrompt);
-  const text = result?.response?.text?.();
-  if (!text) throw new Error('Gemini returned an empty response.');
-
-  let parsed;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new Error('Gemini returned non-JSON content.');
-  }
+  const parsed = await generateStructuredJson({
+    systemPrompt: SYSTEM_PROMPT,
+    userPrompt,
+    schema: PATTERN_SCHEMA,
+    temperature: 0.2,
+  });
   return validateModelOutput(parsed);
 }
 
@@ -242,31 +211,16 @@ function algoExtractName(email) {
  * @returns {Promise<Array<{ email: string, name: string }>>}
  */
 export async function extractNamesFromEmails({ emails, company }) {
-  const gen = getClient();
-  const model = gen.getGenerativeModel({
-    model: getGeminiModel(),
-    systemInstruction: NAMES_SYSTEM_PROMPT,
-    generationConfig: {
-      temperature: 0,
-      responseMimeType: 'application/json',
-      responseSchema: NAMES_SCHEMA,
-    },
-  });
-
   const userPrompt = `Company: "${company}".\nEmails:\n${emails
     .map((e, i) => `${i + 1}. ${e}`)
     .join('\n')}`;
 
-  const result = await model.generateContent(userPrompt);
-  const text = result?.response?.text?.();
-  if (!text) throw new Error('Gemini returned an empty response.');
-
-  let parsed;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new Error('Gemini returned non-JSON content.');
-  }
+  const parsed = await generateStructuredJson({
+    systemPrompt: NAMES_SYSTEM_PROMPT,
+    userPrompt,
+    schema: NAMES_SCHEMA,
+    temperature: 0,
+  });
   if (!parsed?.candidates || !Array.isArray(parsed.candidates)) {
     throw new Error('Gemini response missing candidates array.');
   }
@@ -342,17 +296,6 @@ function summariseList(items) {
  * @param {{ jobDescription: string, templates: Array, resumes: Array }} input
  */
 export async function matchJobDescription({ jobDescription, templates, resumes }) {
-  const gen = getClient();
-  const model = gen.getGenerativeModel({
-    model: getGeminiModel(),
-    systemInstruction: JD_MATCH_SYSTEM_PROMPT,
-    generationConfig: {
-      temperature: 0.1,
-      responseMimeType: 'application/json',
-      responseSchema: JD_MATCH_SCHEMA,
-    },
-  });
-
   const userPrompt = [
     'Job Description:',
     '"""',
@@ -366,16 +309,12 @@ export async function matchJobDescription({ jobDescription, templates, resumes }
     JSON.stringify(summariseList(resumes), null, 2),
   ].join('\n');
 
-  const result = await model.generateContent(userPrompt);
-  const text = result?.response?.text?.();
-  if (!text) throw new Error('Gemini returned an empty response.');
-
-  let parsed;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new Error('Gemini returned non-JSON content.');
-  }
+  const parsed = await generateStructuredJson({
+    systemPrompt: JD_MATCH_SYSTEM_PROMPT,
+    userPrompt,
+    schema: JD_MATCH_SCHEMA,
+    temperature: 0.1,
+  });
   if (typeof parsed?.templateId !== 'string' || typeof parsed?.resumeId !== 'string') {
     throw new Error('Gemini response missing required fields.');
   }
@@ -463,17 +402,6 @@ async function fetchJobPageText(jobUrl) {
 }
 
 async function extractJobFieldsFromText(pageText, { jobUrl = '' } = {}) {
-  const gen = getClient();
-  const model = gen.getGenerativeModel({
-    model: getGeminiModel(),
-    systemInstruction: JOB_INTAKE_SYSTEM_PROMPT,
-    generationConfig: {
-      temperature: 0.1,
-      responseMimeType: 'application/json',
-      responseSchema: JOB_INTAKE_SCHEMA,
-    },
-  });
-
   const userPrompt = [
     jobUrl ? `Source URL: ${jobUrl}` : 'Source: user-pasted job description',
     '',
@@ -483,16 +411,12 @@ async function extractJobFieldsFromText(pageText, { jobUrl = '' } = {}) {
     '"""',
   ].join('\n');
 
-  const result = await model.generateContent(userPrompt);
-  const text = result?.response?.text?.();
-  if (!text) throw new Error('Gemini returned an empty response.');
-
-  let parsed;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new Error('Gemini returned non-JSON content.');
-  }
+  const parsed = await generateStructuredJson({
+    systemPrompt: JOB_INTAKE_SYSTEM_PROMPT,
+    userPrompt,
+    schema: JOB_INTAKE_SCHEMA,
+    temperature: 0.1,
+  });
 
   return {
     jd: String(parsed.jd || '').trim(),

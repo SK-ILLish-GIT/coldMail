@@ -40,7 +40,7 @@ export default function App() {
     loading: true,
     ok: false,
     storage: "mongodb",
-    features: { aiEnrich: false },
+    features: { aiEnrich: false, aiProviders: { gemini: false, groq: false } },
   });
 
   const refreshHealth = async () => {
@@ -108,17 +108,19 @@ export default function App() {
   // tooltip that nobody reads.
   const handleAiPillClick = () => {
     if (health.features?.aiEnrich) return;
-    const hint = "GEMINI_API_KEY=";
+    const hint = "GEMINI_API_KEY=\n# or\nGROQ_API_KEY=";
     try {
       navigator.clipboard?.writeText(hint);
       toast.success(
-        "Copied GEMINI_API_KEY= — paste into server/.env, then restart.",
+        "Copied API key hints — paste into server/.env, then restart.",
         {
           duration: 5000,
         },
       );
     } catch {
-      toast("Set GEMINI_API_KEY in server/.env, then restart.", { icon: "ℹ️" });
+      toast("Set GEMINI_API_KEY or GROQ_API_KEY in server/.env, then restart.", {
+        icon: "ℹ️",
+      });
     }
   };
 

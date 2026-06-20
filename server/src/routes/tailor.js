@@ -185,7 +185,7 @@ router.get('/session/:id/queue', async (req, res, next) => {
 router.post('/session', async (req, res, next) => {
   try {
     if (!isGeminiConfigured()) {
-      throw new HttpError(503, 'GEMINI_API_KEY is not configured on the server.');
+      throw new HttpError(503, 'AI is disabled. Set GEMINI_API_KEY or GROQ_API_KEY on the server.');
     }
     const body = req.body || {};
     const cvRoot = resolveCvRoot(body.cvPath);
@@ -331,7 +331,7 @@ router.get('/session/:id/report', async (req, res, next) => {
 router.post('/template-session', async (req, res, next) => {
   try {
     if (!isTailorTemplateEnabled()) {
-      throw new HttpError(503, 'GEMINI_API_KEY is not configured on the server.');
+      throw new HttpError(503, 'AI is disabled. Set GEMINI_API_KEY or GROQ_API_KEY on the server.');
     }
     const body = req.body || {};
     if (!body.templateId) throw new HttpError(400, 'templateId is required.');

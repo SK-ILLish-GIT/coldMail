@@ -73,6 +73,22 @@ export const resumeStore = {
     return res?.value || res || null;
   },
 
+  async replaceContent(id, { filename, contentType, size, content }) {
+    const $set = {
+      filename: String(filename || '').trim(),
+      contentType: contentType || 'application/pdf',
+      size: Number(size) || (content ? content.length : 0),
+      content,
+      updatedAt: new Date().toISOString(),
+    };
+    const res = await col().findOneAndUpdate(
+      { id },
+      { $set },
+      { returnDocument: 'after', projection: { content: 0 } }
+    );
+    return res?.value || res || null;
+  },
+
   async delete(id) {
     const res = await col().deleteOne({ id });
     return res.deletedCount > 0;

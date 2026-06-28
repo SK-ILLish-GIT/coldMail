@@ -64,7 +64,11 @@ export default function ResumeLibrary({
   // Upload form is a modal now — only mounted when the user opens it from
   // the"+ Upload resume" button. List stays full-width otherwise.
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [updateVersionTarget, setUpdateVersionTarget] = useState(null);
+  const [updateVersionFile, setUpdateVersionFile] = useState(null);
+  const [updatingVersion, setUpdatingVersion] = useState(false);
   const fileInputRef = useRef(null);
+  const updateVersionInputRef = useRef(null);
   const { requestTailorResume } = useTailorTarget();
   const [autoTagLoading, setAutoTagLoading] = useState(false);
   const [autoTagApplying, setAutoTagApplying] = useState(false);
@@ -158,6 +162,18 @@ export default function ResumeLibrary({
     };
   }, [uploadOpen, uploading]);
 
+  useEffect(() => {
+    if (!updateVersionTarget) return;
+    const onKey = (e) =>
+      e.key === "Escape" && !updatingVersion && closeUpdateVersionModal();
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [updateVersionTarget, updatingVersion]);
+
   const resetUploadForm = () => {
     setName("");
     setFile(null);
@@ -174,6 +190,56 @@ export default function ResumeLibrary({
     if (uploading) return;
     setUploadOpen(false);
     resetUploadForm();
+  };
+
+  const resetUpdateVersionForm = () => {
+    setUpdateVersionFile(null);
+    if (updateVersionInputRef.current) updateVersionInputRef.current.value = "";
+  };
+
+  const openUpdateVersionModal = (item) => {
+    resetUpdateVersionForm();
+    setUpdateVersionTarget(item);
+  };
+
+  const closeUpdateVersionModal = () => {
+    if (updatingVersion) return;
+    setUpdateVersionTarget(null);
+    resetUpdateVersionForm();
+  };
+
+  const onPickUpdateVersionFile = (f) => {
+    if (!f) {
+      setUpdateVersionFile(null);
+      return;
+    }
+    if (!isPdf(f)) {
+      toast.error(`"${f.name}" isn't a PDF.`);
+      return;
+    }
+    if (f.size > MAX_FILE_BYTES) {
+      toast.error(`"${f.name}" is over 10 MB.`);
+      return;
+    }
+    setUpdateVersionFile(f);
+  };
+
+  const updateVersion = async () => {
+    const item = updateVersionTarget;
+    if (!item) return;
+    if (!updateVersionFile) return toast.error("Choose a PDF first.");
+    setUpdatingVersion(true);
+    try {
+      await api.updateResumeVersion(item.id, updateVersionFile);
+      toast.success(`Updated PDF for "${item.name}".`);
+      closeUpdateVersionModal();
+      await refresh();
+      onChange?.();
+    } catch (err) {
+      toast.error(err.message || "Update failed");
+    } finally {
+      setUpdatingVersion(false);
+    }
   };
 
   const onPickFile = (f) => {
@@ -474,6 +540,11 @@ export default function ResumeLibrary({
                             tone: "amber",
                           },
                           {
+                            label: "Update version",
+                            onClick: () => openUpdateVersionModal(r),
+                            tone: "brand",
+                          },
+                          {
                             label: "Delete",
                             onClick: () => remove(r),
                             tone: "rose",
@@ -634,6 +705,95 @@ export default function ResumeLibrary({
                 disabled={uploading || suggesting || !file || !name.trim()}
               >
                 {uploading ? "Uploading..." : "Upload PDF"}
+              </button>
+            </footer>
+          </div>
+        </div>
+      )}
+
+      {/* Update-version modal — replaces the stored PDF for an existing resume. */}
+      {updateVersionTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ui-overlay/50 p-4 backdrop-blur-sm anim-in"
+          onClick={closeUpdateVersionModal}
+        >
+          <div
+            className="flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-ui-panel shadow-lift"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="flex items-start justify-between gap-4 border-b border-ui-border/70 px-5 py-4">
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold text-ui-fg">
+                  Update version
+                </h3>
+                <p className="mt-0.5 truncate text-xs text-ui-fg-muted">
+                  Replace the PDF for "{updateVersionTarget.name}" · keeps name
+                  and tags
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeUpdateVersionModal}
+                disabled={updatingVersion}
+                className="rounded-md p-1.5 text-ui-fg-muted hover:bg-ui-inset/60 hover:text-ui-fg disabled:opacity-50"
+                aria-label="Close"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </header>
+
+            <div className="flex-1 space-y-4 overflow-auto px-5 py-4">
+              <p className="text-xs text-ui-fg-muted">
+                Current file: {updateVersionTarget.filename || "resume.pdf"} ·{" "}
+                {fmtSize(updateVersionTarget.size)}
+              </p>
+              <div>
+                <label className="label">New PDF file</label>
+                <input
+                  ref={updateVersionInputRef}
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  className="input !p-1.5"
+                  onChange={(e) =>
+                    onPickUpdateVersionFile(e.target.files?.[0] || null)
+                  }
+                />
+                {updateVersionFile && (
+                  <p className="hint mt-1">
+                    {updateVersionFile.name} · {fmtSize(updateVersionFile.size)}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <footer className="flex items-center justify-end gap-2 border-t border-ui-border/70 bg-ui-inset/50 px-5 py-3">
+              <button
+                type="button"
+                className="btn-ghost btn-xs"
+                onClick={closeUpdateVersionModal}
+                disabled={updatingVersion}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={updateVersion}
+                disabled={updatingVersion || !updateVersionFile}
+              >
+                {updatingVersion ? "Updating..." : "Replace PDF"}
               </button>
             </footer>
           </div>

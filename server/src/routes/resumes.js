@@ -144,6 +144,32 @@ router.post('/', (req, res, next) => {
   });
 });
 
+// PUT /api/resumes/:id/content — replace the stored PDF (same id, name, tags)
+router.put('/:id/content', (req, res, next) => {
+  upload(req, res, async (uploadErr) => {
+    if (uploadErr) {
+      const status =
+        uploadErr.code === 'LIMIT_FILE_SIZE'
+          ? 413
+          : uploadErr.status || 400;
+      return next(new HttpError(status, uploadErr.message));
+    }
+    try {
+      if (!req.file) throw new HttpError(400, 'A PDF file is required.');
+      const updated = await resumeStore.replaceContent(req.params.id, {
+        filename: req.file.originalname,
+        contentType: req.file.mimetype || 'application/pdf',
+        size: req.file.size,
+        content: req.file.buffer,
+      });
+      if (!updated) throw new HttpError(404, 'Resume not found.');
+      res.json(updated);
+    } catch (err) {
+      next(err);
+    }
+  });
+});
+
 // PUT /api/resumes/:id — rename and/or update tags
 router.put('/:id', async (req, res, next) => {
   try {

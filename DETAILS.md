@@ -1,20 +1,18 @@
 # coldMail — Project Details
 
-Deep-dive documentation for architecture, data flows, AI integration, and deployment. For a quick overview and setup, see [README.md](./README.md).
+Architecture, data flows, auth, AI, and deployment. For setup, see [README.md](./README.md).
 
 ## Contents
 
-- [What this project is](#what-this-project-is)
+- [Overview](#overview)
 - [High-level architecture](#high-level-architecture)
+- [Auth and per-user data](#auth-and-per-user-data)
 - [Request flow — saving a draft](#request-flow--saving-a-draft)
 - [AI architecture](#ai-architecture)
 - [Tailor system](#tailor-system)
-- [Why drafts instead of direct send?](#why-drafts-instead-of-direct-send)
 - [Module map](#module-map)
 - [MongoDB collections](#mongodb-collections)
-- [Compose modes](#compose-modes)
-- [Library](#library)
-- [Configuration reference](#configuration-reference)
+- [Configuration](#configuration)
 - [API reference](#api-reference)
 - [Deployment (Render)](#deployment-render)
 - [Security](#security)
@@ -22,11 +20,11 @@ Deep-dive documentation for architecture, data flows, AI integration, and deploy
 
 ---
 
-## What this project is
+## Overview
 
-**coldMail** is a personal cold-email workbench. You maintain a library of HTML templates and PDF resumes, compose personalised outreach in three input modes, optionally let AI pick the best template/resume for a job description, tailor content to a JD, and save every message as a **Gmail draft** (via IMAP) with a consistent resume attachment filename.
+**coldMail** is a multi-user cold-email workbench. Each user maintains their own library of HTML templates and PDF resumes, composes personalised outreach in three input modes (MailID / CSV / LinkedIn), optionally lets AI pick or tailor content to a job description, and saves every message as a **Gmail draft** (via IMAP).
 
-The app is a **React + Express monorepo** with **MongoDB Atlas** persistence. AI features run through a unified LLM layer that supports **Google Gemini** and **Groq**, selectable from the header settings menu.
+React + Express monorepo, **MongoDB Atlas** persistence, JWT auth, and a unified LLM layer over **Gemini** and **Groq**. In production Express serves the built SPA and the API from one origin.
 
 ---
 
@@ -35,41 +33,67 @@ The app is a **React + Express monorepo** with **MongoDB Atlas** persistence. AI
 ```mermaid
 flowchart TB
   subgraph Client["Browser — React SPA (Vite + Tailwind)"]
-    Compose["Compose tab<br/>MailID · CSV · LinkedIn"]
-    Library["Templates · Resumes"]
-    Tailor["Tailor tab<br/>Resume + Template tailoring"]
-    Settings["Settings menu<br/>Provider · Model picker"]
+    Gate["Auth gate<br/>login · signup · profile"]
+    Compose["Compose<br/>MailID · CSV · LinkedIn"]
+    Library["Templates · Resumes<br/>per-user + default flag"]
+    Tailor["Tailor<br/>resume + template"]
   end
 
   subgraph Server["Express API — server/src/app.js"]
-    Routes["Routes<br/>email · enrich · templates · resumes · tailor · ai · log"]
-    LLM["LLM layer — llm.js<br/>generateStructuredJson()"]
-    Draft["imapDrafts.js<br/>MIME build + IMAP APPEND"]
+    AuthMW["requireAuth<br/>verify JWT + per-user context"]
+    Routes["Routes<br/>auth · email · enrich · templates · resumes · tailor · ai · log"]
+    LLM["llm.js<br/>generateStructuredJson()"]
+    Draft["imapDrafts.js<br/>MIME + IMAP APPEND"]
   end
 
   subgraph External["External services"]
-    Mongo[("MongoDB Atlas<br/>templates · resumes · sent_log · tailor_sessions")]
-    Gemini[("Google Gemini API")]
-    Groq[("Groq API<br/>OpenAI-compatible")]
-    Gmail[("Gmail IMAP<br/>Drafts folder")]
-    TexLive[("texlive.net<br/>LaTeX → PDF compile")]
+    Mongo[("MongoDB Atlas<br/>users · refresh_tokens · templates · resumes · sent_log · tailor_sessions")]
+    AIP[("Gemini / Groq")]
+    Gmail[("Gmail IMAP — Drafts")]
+    TexLive[("texlive.net — LaTeX to PDF")]
   end
 
-  Client -->|"/api/* + X-AI-Provider/Model headers"| Routes
-  Routes --> LLM
-  LLM --> Gemini
-  LLM --> Groq
+  Client -->|"Bearer access token (+ refresh cookie on /api/auth)"| AuthMW
+  AuthMW --> Routes
+  Routes --> LLM --> AIP
   Routes --> Mongo
-  Routes --> Draft
-  Draft --> Gmail
+  Routes --> Draft --> Gmail
   Routes --> TexLive
-
   Client -->|"production: static from client/dist"| Server
 ```
 
-**Single-origin in production:** Express serves the built SPA at `/` and the API at `/api/*` — one URL, one process, one Render deploy.
+- **Single-origin in production:** Express serves the SPA at `/` and the API at `/api/*` — one URL, one process, one Render deploy.
+- **Development:** Vite (`:5173`) proxies `/api` to Express (`:4000`); CORS allows configured origins plus any localhost port, with `credentials` enabled for the refresh cookie.
 
-**Development:** Vite dev server (typically `:5173` or `:5174`) proxies `/api` to Express on `:4000`. CORS allows configured origins plus any `localhost` port in dev mode.
+---
+
+## Auth and per-user data
+
+Email + password auth using JWT. The **access token** (short-lived) is held in browser memory and sent as `Authorization: Bearer`; the **refresh token** (long-lived) is an httpOnly cookie scoped to `/api/auth`, rotated on every refresh and revocable via the `refresh_tokens` store.
+
+```mermaid
+sequenceDiagram
+  participant B as Browser (token in memory)
+  participant S as Express
+  participant M as MongoDB
+  B->>S: POST /api/auth/login (email, password)
+  S->>M: users.findOne + bcrypt.compare
+  S->>M: store refresh jti (refresh_tokens)
+  S-->>B: accessToken (JSON) + Set-Cookie refresh (httpOnly)
+  B->>S: GET /api/templates (Authorization Bearer)
+  S->>S: requireAuth verifies JWT then runWithUser(userId)
+  S->>M: templates.find({ userId })
+  Note over B,S: access token expires then 401
+  B->>S: POST /api/auth/refresh (refresh cookie)
+  S->>M: verify jti then rotate (revoke old, issue new)
+  S-->>B: new accessToken + new refresh cookie
+```
+
+**Per-user scoping:** `requireAuth` runs the request inside an `AsyncLocalStorage` user context (`services/userContext.js`), mirroring the AI-model middleware. Every store (`store.js`, `resumeStore.js`, `tailor/sessionPersistence.js`) reads the current `userId` and filters/stamps queries automatically — so routes and deep tailor call-chains need no changes and users only ever see their own data.
+
+**Defaults:** a user can mark one template and one resume as their default (`isDefault` flag, one per user). Compose auto-selects them; otherwise it starts blank.
+
+**Admin seed:** on boot, if `SEED_ADMIN_EMAIL` + `SEED_ADMIN_PASSWORD` are set, `seed/seedAdmin.js` creates the user (if missing) and assigns any pre-existing unowned documents to it. Idempotent.
 
 ---
 
@@ -80,142 +104,79 @@ sequenceDiagram
   participant U as User
   participant SPA as React client
   participant API as Express /api/send-email
-  participant H as Handlebars render
   participant DB as MongoDB
   participant IMAP as Gmail IMAP
 
   U->>SPA: Fill compose form + pick template/resume
-  SPA->>API: POST /send-email (JSON or multipart)
-  API->>DB: Load template / resume if needed
-  API->>H: Merge {{name}}, {{company}}, {{email}}, {{jobLink}}, CSV extras
-  H-->>API: Rendered subject + HTML body
-  API->>API: Rename PDF attachment to DRAFT_ATTACHMENT_FILENAME.pdf
+  SPA->>API: POST /send-email (Bearer token, JSON or multipart)
+  API->>API: requireAuth then runWithUser(userId)
+  API->>DB: Load user's template / resume if referenced
+  API->>API: Merge {{name}}, {{company}}, {{email}}, {{jobLink}}, CSV extras
+  API->>API: Rename PDF to DRAFT_ATTACHMENT_FILENAME.pdf
   API->>IMAP: APPEND to Drafts with \Draft flag
-  IMAP-->>API: OK
-  API->>DB: Insert sent_log row (drafted / failed)
+  API->>DB: Insert sent_log row (drafted / failed) for this user
   API-->>SPA: { success, status: drafted, meta }
   SPA-->>U: Toast + Drafts Log update
 ```
+
+**Why drafts, not direct send?** Render's free tier blocks outbound SMTP (25/465/587). IMAP `APPEND` with the `\Draft` flag is free and lets you review + use Gmail's native Schedule Send. `RESEND_API_KEY` remains an optional direct-send path.
 
 ---
 
 ## AI architecture
 
-All structured-AI calls go through one server abstraction:
+All structured-AI calls go through one server abstraction; provider/model are chosen per request from headers.
 
 ```mermaid
 flowchart LR
-  subgraph Client
-    Picker["Settings → AI model<br/>localStorage + axios headers"]
-  end
+  Picker["Settings picker<br/>localStorage + axios headers"]
+  AIM["aiModelMiddleware<br/>X-AI-Provider · X-AI-Model"]
+  Ctx["AsyncLocalStorage<br/>active provider + model"]
+  LLM["llm.js<br/>generateStructuredJson()"]
+  Feat["enrich · templateTags · pdfTags<br/>tailor/gemini · tailor/templateTailor"]
+  G["Gemini<br/>native JSON schema"]
+  Q["Groq<br/>json_object mode"]
 
-  subgraph Middleware
-    AIM["aiModelMiddleware<br/>X-AI-Provider · X-AI-Model"]
-    Ctx["AsyncLocalStorage<br/>active provider + model"]
-  end
-
-  subgraph Services
-    LLM["llm.js<br/>generateStructuredJson()"]
-    Enrich["enrich.js"]
-    Tags["templateTags.js · pdfTags.js"]
-    RTailor["tailor/gemini.js"]
-    TTailor["tailor/templateTailor.js"]
-  end
-
-  subgraph Providers
-    G["Gemini<br/>native JSON schema"]
-    Q["Groq<br/>json_object mode"]
-  end
-
-  Picker -->|headers on every /api call| AIM
-  AIM --> Ctx
-  Enrich --> LLM
-  Tags --> LLM
-  RTailor --> LLM
-  TTailor --> LLM
-  LLM --> Ctx
+  Picker -->|"headers on every /api call"| AIM --> Ctx
+  Feat --> LLM --> Ctx
   LLM --> G
   LLM --> Q
   LLM -.->|"Groq blocked + Gemini key set"| G
 ```
 
-| Component | Role |
-|-----------|------|
-| `server/src/services/aiModel.js` | Provider/model defaults, env parsing, model listing, Groq probe |
-| `server/src/services/llm.js` | Single entry: `generateStructuredJson({ systemPrompt, userPrompt, schema, temperature, parts? })` |
-| `server/src/services/aiErrors.js` | Maps quota, blocked-model, and provider errors to friendly HTTP messages |
-| `server/src/middleware/aiModel.js` | Reads `X-AI-Provider` + `X-AI-Model` (legacy: `X-Gemini-Model`) per request |
-| `client/src/lib/aiModel.js` | Persists provider/model in localStorage; attaches headers via axios interceptor |
+| Feature | Endpoint | Input to model | Output |
+|---------|----------|----------------|--------|
+| Email patterns | `POST /enrich/email` | Company + optional domain | 5 ranked `{pattern, confidence}` |
+| Name extraction | `POST /enrich/names` | Emails + company | `{candidates:[{email,name}]}` |
+| JD match | `POST /enrich/jd-match` | JD + library `{id,name,tags}` only | `{templateId, resumeId}` |
+| Job intake | `POST /enrich/job-intake` | Pasted JD or job URL text | `{jd, company, roleTitle}` |
+| Template / resume tags | `POST /templates|resumes/suggest-tags` | Subject+body / PDF bytes | `{tags[]}` |
+| Resume / template tailor | `POST /tailor/(session|template-session)` | LaTeX sections / paragraphs + JD | Ordered suggestions |
 
-### What each AI feature sends to the model
-
-| Feature | Endpoint | Input to model | Output schema |
-|---------|----------|----------------|---------------|
-| Email patterns | `POST /api/enrich/email` | Company name + optional domain | 5 ranked `{pattern, confidence, reasoning}` |
-| Name extraction | `POST /api/enrich/names` | Email list + company | `{candidates: [{email, name}]}` |
-| JD match | `POST /api/enrich/jd-match` | JD + library `{id, name, tags}` only | `{templateId, resumeId, reasoning}` |
-| Job intake | `POST /api/enrich/job-intake` | Pasted JD or fetched job URL text | `{jd, company, roleTitle}` |
-| Template auto-tag | `POST /api/templates/suggest-tags` | Subject + plain body | `{tags: string[]}` |
-| Resume auto-tag | `POST /api/resumes/suggest-tags` | PDF bytes (Gemini multimodal) | `{tags: string[]}` |
-| Resume tailor | `POST /api/tailor/session` | Parsed LaTeX sections + JD | Ordered suggestion list |
-| Template tailor | `POST /api/tailor/template-session` | Template paragraphs + JD | Ordered rewrite suggestions |
-
-**Privacy:** JD matching and enrichment never send full template bodies or PDF bytes unless the specific feature requires it (e.g. PDF tagging, resume tailoring). JD match only sees `{id, name, tags}`.
-
-**Groq notes:**
-- Uses OpenAI-compatible chat completions with `response_format: { type: "json_object" }`.
-- PDF analysis requires Gemini (Groq has no PDF input); the server auto-falls back when a Gemini key is set.
-- If a Groq model is **blocked at project level**, the server auto-falls back to Gemini when configured.
-- Enable models at [Groq project limits](https://console.groq.com/settings/project/limits).
+**Privacy:** JD match sends only `{id, name, tags}` — never full bodies or PDF bytes unless a feature needs it (PDF tagging, resume tailoring). **Groq notes:** OpenAI-compatible `json_object` mode; PDF analysis needs Gemini; auto-falls back to Gemini if a Groq model is project-blocked.
 
 ---
 
 ## Tailor system
 
-The **Tailor** tab supports two parallel workflows:
+Two parallel workflows on the Tailor tab, both session-based and per-user.
 
 ```mermaid
 stateDiagram-v2
   [*] --> CreateSession: POST /tailor/session or /template-session
   CreateSession --> Queue: AI generates suggestions
   Queue --> Review: GET .../next
-  Review --> Approve: POST .../decide approve
-  Review --> Reject: POST .../decide reject
-  Review --> Refine: POST .../decide refine
-  Approve --> Queue: More suggestions?
-  Queue --> Compile: Resume path — POST .../compile
-  Compile --> TexLive: texlive.net → PDF
-  Queue --> Save: Template path — POST .../save
-  Save --> [*]: New template in library
-  Compile --> [*]: Download PDF / add to resumes
+  Review --> Decide: POST .../decide approve reject refine
+  Decide --> Queue: more suggestions
+  Queue --> Compile: resume path — POST .../compile
+  Compile --> TexLive: texlive.net to PDF
+  Queue --> Save: template path — POST .../save
+  Save --> [*]: new template in library
+  Compile --> [*]: download PDF / add to resumes
 ```
 
-**Resume tailor**
-- Parses a LaTeX CV into sections, bullets, and skills lines.
-- AI suggests **content-only** rewrites (same macros, same structure).
-- Approved edits compile via [texlive.net](https://texlive.net) to a PDF.
-- Sessions persist in MongoDB with queue state.
-
-**Template tailor**
-- Parses email template into subject + HTML/plain paragraphs.
-- AI suggests paragraph-level rewrites that preserve HTML structure and `{{handlebars}}` tokens.
-- Approved result can be saved as a new template.
-
----
-
-## Why drafts instead of direct send?
-
-Render's free tier blocks outbound SMTP (ports 25/465/587). Options considered:
-
-| Option | Outcome | Cost |
-|--------|---------|------|
-| Render Starter | SMTP unblocks | ~$7/mo |
-| HTTPS email API (Resend, etc.) | Sends from shared/onboarding domain unless verified | Free with caveats |
-| **IMAP `APPEND` to Gmail Drafts** | Review + native Gmail Schedule Send | Free |
-
-The app uses **IMAP `APPEND`** with the `\Draft` flag so you review every message in Gmail. `RESEND_API_KEY` remains supported as an optional direct-send path for environments where SMTP/API send is available.
-
-Whichever PDF the user picks is renamed server-side to `DRAFT_ATTACHMENT_FILENAME.pdf` (default: `Sk_Sahil_Parvez_CV.pdf`).
+- **Resume tailor:** parses a LaTeX CV into sections/bullets/skills; AI suggests content-only rewrites (same macros); approved edits compile to PDF via texlive.net.
+- **Template tailor:** parses subject + paragraphs; AI rewrites preserve HTML and `{{tokens}}`; result can be saved as a new template.
 
 ---
 
@@ -223,57 +184,35 @@ Whichever PDF the user picks is renamed server-side to `DRAFT_ATTACHMENT_FILENAM
 
 ```
 coldMail/
-├── client/                              # React 18 + Vite + Tailwind 3
+├── client/                     # React 18 + Vite + Tailwind 3
 │   └── src/
-│       ├── App.jsx                      # Tabs: Compose / Templates / Resumes / Tailor / Drafts Log
-│       ├── main.jsx                     # Theme class on <html> before React mounts
-│       ├── lib/
-│       │   ├── api.js                   # Axios client + API wrappers
-│       │   ├── aiModel.js               # Provider/model localStorage + request headers
-│       │   ├── tailorApi.js             # Tailor session API client
-│       │   ├── render.js                # Client-side Handlebars preview
-│       │   └── jdContext.jsx            # Shared JD state for compose + tailor
+│       ├── App.jsx             # Auth gate + tabs (Compose/Templates/Resumes/Tailor/Log)
+│       ├── main.jsx            # AuthProvider + JdProvider + theme
+│       ├── context/            # authContext · jdContext · tailorTarget
+│       ├── lib/                # api · authToken · aiModel · aiError · tailorApi · render · utils
 │       └── components/
-│           ├── EmailForm.jsx            # Parent for three compose modes
-│           ├── MailIDPanel.jsx          # By MailID (rose)
-│           ├── CsvUploader.jsx          # By CSV (emerald)
-│           ├── LinkedInPanel.jsx        # By LinkedIn (sky)
-│           ├── EnrichPanel.jsx          # 5 email candidates + per-row Draft
-│           ├── JDMatcher.jsx            # JD → template + resume picker
-│           ├── TemplateLibrary.jsx      # CRUD + auto-tag + tailor entry
-│           ├── ResumeLibrary.jsx        # PDF CRUD + auto-tag
-│           ├── Tailor/                  # Resume + template tailoring UI
-│           ├── GeminiModelPicker.jsx    # Provider/model picker (Gemini + Groq)
-│           ├── HeaderSettingsMenu.jsx   # Status, theme, AI model
-│           └── SentLog.jsx              # Drafts audit log
-├── server/                              # Express 4 (ESM)
+│           ├── EmailForm.jsx   # Three compose modes; applies default template/resume
+│           ├── TemplateLibrary.jsx · ResumeLibrary.jsx   # CRUD + tags + "set as default"
+│           ├── auth/AuthPage.jsx · profile/ProfilePanel.jsx
+│           ├── Tailor/         # Resume + template tailoring UI
+│           └── ...             # panels, pickers, modals, header
+├── server/                     # Express 4 (ESM)
 │   └── src/
-│       ├── app.js                       # CORS, helmet, routes, SPA fallback
-│       ├── index.js                     # Boot, Mongo connect, graceful shutdown
-│       ├── routes/
-│       │   ├── email.js                 # /preview · /send-email · /send-bulk
-│       │   ├── templates.js             # CRUD + suggest-tags
-│       │   ├── resumes.js               # CRUD, multipart PDF, suggest-tags
-│       │   ├── enrich.js                # email · names · jd-match · job-intake
-│       │   ├── tailor.js                # Resume + template tailor sessions
-│       │   ├── ai.js                    # /models · /providers
-│       │   └── log.js                   # Drafts log
-│       ├── services/
-│       │   ├── db.js                    # Mongo client + indexes
-│       │   ├── store.js                 # Generic CRUD (templates, sent_log)
-│       │   ├── resumeStore.js           # Binary-safe resume storage
-│       │   ├── imapDrafts.js            # MIME build + IMAP APPEND
-│       │   ├── enrich.js                # Enrichment + JD match + job intake
-│       │   ├── llm.js                   # Unified Gemini/Groq structured JSON
-│       │   ├── aiModel.js               # Provider/model config + listing
-│       │   ├── templateTags.js          # AI template tagging
-│       │   ├── pdfTags.js               # AI resume PDF tagging
-│       │   ├── mailer.js                # Legacy SMTP / Resend path
-│       │   └── tailor/                  # LaTeX parse, compile, session, AI suggestions
-│       └── middleware/                  # validate · rateLimit · upload · aiModel · error
-├── scripts/                             # CLI apply pipeline (optional automation)
-├── render.yaml                          # Render Blueprint
-└── package.json                         # Root: install:all · dev · build · start
+│       ├── app.js              # helmet · cors(credentials) · cookie-parser · public vs requireAuth routes
+│       ├── index.js            # Boot, Mongo connect, seedAdmin, graceful shutdown
+│       ├── routes/             # auth · email · templates · resumes · enrich · tailor · ai · log
+│       ├── seed/seedAdmin.js   # Idempotent admin seed + claim of unowned docs
+│       ├── middleware/         # auth · aiModel · validate · rateLimit · upload · error
+│       └── services/
+│           ├── db.js           # Mongo client + indexes (incl. users, refresh_tokens, userId)
+│           ├── userContext.js  # AsyncLocalStorage per-user scoping
+│           ├── userStore.js · jwt.js · refreshTokenStore.js   # Auth
+│           ├── store.js · resumeStore.js   # Per-user CRUD (+ isDefault)
+│           ├── imapDrafts.js · mailer.js · enrich.js
+│           ├── llm.js · aiModel.js · aiErrors.js · templateTags.js · pdfTags.js
+│           └── tailor/         # LaTeX parse/compile, sessions, AI suggestions
+├── scripts/                    # CLI apply pipeline (optional automation)
+├── render.yaml · package.json
 ```
 
 ---
@@ -282,56 +221,18 @@ coldMail/
 
 | Collection | Contents |
 |------------|----------|
-| `templates` | `{ id, name, subject, body, tags[], createdAt, updatedAt }` |
-| `resumes` | `{ id, name, tags[], filename, contentType, content (Binary), size }` |
-| `sent_log` | Draft send attempts: recipient, subject, status, timestamp, error |
-| `tailor_sessions` | Resume tailor session state, suggestion queue, applied edits |
+| `users` | `{ id, email (unique), name, passwordHash, createdAt }` |
+| `refresh_tokens` | `{ jti (unique), userId, revoked, expiresAt (TTL) }` — rotation + revocation |
+| `templates` | `{ id, userId, name, subject, body, tags[], isDefault?, createdAt, updatedAt }` |
+| `resumes` | `{ id, userId, name, tags[], filename, contentType, content (Binary), size, isDefault? }` |
+| `sent_log` | `{ id, userId, to, subject, status, sentAt, error? }` |
+| `tailor_sessions` | `{ id, userId, kind, queue/applied state, expiresAt (TTL) }` |
 
-Indexes are ensured on boot via `server/src/services/db.js`.
-
----
-
-## Compose modes
-
-### By MailID (rose)
-
-Paste emails (comma / space / newline). One company applies to all. **Extract names with AI** calls `POST /api/enrich/names`. On failure (quota, blocked Groq model, network), falls back to algorithmic local-part splitting.
-
-### By CSV (emerald)
-
-Upload CSV with `email,name,company,...`. Extra columns become `{{column}}` merge tokens.
-
-### By LinkedIn (sky)
-
-Paste a `linkedin.com/in/<slug>` URL. Name is parsed from the slug. **Find emails with AI** calls `POST /api/enrich/email` → 5 ranked patterns with MX validation.
-
-### Job link
-
-Optional URL field exposed as `{{jobLink}}` for the whole batch. Insert via the **Insert variable** dropdown in Subject/Body.
-
-### Match by JD
-
-Collapsible card above template/resume pickers. Sends JD + library metadata to `POST /api/enrich/jd-match`.
+Indexes (incl. `email` unique, `userId` compound, and TTLs) are ensured on boot in `services/db.js`.
 
 ---
 
-## Library
-
-### Templates
-
-Subject + HTML body + tags. Row actions: Preview, AI Tailor, Auto tag, Edit, Edit a copy, Delete. **Insert variable** dropdown for merge tokens.
-
-### Resumes
-
-PDF upload (≤10 MB), stored inline in MongoDB. Auto-tag reads PDF via Gemini multimodal (Groq falls back to Gemini for PDF).
-
-### Tags
-
-Normalised: lowercase, hyphenated, deduped, max 25 tags × 24 chars. OR-filter pill bar above compose pickers.
-
----
-
-## Configuration reference
+## Configuration
 
 Full template: [`server/.env.example`](./server/.env.example).
 
@@ -345,6 +246,18 @@ CORS_ORIGIN=http://localhost:5173
 MONGODB_URI=mongodb+srv://...
 MONGODB_DB=coldmail
 
+# Auth (JWT) — generate strong random secrets in production
+JWT_ACCESS_SECRET=
+JWT_REFRESH_SECRET=
+JWT_ACCESS_TTL=15m
+JWT_REFRESH_TTL=30d
+AUTH_RATE_LIMIT_MAX=20
+
+# Admin seed (optional) — creates user + claims unowned data on first boot
+SEED_ADMIN_EMAIL=
+SEED_ADMIN_NAME=
+SEED_ADMIN_PASSWORD=
+
 # Gmail — IMAP for drafts; SMTP for local dev fallback
 SMTP_USER=you@gmail.com
 SMTP_PASS=xxxx xxxx xxxx xxxx
@@ -355,83 +268,42 @@ DRAFT_ATTACHMENT_FILENAME=Sk_Sahil_Parvez_CV
 
 # AI — at least one key enables AI features
 GEMINI_API_KEY=
-GEMINI_MODEL=gemini-2.5-flash
 GROQ_API_KEY=
-GROQ_MODEL=llama-3.3-70b-versatile
 AI_PROVIDER=gemini
-ENRICH_CONFIDENCE_THRESHOLD=0.5
 
-# Rate limits
+# Rate limits + Tailor
 RATE_LIMIT_WINDOW_MIN=1
 RATE_LIMIT_MAX=30
-BULK_SEND_DELAY_MS=250
-
-# Tailor
 CV_DEFAULT_PATH=./Sk_Sahil_Parvez_CV_
 TEXLIVE_NET_URL=https://texlive.net/cgi-bin/latexcgi
 ```
 
-### Gmail App Password
-
-1. Enable 2-Step Verification.
-2. Create an app password at <https://myaccount.google.com/apppasswords>.
-3. Paste into `SMTP_PASS` — same credential is used for IMAP.
-
-### AI keys
-
-| Provider | Key URL | Default model |
-|----------|---------|---------------|
-| Gemini | <https://aistudio.google.com/app/apikey> | `gemini-2.5-flash` |
-| Groq | <https://console.groq.com/keys> | `llama-3.3-70b-versatile` |
-
-Pick provider + model in **Settings → AI model**. Choice is sent on every API request and stored in browser localStorage.
+**Gmail:** enable 2-Step Verification, create an app password, use it for `SMTP_PASS` (same credential for IMAP). **AI keys:** [Gemini](https://aistudio.google.com/app/apikey) (`gemini-2.5-flash`) / [Groq](https://console.groq.com/keys) (`llama-3.3-70b-versatile`); pick provider + model in Settings.
 
 ---
 
 ## API reference
 
-All endpoints under `/api`. Rate-limited: send, enrich, tailor.
+All endpoints under `/api`. **Public:** `/health`, `/ai/*`, `/auth/(signup|login|refresh|logout)`. **Everything else requires a Bearer access token.** Rate-limited: auth, send, enrich, tailor.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/health` | Liveness, Mongo ping, `features.aiEnrich`, `features.aiProviders` |
-| GET | `/ai/models?provider=gemini\|groq` | List models for provider |
-| GET | `/ai/providers` | Which providers have keys configured |
-| POST | `/preview` | Server-side Handlebars render |
-| POST | `/send-email` | Save one Gmail draft |
-| POST | `/send-bulk` | Save N drafts sequentially |
-| POST | `/enrich/email` | 5 candidate address patterns |
-| POST | `/enrich/names` | Infer name per email |
-| POST | `/enrich/jd-match` | Pick template + resume for JD |
-| POST | `/enrich/job-intake` | Extract JD fields from URL or paste |
-| GET/POST/PUT/DELETE | `/templates` | Template CRUD |
-| POST | `/templates/suggest-tags` | AI tag suggestions |
-| GET/POST/PUT/DELETE | `/resumes` | Resume CRUD + PDF stream |
-| POST | `/resumes/suggest-tags` | AI tags from uploaded PDF |
+| POST | `/auth/signup` · `/auth/login` | Create / authenticate; returns access token + sets refresh cookie |
+| POST | `/auth/refresh` · `/auth/logout` | Rotate access token / revoke session |
+| GET · PATCH · POST | `/auth/me` · `/auth/profile` · `/auth/change-password` | Current user, update name, change password |
+| GET | `/health` · `/ai/models` · `/ai/providers` | Liveness, model + provider listing |
+| POST | `/preview` · `/send-email` · `/send-bulk` | Render / save one or many drafts |
+| POST | `/enrich/(email\|names\|jd-match\|job-intake)` | AI enrichment |
+| GET/POST/PUT/DELETE | `/templates` · `/resumes` | Per-user CRUD (+ `PUT/DELETE /:id/default`, `/suggest-tags`) |
 | GET/DELETE | `/log` | Drafts log |
 | * | `/tailor/*` | Resume + template tailor sessions |
 
-Example — `POST /send-email`:
+Example — `POST /send-email` (with `Authorization: Bearer <token>`):
 
 ```json
-{
-  "email": "john@example.com",
-  "name": "John",
-  "company": "Acme",
+{ "email": "john@example.com", "name": "John", "company": "Acme",
   "subject": "Quick question for {{company}}",
-  "template": "<h1>Hello {{name}}</h1>",
-  "resumeId": "iops5MJTAc"
-}
-```
-
-Example — `POST /enrich/jd-match`:
-
-```json
-{
-  "jobDescription": "Backend engineer, Java + Kafka...",
-  "templates": [{ "id": "t2", "name": "Backend pitch", "tags": ["backend","java"] }],
-  "resumes": [{ "id": "r2", "name": "Backend v2", "tags": ["backend","sre"] }]
-}
+  "template": "<h1>Hello {{name}}</h1>", "resumeId": "iops5MJTAc" }
 ```
 
 ---
@@ -441,36 +313,29 @@ Example — `POST /enrich/jd-match`:
 [`render.yaml`](./render.yaml) defines a single web service:
 
 1. Push to GitHub → Render **Blueprint** → select repo.
-2. Set secrets: `MONGODB_URI`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`, `GEMINI_API_KEY`, `GROQ_API_KEY` (optional), `RESEND_API_KEY` (optional).
+2. Set secrets: `MONGODB_URI`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `SEED_ADMIN_PASSWORD`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`, `GEMINI_API_KEY`, `GROQ_API_KEY`/`RESEND_API_KEY` (optional).
 3. Atlas → Network Access → allow `0.0.0.0/0` (Render free tier has unstable outbound IPs).
 4. Verify: `GET /api/health` → `{ "ok": true, "features": { "aiEnrich": true } }`.
 
-### Verify production build locally
+Verify the production build locally:
 
 ```bash
 npm run build
-NODE_ENV=production node server/src/index.js
-# SPA:  http://localhost:4000
-# API:  http://localhost:4000/api/health
+NODE_ENV=production node server/src/index.js   # SPA + API on :4000
 ```
 
-### Free-tier caveats
-
-- Render service sleeps after ~15 min idle (30–60s cold start).
-- Atlas M0 may also sleep.
-- Outbound SMTP blocked → IMAP drafts path is the default.
+**Free-tier caveats:** service sleeps after ~15 min idle (30–60s cold start); Atlas M0 may sleep; outbound SMTP blocked so IMAP drafts is the default.
 
 ---
 
 ## Security
 
-- **helmet** — HTTP security headers (CSP disabled so Vite bundles and sandboxed previews work).
-- **CORS** — Allowlist via `CORS_ORIGIN`; dev allows any localhost port.
-- **Validation** — `validator` on send endpoints; rejects empty templates/subjects/emails.
-- **Rate limiting** — `express-rate-limit` on draft + AI routes per IP.
-- **Secrets** — API keys and mail credentials only in `server/.env` / Render env; never sent to client.
-- **Preview sandbox** — Template preview iframe uses `sandbox=""` to block script execution.
-- **AI data minimisation** — JD match sends `{id, name, tags}` only; not full bodies/PDFs unless the feature requires it.
+- **Auth** — bcrypt password hashing; JWT access token in memory + httpOnly refresh cookie with rotation, reuse-detection, and server-side revocation (`refresh_tokens`).
+- **Per-user isolation** — `requireAuth` + `AsyncLocalStorage` scope every store query to the owner; id-based reads/writes verify ownership.
+- **helmet** — security headers (CSP disabled so Vite bundles + sandboxed previews work). **CORS** — allowlist via `CORS_ORIGIN`, `credentials` enabled for the refresh cookie.
+- **Rate limiting** — stricter limiter on auth routes; standard limiter on send + AI routes.
+- **Validation** — `validator` on auth + send endpoints. **Secrets** — only in `server/.env` / Render env, never sent to the client. **Preview sandbox** — template preview iframe uses `sandbox`.
+- **AI data minimisation** — JD match sends `{id, name, tags}` only.
 
 ---
 
@@ -479,17 +344,15 @@ NODE_ENV=production node server/src/index.js
 ```bash
 git clone <repo> coldMail && cd coldMail
 npm run install:all
-cp server/.env.example server/.env   # fill MONGODB_URI, mail creds, AI keys
+cp server/.env.example server/.env   # MONGODB_URI, JWT secrets, mail creds, AI keys
 npm run dev                          # API :4000 + Vite :5173 (proxies /api)
 ```
-
-Root scripts:
 
 | Script | Action |
 |--------|--------|
 | `npm run install:all` | Install root + client + server deps |
-| `npm run dev` | Concurrent client Vite + server `--watch` |
+| `npm run dev` | Concurrent Vite client + `--watch` server |
 | `npm run build` | Build client → `client/dist` |
 | `npm start` | Production: serve SPA + API |
 
-Health check: `GET /api/health` should return `ok: true` and `features.aiEnrich: true` when at least one AI key is set.
+Health check: `GET /api/health` returns `ok: true` and `features.aiEnrich: true` when an AI key is set.

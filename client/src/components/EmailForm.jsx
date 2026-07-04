@@ -30,46 +30,10 @@ function fmtSize(bytes) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const DEFAULT_TEMPLATE = `<div style="font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1f2937;width:100%;line-height:1.65;font-size:15px;">
- <p style="margin:0 0 18px;">Hi {{name}},</p>
-
- <h3 style="margin:22px 0 8px;color:#2563eb;font-size:18px;font-weight:700;">About Me:</h3>
- <p style="margin:0 0 18px;">
- I&rsquo;m Sk Sahil Parvez, a B.Tech graduate in <strong>IT from IIIT Allahabad</strong> (2021&ndash;2025),
- currently pursuing an <strong>FDE certification from IIT Roorkee.</strong>
- </p>
-
- <h3 style="margin:22px 0 8px;color:#dc2626;font-size:18px;font-weight:700;">Why This Mail:</h3>
- <p style="margin:0 0 18px;">
- I currently work at Highspot, bringing my total experience to 1+ year.
- <strong>I&rsquo;d love to be considered for this open opportunity. I would like to discuss it on a call.</strong>
- </p>
-
- <h3 style="margin:22px 0 8px;color:#2563eb;font-size:18px;font-weight:700;">Experience:</h3>
- <ol style="margin:0 0 18px;padding-left:20px;">
- <li style="margin-bottom:6px;">
- <strong>SDE at Highspot</strong>&mdash;Working on Analytics using React, Golang, MongoDB, GraphQL, JavaScript, and Ruby.
- </li>
- <li style="margin-bottom:6px;">
- <strong>SDE Intern at Zscaler</strong>&mdash;Worked on Observability (OpenTelemetry, Prometheus, and Grafana), Docker and CI/CD.
- </li>
- <li style="margin-bottom:6px;">
- <strong>SDE Intern at Fractal Analytics</strong>&mdash;Worked with React &amp; SQL, built automated test scripts in Python, optimized LLM outputs.
- </li>
- </ol>
-
- <p style="margin:0 0 18px;">I invite you to explore my CV.</p>
-
- <p style="margin:22px 0 0;">
- Best Wishes,<br>
- Sk Sahil Parvez<br>
- <a href="https://www.linkedin.com/in/" style="color:#2563eb;text-decoration:underline;">LinkedIn</a> | Phone: (+91) 9874435806<br>
- Email: <a href="mailto:sksahilparvez2000@gmail.com" style="color:#2563eb;text-decoration:underline;">sksahilparvez2000@gmail.com</a>
- </p>
-</div>`;
-
-const DEFAULT_SUBJECT =
-  "SK Sahil – IIIT Allahabad | Highspot | 1+ YoE | Interested in {{company}}";
+// Compose starts blank. The user's chosen default template (if any) is applied
+// on load, and any saved template can be marked default from the Templates tab.
+const BLANK_SUBJECT = "";
+const BLANK_TEMPLATE = "";
 
 // Each mode carries a tone so the active tab gets a clear color cue:
 // email-ish = rose (red), csv = emerald (green), linkedin = sky (blue).
@@ -86,7 +50,8 @@ const MODE_PANEL_CLASS = {
   linkedin: "panel-mode panel-mode-sky",
 };
 
-const DEFAULT_TEMPLATE_ID = "__default__";
+// Sentinel for the "no template / blank" picker option.
+const BLANK_TEMPLATE_ID = "";
 
 // Per-recipient send statuses (keyed by email). 'sending' shows a spinner,
 // 'drafted' / 'failed' show a coloured dot. Cleared when the user kicks off
@@ -106,8 +71,8 @@ export default function EmailForm({
   aiEnabled = false,
 }) {
   const [mode, setMode] = useState("mailid");
-  const [subject, setSubject] = useState(DEFAULT_SUBJECT);
-  const [template, setTemplate] = useState(DEFAULT_TEMPLATE);
+  const [subject, setSubject] = useState(BLANK_SUBJECT);
+  const [template, setTemplate] = useState(BLANK_TEMPLATE);
 
   // Per-mode recipients — switching modes no longer destroys what you typed
   // into the other mode's pane.
@@ -154,7 +119,12 @@ export default function EmailForm({
   const [templates, setTemplates] = useState([]);
   const [, setTemplatesLoading] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] =
-    useState(DEFAULT_TEMPLATE_ID);
+    useState(BLANK_TEMPLATE_ID);
+
+  // Auto-apply the user's default template/resume only once, and only if they
+  // haven't arrived via a "Use" action from the library.
+  const defaultTemplateAppliedRef = useRef(false);
+  const defaultResumeAppliedRef = useRef(false);
 
   const subjectRef = useRef(null);
   const bodyRef = useRef(null);
@@ -163,9 +133,11 @@ export default function EmailForm({
   // Hydrate from a chosen saved template
   useEffect(() => {
     if (initialTemplate) {
+      // Arrived via "Use" — takes precedence over any auto-applied default.
+      defaultTemplateAppliedRef.current = true;
       setSubject(initialTemplate.subject || "");
       setTemplate(initialTemplate.body || "");
-      setSelectedTemplateId(initialTemplate.id || DEFAULT_TEMPLATE_ID);
+      setSelectedTemplateId(initialTemplate.id || BLANK_TEMPLATE_ID);
       toast.success(`Loaded template"${initialTemplate.name}"`);
       onClearTemplate?.();
     }
@@ -175,6 +147,7 @@ export default function EmailForm({
   // Hydrate attachment from a chosen saved resume (Resumes tab → Use).
   useEffect(() => {
     if (!initialResume?.id) return;
+    defaultResumeAppliedRef.current = true;
     setAttachment({ resumeId: initialResume.id, deviceFile: null });
     toast.success(`Attached"${initialResume.name || "resume"}"`);
     onClearResume?.();
@@ -185,7 +158,19 @@ export default function EmailForm({
     setTemplatesLoading(true);
     try {
       const data = await api.listTemplates();
-      setTemplates(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+      setTemplates(list);
+      // Apply the user's default template on first load (unless a template was
+      // already loaded via "Use").
+      if (!defaultTemplateAppliedRef.current && !initialTemplate) {
+        const def = list.find((t) => t.isDefault);
+        if (def) {
+          setSelectedTemplateId(def.id);
+          setSubject(def.subject || "");
+          setTemplate(def.body || "");
+        }
+      }
+      defaultTemplateAppliedRef.current = true;
     } catch (err) {
       console.warn("Failed to load templates:", err.message);
     } finally {
@@ -200,7 +185,21 @@ export default function EmailForm({
   const loadResumes = async () => {
     try {
       const data = await api.listResumes();
-      setResumes(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+      setResumes(list);
+      // Pre-select the user's default resume on first load (unless one was
+      // already attached via "Use" or a device upload).
+      if (!defaultResumeAppliedRef.current && !initialResume) {
+        const def = list.find((r) => r.isDefault);
+        if (def) {
+          setAttachment((prev) =>
+            prev.resumeId || prev.deviceFile
+              ? prev
+              : { resumeId: def.id, deviceFile: null },
+          );
+        }
+      }
+      defaultResumeAppliedRef.current = true;
     } catch (err) {
       console.warn("Failed to load resumes:", err.message);
     }
@@ -296,9 +295,9 @@ export default function EmailForm({
 
   const onPickTemplate = (id) => {
     setSelectedTemplateId(id);
-    if (id === DEFAULT_TEMPLATE_ID) {
-      setSubject(DEFAULT_SUBJECT);
-      setTemplate(DEFAULT_TEMPLATE);
+    if (id === BLANK_TEMPLATE_ID) {
+      setSubject(BLANK_SUBJECT);
+      setTemplate(BLANK_TEMPLATE);
       return;
     }
     const tpl = templates.find((t) => t.id === id);
@@ -685,9 +684,10 @@ export default function EmailForm({
                         value={selectedTemplateId}
                         onChange={(e) => onPickTemplate(e.target.value)}
                       >
-                        <option value={DEFAULT_TEMPLATE_ID}>(Default)</option>
+                        <option value={BLANK_TEMPLATE_ID}>(None / blank)</option>
                         {filteredTemplates.map((t) => (
                           <option key={t.id} value={t.id}>
+                            {t.isDefault ? "★ " : ""}
                             {t.tags?.length
                               ? `${t.name} · ${t.tags.join(",")}`
                               : t.name}
@@ -766,7 +766,7 @@ export default function EmailForm({
                       ) : (
                         <p className="text-xs text-ui-fg-muted">
                           {template.trim().length
-                            ? `${template.length} chars · using ${selectedTemplateId === DEFAULT_TEMPLATE_ID ? "(Default)" : templates.find((t) => t.id === selectedTemplateId)?.name || "custom"}.`
+                            ? `${template.length} chars · using ${selectedTemplateId === BLANK_TEMPLATE_ID ? "custom" : templates.find((t) => t.id === selectedTemplateId)?.name || "custom"}.`
                             : "No body set yet."}
                           {""}
                           Click <strong>Edit body</strong> to tweak inline, or
@@ -810,6 +810,7 @@ export default function EmailForm({
                             <optgroup label="Saved resumes">
                               {filteredResumes.map((r) => (
                                 <option key={r.id} value={r.id}>
+                                  {r.isDefault ? "★ " : ""}
                                   {r.tags?.length
                                     ? `${r.name} · ${r.tags.join(",")}`
                                     : r.name}

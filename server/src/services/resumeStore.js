@@ -95,4 +95,31 @@ export const resumeStore = {
     const res = await col().deleteOne({ id, userId: requireCurrentUserId() });
     return res.deletedCount > 0;
   },
+
+  // Mark one resume as the user's default (or clear it). At most one default
+  // per user. Returns the updated metadata, or null if not found / not owned.
+  async setDefault(id, flag = true) {
+    const userId = requireCurrentUserId();
+    const projection = { content: 0, userId: 0 };
+    if (!flag) {
+      const res = await col().findOneAndUpdate(
+        { id, userId },
+        { $unset: { isDefault: '' } },
+        { returnDocument: 'after', projection }
+      );
+      return res?.value || res || null;
+    }
+    const res = await col().findOneAndUpdate(
+      { id, userId },
+      { $set: { isDefault: true } },
+      { returnDocument: 'after', projection }
+    );
+    const updated = res?.value || res || null;
+    if (!updated) return null;
+    await col().updateMany(
+      { userId, isDefault: true, id: { $ne: id } },
+      { $unset: { isDefault: '' } }
+    );
+    return updated;
+  },
 };

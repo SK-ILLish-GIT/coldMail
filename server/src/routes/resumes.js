@@ -195,6 +195,28 @@ router.put('/:id', async (req, res, next) => {
   }
 });
 
+// PUT /api/resumes/:id/default — mark as the user's default resume.
+router.put('/:id/default', async (req, res, next) => {
+  try {
+    const updated = await resumeStore.setDefault(req.params.id, true);
+    if (!updated) throw new HttpError(404, 'Resume not found.');
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/resumes/:id/default — clear the default flag.
+router.delete('/:id/default', async (req, res, next) => {
+  try {
+    const updated = await resumeStore.setDefault(req.params.id, false);
+    if (!updated) throw new HttpError(404, 'Resume not found.');
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // DELETE /api/resumes/:id
 router.delete('/:id', async (req, res, next) => {
   try {

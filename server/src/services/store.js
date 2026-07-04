@@ -52,6 +52,36 @@ export function createCollection(name) {
     async clear() {
       await col().deleteMany({ userId: requireCurrentUserId() });
     },
+
+    /**
+     * Mark one document as the user's default (or clear it). Setting a new
+     * default clears the flag from any previous default so at most one exists
+     * per user. Returns the updated doc, or null if not found / not owned.
+     */
+    async setDefault(id, flag = true) {
+      const userId = requireCurrentUserId();
+      const projection = { _id: 0, userId: 0 };
+      if (!flag) {
+        const res = await col().findOneAndUpdate(
+          { id, userId },
+          { $unset: { isDefault: '' } },
+          { returnDocument: 'after', projection }
+        );
+        return res?.value || res || null;
+      }
+      const res = await col().findOneAndUpdate(
+        { id, userId },
+        { $set: { isDefault: true } },
+        { returnDocument: 'after', projection }
+      );
+      const updated = res?.value || res || null;
+      if (!updated) return null;
+      await col().updateMany(
+        { userId, isDefault: true, id: { $ne: id } },
+        { $unset: { isDefault: '' } }
+      );
+      return updated;
+    },
   };
 }
 

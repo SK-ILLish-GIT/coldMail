@@ -101,6 +101,8 @@ export const api = {
   createTemplate: (payload) => call("post", "/templates", payload),
   updateTemplate: (id, payload) => call("put", `/templates/${id}`, payload),
   deleteTemplate: (id) => call("delete", `/templates/${id}`),
+  setDefaultTemplate: (id) => call("put", `/templates/${id}/default`),
+  clearDefaultTemplate: (id) => call("delete", `/templates/${id}/default`),
   // AI: ask Gemini for tag suggestions based on a template's subject + body.
   // Stateless; the caller decides whether to merge/replace existing tags.
   suggestTemplateTags: ({ subject, body, tags }) =>
@@ -140,5 +142,17 @@ export const api = {
   // Back-compat shim for callers that only want to rename.
   renameResume: (id, name) => call("put", `/resumes/${id}`, { name }),
   deleteResume: (id) => call("delete", `/resumes/${id}`),
+  setDefaultResume: (id) => call("put", `/resumes/${id}/default`),
+  clearDefaultResume: (id) => call("delete", `/resumes/${id}/default`),
   resumeDownloadUrl: (id) => `${baseURL}/resumes/${id}`,
+  // Downloads are auth-protected (Bearer), so a plain link 401s. Fetch the PDF
+  // with the authenticated client and hand back an object URL to open.
+  openResumeObjectUrl: async (id) => {
+    const res = await client.request({
+      method: "get",
+      url: `/resumes/${id}`,
+      responseType: "blob",
+    });
+    return URL.createObjectURL(res.data);
+  },
 };

@@ -185,6 +185,21 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
     }
   };
 
+  const toggleDefault = async (tpl) => {
+    try {
+      if (tpl.isDefault) {
+        await api.clearDefaultTemplate(tpl.id);
+        toast.success("Removed default template.");
+      } else {
+        await api.setDefaultTemplate(tpl.id);
+        toast.success(`"${tpl.name}" is now your default template.`);
+      }
+      refresh();
+    } catch (err) {
+      toast.error(err.message || "Could not update default");
+    }
+  };
+
   // ----------------------- Auto-tag flow -----------------------
   // Shared helper: fetch AI suggestions for arbitrary subject/body/tags and
   // stage them into AutoTagModal. mode controls how Apply behaves.
@@ -328,8 +343,13 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
                 className="flex flex-wrap items-start justify-between gap-3 px-6 py-4 transition hover:bg-ui-inset/50"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-ui-fg">
-                    {tpl.name}
+                  <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-ui-fg">
+                    <span className="truncate">{tpl.name}</span>
+                    {tpl.isDefault && (
+                      <span className="pill shrink-0 bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-100 dark:bg-brand-500/15 dark:text-brand-300">
+                        ★ Default
+                      </span>
+                    )}
                   </p>
                   <p className="mt-0.5 truncate text-xs text-ui-fg-muted">
                     {tpl.subject}
@@ -361,6 +381,13 @@ export default function TemplateLibrary({ onUseTemplate, aiEnabled = false }) {
                       {
                         label: "Preview",
                         onClick: () => setPreviewing(tpl),
+                      },
+                      {
+                        label: tpl.isDefault
+                          ? "Remove default"
+                          : "Set as default",
+                        onClick: () => toggleDefault(tpl),
+                        tone: "emerald",
                       },
                       {
                         label: "AI Tailor",

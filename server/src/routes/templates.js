@@ -95,6 +95,28 @@ router.put('/:id', validateTemplate, async (req, res, next) => {
   }
 });
 
+// PUT /api/templates/:id/default — mark as the user's default template.
+router.put('/:id/default', async (req, res, next) => {
+  try {
+    const updated = await templatesStore.setDefault(req.params.id, true);
+    if (!updated) throw new HttpError(404, 'Template not found');
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/templates/:id/default — clear the default flag.
+router.delete('/:id/default', async (req, res, next) => {
+  try {
+    const updated = await templatesStore.setDefault(req.params.id, false);
+    if (!updated) throw new HttpError(404, 'Template not found');
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.delete('/:id', async (req, res, next) => {
   try {
     const removed = await templatesStore.remove({ id: req.params.id });

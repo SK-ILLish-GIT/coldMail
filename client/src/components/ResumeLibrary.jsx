@@ -379,6 +379,36 @@ export default function ResumeLibrary({
     }
   };
 
+  const toggleDefault = async (item) => {
+    try {
+      if (item.isDefault) {
+        await api.clearDefaultResume(item.id);
+        toast.success("Removed default resume.");
+      } else {
+        await api.setDefaultResume(item.id);
+        toast.success(`"${item.name}" is now your default resume.`);
+      }
+      await refresh();
+    } catch (err) {
+      toast.error(err.message || "Could not update default");
+    }
+  };
+
+  // Downloads are auth-protected, so open via an authenticated blob fetch
+  // instead of a plain link (which would 401). Open the tab synchronously to
+  // dodge popup blockers, then point it at the object URL.
+  const viewResume = async (item) => {
+    const win = window.open("", "_blank");
+    try {
+      const url = await api.openResumeObjectUrl(item.id);
+      if (win) win.location = url;
+      else window.open(url, "_blank");
+    } catch (err) {
+      if (win) win.close();
+      toast.error(err.message || "Could not open resume");
+    }
+  };
+
   return (
     <>
       <section className="card overflow-hidden">
@@ -461,8 +491,13 @@ export default function ResumeLibrary({
                     </>
                   ) : (
                     <>
-                      <p className="truncate text-sm font-medium text-ui-fg">
-                        {r.name}
+                      <p className="flex items-center gap-1.5 truncate text-sm font-medium text-ui-fg">
+                        <span className="truncate">{r.name}</span>
+                        {r.isDefault && (
+                          <span className="pill shrink-0 bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-100 dark:bg-brand-500/15 dark:text-brand-300">
+                            ★ Default
+                          </span>
+                        )}
                       </p>
                       {r.tailoredFor ? (
                         <div className="mt-1">
@@ -515,8 +550,14 @@ export default function ResumeLibrary({
                         items={[
                           {
                             label: "View",
-                            href: api.resumeDownloadUrl(r.id),
-                            target: "_blank",
+                            onClick: () => viewResume(r),
+                            tone: "emerald",
+                          },
+                          {
+                            label: r.isDefault
+                              ? "Remove default"
+                              : "Set as default",
+                            onClick: () => toggleDefault(r),
                             tone: "emerald",
                           },
                           {

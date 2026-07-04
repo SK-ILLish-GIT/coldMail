@@ -19,14 +19,27 @@ async function ensureIndexes(database) {
   await Promise.all([
     database.collection('templates').createIndex({ updatedAt: -1 }),
     database.collection('templates').createIndex({ id: 1 }, { unique: true }),
+    database.collection('templates').createIndex({ userId: 1, updatedAt: -1 }),
     database.collection('sent_log').createIndex({ sentAt: -1 }),
     database.collection('sent_log').createIndex({ status: 1 }),
     database.collection('sent_log').createIndex({ id: 1 }, { unique: true }),
+    database.collection('sent_log').createIndex({ userId: 1, sentAt: -1 }),
     database.collection('resumes').createIndex({ createdAt: -1 }),
     database.collection('resumes').createIndex({ id: 1 }, { unique: true }),
+    database.collection('resumes').createIndex({ userId: 1, createdAt: -1 }),
     database.collection('tailor_sessions').createIndex({ id: 1 }, { unique: true }),
     database.collection('tailor_sessions').createIndex({ kind: 1, updatedAt: -1 }),
+    database.collection('tailor_sessions').createIndex({ userId: 1, kind: 1, updatedAt: -1 }),
     database.collection('tailor_sessions').createIndex(
+      { expiresAt: 1 },
+      { expireAfterSeconds: 0 }
+    ),
+    // Auth collections.
+    database.collection('users').createIndex({ email: 1 }, { unique: true }),
+    database.collection('users').createIndex({ id: 1 }, { unique: true }),
+    database.collection('refresh_tokens').createIndex({ jti: 1 }, { unique: true }),
+    database.collection('refresh_tokens').createIndex({ userId: 1 }),
+    database.collection('refresh_tokens').createIndex(
       { expiresAt: 1 },
       { expireAfterSeconds: 0 }
     ),

@@ -4,6 +4,7 @@ import { Toaster } from "react-hot-toast";
 
 import App from "./App.jsx";
 import { JdProvider } from "./lib/jdContext.jsx";
+import { AuthProvider } from "./lib/authContext.jsx";
 import "./index.css";
 
 // Sync the theme class on <html> BEFORE React mounts. This avoids the
@@ -22,9 +23,11 @@ import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <JdProvider>
-      <App />
-    </JdProvider>
+    <AuthProvider>
+      <JdProvider>
+        <App />
+      </JdProvider>
+    </AuthProvider>
     <Toaster
       position="top-right"
       toastOptions={{

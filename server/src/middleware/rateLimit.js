@@ -4,6 +4,18 @@ const windowMin = Number(process.env.RATE_LIMIT_WINDOW_MIN) || 1;
 const max = Number(process.env.RATE_LIMIT_MAX) || 30;
 
 /**
+ * Stricter limiter for auth endpoints (login/signup/refresh) to slow down
+ * credential-stuffing and token-guessing. Keyed by IP.
+ */
+export const authLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: Number(process.env.AUTH_RATE_LIMIT_MAX) || 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts. Please wait a few minutes and try again.' },
+});
+
+/**
  * Throttles outbound email endpoints per client IP. Bulk requests count as a
  * single hit here; pacing inside a bulk request is handled in the route.
  */

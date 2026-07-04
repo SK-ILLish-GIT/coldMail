@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
 import { api } from "./lib/api.js";
+import { useAuth } from "./lib/authContext.jsx";
 import { tabClick, tabMouseDown } from "./lib/tabButton.js";
 import { TailorTargetProvider } from "./lib/tailorTarget.jsx";
 import EmailForm from "./components/EmailForm.jsx";
@@ -10,6 +11,8 @@ import ResumeLibrary from "./components/ResumeLibrary.jsx";
 import SentLog from "./components/SentLog.jsx";
 import AppFooter from "./components/AppFooter.jsx";
 import HeaderSettingsMenu from "./components/HeaderSettingsMenu.jsx";
+import AuthPage from "./components/auth/AuthPage.jsx";
+import ProfilePanel from "./components/profile/ProfilePanel.jsx";
 import TailorPage from "./components/Tailor/TailorPage.jsx";
 import { useTheme } from "./components/ThemeToggle.jsx";
 
@@ -32,9 +35,11 @@ function readTabFromHash() {
 }
 
 export default function App() {
+  const { user, loading: authLoading } = useAuth();
   const [tab, setTabState] = useState(readTabFromHash);
   const [activeTemplate, setActiveTemplate] = useState(null);
   const [activeResume, setActiveResume] = useState(null);
+  const [showProfile, setShowProfile] = useState(false);
   const [theme, setTheme] = useTheme();
   const [health, setHealth] = useState({
     loading: true,
@@ -124,9 +129,25 @@ export default function App() {
     }
   };
 
+  if (authLoading) {
+    return (
+      <div className="flex min-h-full items-center justify-center bg-ui-app">
+        <div className="flex items-center gap-3 text-sm text-ui-fg-muted">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-ui-border border-t-brand-600" />
+          Loading…
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthPage />;
+  }
+
   return (
     <TailorTargetProvider onRequestTab={setTab}>
       <div className="flex min-h-full flex-col">
+        {showProfile && <ProfilePanel onClose={() => setShowProfile(false)} />}
         <header className="sticky top-0 z-30 border-b border-ui-border/80 bg-ui-panel/95 shadow-sm backdrop-blur-md dark:shadow-none">
           <div className="mx-auto flex max-w-screen-2xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-3.5">
             <div className="flex items-center gap-3">
@@ -183,6 +204,15 @@ export default function App() {
                 onToggleTheme={toggleTheme}
                 onAiPillClick={handleAiPillClick}
               />
+              <button
+                type="button"
+                onClick={() => setShowProfile(true)}
+                title={`${user.name || user.email} — profile`}
+                aria-label="Open profile"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-600 text-sm font-semibold uppercase text-white shadow-sm ring-1 ring-inset ring-brand-700/20 hover:bg-brand-500"
+              >
+                {(user.name || user.email || "?").trim().charAt(0)}
+              </button>
             </div>
           </div>
         </header>

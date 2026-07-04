@@ -5,10 +5,13 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
 
 import { sendLimiter } from './middleware/rateLimit.js';
 import { aiModelMiddleware } from './middleware/aiModel.js';
+import { requireAuth } from './middleware/auth.js';
 import { errorHandler, notFound } from './middleware/error.js';
+import authRoutes from './routes/auth.js';
 import emailRoutes from './routes/email.js';
 import templateRoutes from './routes/templates.js';
 import logRoutes from './routes/log.js';
@@ -54,11 +57,21 @@ export function createApp() {
         if (isAllowedOrigin(origin)) return cb(null, true);
         return cb(new Error(`Origin ${origin} not allowed by CORS`));
       },
-      allowedHeaders: ['Content-Type', 'X-Gemini-Model', 'X-AI-Provider', 'X-AI-Model'],
+      // Needed so the browser sends/stores the httpOnly refresh cookie on
+      // cross-origin (dev) requests to /api/auth.
+      credentials: true,
+      allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'X-Gemini-Model',
+        'X-AI-Provider',
+        'X-AI-Model',
+      ],
     })
   );
 
   app.use(express.json({ limit: '1mb' }));
+  app.use(cookieParser());
   if (process.env.NODE_ENV !== 'test') {
     app.use(morgan('dev'));
   }
@@ -83,6 +96,15 @@ export function createApp() {
     });
   });
 
+  // --- Public endpoints (no auth) ---
+  // Auth flow (login/signup/refresh/logout) plus AI model listing.
+  app.use('/api/auth', authRoutes);
+  app.use('/api/ai', aiRoutes);
+
+  // --- Everything below requires a valid access token ---
+  // requireAuth also establishes the per-user context that scopes all stores.
+  app.use('/api', requireAuth);
+
   // Send + enrich endpoints are rate-limited; reads are not.
   app.use('/api', sendLimiter, emailRoutes);
   app.use('/api/enrich', sendLimiter, enrichRoutes);
@@ -91,7 +113,6 @@ export function createApp() {
   app.use('/api/resumes', resumeRoutes);
   // Tailor endpoints hit Gemini and (optionally) texlive.net; rate-limited.
   app.use('/api/tailor', sendLimiter, tailorRoutes);
-  app.use('/api/ai', aiRoutes);
 
   // In production we run as a single process: Express serves the built React
   // SPA from client/dist and falls back to index.html for client-side routes.

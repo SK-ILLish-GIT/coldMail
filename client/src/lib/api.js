@@ -1,16 +1,19 @@
 import axios from "axios";
 
 import { attachAiModelRequest } from "./aiModel.js";
+import { installAuthInterceptors } from "./authToken.js";
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || "/api";
 
 const client = axios.create({
   baseURL,
   timeout: 60_000,
+  withCredentials: true,
   headers: { "Content-Type": "application/json" },
 });
 
 client.interceptors.request.use(attachAiModelRequest);
+installAuthInterceptors(client);
 
 function unwrapError(err) {
   if (err.response?.data?.error) {
@@ -66,6 +69,14 @@ function buildSendFormData(payload, attachments) {
 
 export const api = {
   health: () => call("get", "/health"),
+
+  // --- Auth ---
+  login: (payload) => call("post", "/auth/login", payload),
+  signup: (payload) => call("post", "/auth/signup", payload),
+  logout: () => call("post", "/auth/logout"),
+  me: () => call("get", "/auth/me"),
+  updateProfile: (patch) => call("patch", "/auth/profile", patch),
+  changePassword: (payload) => call("post", "/auth/change-password", payload),
 
   listAiModels: (provider) =>
     call("get", provider ? `/ai/models?provider=${encodeURIComponent(provider)}` : "/ai/models"),

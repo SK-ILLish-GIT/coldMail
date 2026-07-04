@@ -66,6 +66,15 @@ services:
       # saved into the Gmail draft under this exact name + ".pdf".
       - key: DRAFT_ATTACHMENT_FILENAME
         value: Sk_Sahil_Parvez_CV
+      # --- Auth (non-secret) ---
+      - key: JWT_ACCESS_TTL
+        value: 15m
+      - key: JWT_REFRESH_TTL
+        value: 30d
+      - key: SEED_ADMIN_EMAIL
+        value: sksahilparvez2000@gmail.com
+      - key: SEED_ADMIN_NAME
+        value: Sahil
 
       # --- Secrets: set these manually in the Render dashboard ---
       - key: MONGODB_URI
@@ -85,4 +94,11 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: GROQ_API_KEY
+        sync: false
+      # --- Auth secrets (set real values in the Render dashboard) ---
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: SEED_ADMIN_PASSWORD
         sync: false

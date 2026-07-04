@@ -1,16 +1,19 @@
 import axios from "axios";
 
 import { attachAiModelRequest } from "./aiModel.js";
+import { installAuthInterceptors } from "./authToken.js";
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || "/api";
 
 const client = axios.create({
   baseURL: `${baseURL}/tailor`,
   timeout: 120_000,
+  withCredentials: true,
   headers: { "Content-Type": "application/json" },
 });
 
 client.interceptors.request.use(attachAiModelRequest);
+installAuthInterceptors(client);
 
 function unwrapError(err) {
   if (err.response?.data?.error) {

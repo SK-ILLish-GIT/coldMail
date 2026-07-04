@@ -1,4 +1,5 @@
 import { getDb } from '../db.js';
+import { requireCurrentUserId } from '../userContext.js';
 
 export const TAILOR_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -9,8 +10,9 @@ function collection() {
   return getDb().collection(COLLECTION);
 }
 
+// Namespace by owner so a cached session can never be served to another user.
 function cacheKey(kind, id) {
-  return `${kind}:${id}`;
+  return `${requireCurrentUserId()}:${kind}:${id}`;
 }
 
 export function touchSessionTimestamps(session) {
@@ -42,9 +44,12 @@ function docForMongo(doc) {
 }
 
 export async function persistSessionDoc(doc) {
-  await collection().replaceOne({ id: doc.id, kind: doc.kind }, docForMongo(doc), {
-    upsert: true,
-  });
+  const userId = requireCurrentUserId();
+  await collection().replaceOne(
+    { id: doc.id, kind: doc.kind, userId },
+    docForMongo({ ...doc, userId }),
+    { upsert: true }
+  );
 }
 
 export async function loadSessionDoc(id, kind) {
@@ -56,7 +61,7 @@ export async function loadSessionDoc(id, kind) {
   if (hit) cache.delete(key);
 
   const doc = await collection().findOne(
-    { id, kind, status: { $ne: 'abandoned' } },
+    { id, kind, userId: requireCurrentUserId(), status: { $ne: 'abandoned' } },
     { projection: { _id: 0 } }
   );
   if (!doc || toMs(doc.expiresAt) < Date.now()) return null;
@@ -77,6 +82,7 @@ export async function findLatestActiveDoc(kind) {
   const doc = await collection().findOne(
     {
       kind,
+      userId: requireCurrentUserId(),
       status: { $ne: 'abandoned' },
       expiresAt: { $gt: new Date() },
     },
@@ -91,7 +97,7 @@ export async function findLatestActiveDoc(kind) {
 export async function abandonSession(id, kind) {
   dropCached(kind, id);
   await collection().updateOne(
-    { id, kind },
+    { id, kind, userId: requireCurrentUserId() },
     { $set: { status: 'abandoned', updatedAt: Date.now() } }
   );
 }

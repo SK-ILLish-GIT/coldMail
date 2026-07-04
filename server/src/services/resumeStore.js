@@ -2,6 +2,7 @@ import { Binary } from 'mongodb';
 import { nanoid } from 'nanoid';
 
 import { getDb } from './db.js';
+import { requireCurrentUserId } from './userContext.js';
 import { normalizeTags } from '../utils/tags.js';
 
 const COLLECTION = 'resumes';
@@ -28,13 +29,13 @@ function toBuffer(value) {
 export const resumeStore = {
   async list() {
     return col()
-      .find({}, { projection: { content: 0 } })
+      .find({ userId: requireCurrentUserId() }, { projection: { content: 0, userId: 0 } })
       .sort({ createdAt: -1 })
       .toArray();
   },
 
   async get(id) {
-    const doc = await col().findOne({ id });
+    const doc = await col().findOne({ id, userId: requireCurrentUserId() });
     if (!doc) return null;
     return { ...doc, content: toBuffer(doc.content) };
   },
@@ -45,6 +46,7 @@ export const resumeStore = {
     const normTags = normalizeTags(tags);
     const doc = {
       id,
+      userId: requireCurrentUserId(),
       name: String(name || '').trim(),
       filename: String(filename || '').trim(),
       contentType: contentType || 'application/pdf',
@@ -66,9 +68,9 @@ export const resumeStore = {
     if (typeof name === 'string') $set.name = name.trim();
     if (tags !== undefined) $set.tags = normalizeTags(tags);
     const res = await col().findOneAndUpdate(
-      { id },
+      { id, userId: requireCurrentUserId() },
       { $set },
-      { returnDocument: 'after', projection: { content: 0 } }
+      { returnDocument: 'after', projection: { content: 0, userId: 0 } }
     );
     return res?.value || res || null;
   },
@@ -82,15 +84,15 @@ export const resumeStore = {
       updatedAt: new Date().toISOString(),
     };
     const res = await col().findOneAndUpdate(
-      { id },
+      { id, userId: requireCurrentUserId() },
       { $set },
-      { returnDocument: 'after', projection: { content: 0 } }
+      { returnDocument: 'after', projection: { content: 0, userId: 0 } }
     );
     return res?.value || res || null;
   },
 
   async delete(id) {
-    const res = await col().deleteOne({ id });
+    const res = await col().deleteOne({ id, userId: requireCurrentUserId() });
     return res.deletedCount > 0;
   },
 };

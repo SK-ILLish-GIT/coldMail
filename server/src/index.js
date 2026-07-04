@@ -5,6 +5,7 @@ import { config as loadDotenv } from 'dotenv';
 
 import { createApp } from './app.js';
 import { connect, disconnect } from './services/db.js';
+import { seedAdmin } from './seed/seedAdmin.js';
 
 // Anchor .env to the server/ directory so `npm start` works from either
 // the repo root (production single-origin deploy) or the server folder
@@ -23,6 +24,11 @@ async function main() {
     console.log(
       `[coldMail] storage: mongodb (db=${(process.env.MONGODB_DB || 'coldmail').trim()})`
     );
+    try {
+      await seedAdmin();
+    } catch (err) {
+      console.error(`[coldMail] admin seed failed (continuing): ${err.message}`);
+    }
   } catch (err) {
     console.error(
       `[coldMail] Cannot connect to MongoDB: ${err.message}\n` +

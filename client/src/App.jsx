@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
 import { api } from "./lib/api.js";
-import { useAuth } from "./lib/authContext.jsx";
+import { useAuth } from "./context/authContext.jsx";
 import { tabClick, tabMouseDown } from "./lib/tabButton.js";
-import { TailorTargetProvider } from "./lib/tailorTarget.jsx";
+import { TailorTargetProvider } from "./context/tailorTarget.jsx";
 import EmailForm from "./components/EmailForm.jsx";
 import TemplateLibrary from "./components/TemplateLibrary.jsx";
 import ResumeLibrary from "./components/ResumeLibrary.jsx";

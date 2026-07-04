@@ -3,15 +3,15 @@ import toast from "react-hot-toast";
 
 import { api } from "../../lib/api.js";
 import {
-  formatGeminiError,
-  isGeminiQuotaError,
-} from "../../lib/geminiError.js";
+  formatAiError as formatGeminiError,
+  isAiQuotaError as isGeminiQuotaError,
+} from "../../lib/aiError.js";
 import { tailorApi } from "../../lib/tailorApi.js";
 import {
   getStoredTemplateSessionId,
   setStoredTemplateSessionId,
 } from "../../lib/tailorSessionStorage.js";
-import { useJd } from "../../lib/jdContext.jsx";
+import { useJd } from "../../context/jdContext.jsx";
 import AutoTagModal from "../AutoTagModal.jsx";
 import Spinner from "../Spinner.jsx";
 import { TagInput } from "../Tags.jsx";

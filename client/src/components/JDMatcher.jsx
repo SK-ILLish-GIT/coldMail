@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
 import { api } from "../lib/api.js";
-import { useJd } from "../lib/jdContext.jsx";
-import { useTailorTarget } from "../lib/tailorTarget.jsx";
+import { useJd } from "../context/jdContext.jsx";
+import { useTailorTarget } from "../context/tailorTarget.jsx";
 import Spinner from "./Spinner.jsx";
 
 /**

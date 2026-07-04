@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 import { api } from "../lib/api.js";
 import { confirmAsync } from "../lib/confirm.jsx";
 import { extractVariables, renderTemplate } from "../lib/render.js";
-import { useTailorTarget } from "../lib/tailorTarget.jsx";
+import { useTailorTarget } from "../context/tailorTarget.jsx";
 import AutoTagModal from "./AutoTagModal.jsx";
 import EmptyState from "./EmptyState.jsx";
 import PreviewModal from "./PreviewModal.jsx";

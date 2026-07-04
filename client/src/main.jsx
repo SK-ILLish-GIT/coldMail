@@ -3,8 +3,8 @@ import ReactDOM from "react-dom/client";
 import { Toaster } from "react-hot-toast";
 
 import App from "./App.jsx";
-import { JdProvider } from "./lib/jdContext.jsx";
-import { AuthProvider } from "./lib/authContext.jsx";
+import { JdProvider } from "./context/jdContext.jsx";
+import { AuthProvider } from "./context/authContext.jsx";
 import "./index.css";
 
 // Sync the theme class on <html> BEFORE React mounts. This avoids the

@@ -8,8 +8,8 @@ import {
   getStoredResumeSessionId,
   setStoredResumeSessionId,
 } from "../../lib/tailorSessionStorage.js";
-import { useJd } from "../../lib/jdContext.jsx";
-import { useTailorTarget } from "../../lib/tailorTarget.jsx";
+import { useJd } from "../../context/jdContext.jsx";
+import { useTailorTarget } from "../../context/tailorTarget.jsx";
 import { confirmAsync } from "../../lib/confirm.jsx";
 import Chat from "./Chat.jsx";
 import FinalActions from "./FinalActions.jsx";

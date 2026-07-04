@@ -6,13 +6,13 @@ import {
   useState,
 } from "react";
 
-import { api } from "./api.js";
+import { api } from "../lib/api.js";
 import {
   setAccessToken,
   clearAccessToken,
   refreshAccessToken,
   setAuthFailureHandler,
-} from "./authToken.js";
+} from "../lib/authToken.js";
 
 const AuthContext = createContext(null);
 

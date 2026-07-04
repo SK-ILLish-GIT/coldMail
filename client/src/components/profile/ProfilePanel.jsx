@@ -1,7 +1,7 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 
-import { useAuth } from "../../lib/authContext.jsx";
+import { useAuth } from "../../context/authContext.jsx";
 
 export default function ProfilePanel({ onClose }) {
   const { user, updateProfile, changePassword, logout } = useAuth();

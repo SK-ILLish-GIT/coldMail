@@ -1,0 +1,15 @@
+node_modules
+**/node_modules
+client/dist
+server/.env
+.env
+.env.*
+!.env.example
+.git
+.gitignore
+.cursor
+*.md
+!infra/README.md
+terminals
+.DS_Store
+npm-debug.log*

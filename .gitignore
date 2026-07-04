@@ -59,6 +59,20 @@ Thumbs.db
 *.temp
 *.bak
 
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform.tfstate.lock.info
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
 # JD apply agent session snapshots (local only)
 .cursor/sessions/
 

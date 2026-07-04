@@ -1,0 +1,12 @@
+aws_region    = "us-east-1"
+project_name  = "coldmail"
+github_org    = "SK-ILLish-GIT"
+github_repo   = "coldMail"
+github_branch = "aws-migration"
+
+# Set after first deploy to your App Runner URL (or custom domain).
+cors_origin = ""
+
+# Optional custom domain — leave empty to skip.
+# domain_name     = "coldmail.example.com"
+# route53_zone_id = "Z0123456789ABCDEF"

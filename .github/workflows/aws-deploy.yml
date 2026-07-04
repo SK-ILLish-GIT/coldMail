@@ -1,5 +1,5 @@
-# Build Docker image, push to ECR, and trigger App Runner deploy.
-# Runs on pushes to aws-migration (OIDC — no long-lived AWS keys in GitHub).
+# Build Docker image and push to ECR.
+# EC2 redeploy is manual (SSH + docker pull) or re-run user data.
 name: AWS Deploy
 
 on:
@@ -12,10 +12,10 @@ permissions:
   contents: read
 
 env:
-  AWS_REGION: us-east-1
+  AWS_REGION: ap-south-1
 
 jobs:
-  deploy:
+  push-ecr:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,12 +41,6 @@ jobs:
           docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
           docker push "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
 
-      - name: Start App Runner deployment
-        env:
-          SERVICE_ARN: ${{ secrets.APPRUNNER_SERVICE_ARN }}
+      - name: Reminder
         run: |
-          if [ -n "$SERVICE_ARN" ]; then
-            aws apprunner start-deployment --service-arn "$SERVICE_ARN"
-          else
-            echo "APPRUNNER_SERVICE_ARN not set — relying on ECR auto-deploy."
-          fi
+          echo "Image pushed. SSH to EC2 and run: sudo docker pull ... && sudo docker rm -f coldmail && <docker run>"

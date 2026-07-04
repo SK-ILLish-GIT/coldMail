@@ -9,12 +9,8 @@ Architecture, data flows, auth, AI, and deployment. For setup, see [README.md](.
 - [Auth and per-user data](#auth-and-per-user-data)
 - [Request flow — saving a draft](#request-flow--saving-a-draft)
 - [AI architecture](#ai-architecture)
-- [Tailor system](#tailor-system)
-- [Module map](#module-map)
 - [MongoDB collections](#mongodb-collections)
-- [Configuration](#configuration)
-- [API reference](#api-reference)
-- [Deployment (Render)](#deployment-render)
+- [Deployment (AWS EC2)](#deployment-aws-ec2)
 - [Security](#security)
 - [Development](#development)
 
@@ -24,7 +20,7 @@ Architecture, data flows, auth, AI, and deployment. For setup, see [README.md](.
 
 **coldMail** is a multi-user cold-email workbench. Each user maintains their own library of HTML templates and PDF resumes, composes personalised outreach in three input modes (MailID / CSV / LinkedIn), optionally lets AI pick or tailor content to a job description, and saves every message as a **Gmail draft** (via IMAP).
 
-React + Express monorepo, **MongoDB Atlas** persistence, JWT auth, and a unified LLM layer over **Gemini** and **Groq**. In production Express serves the built SPA and the API from one origin.
+React + Express monorepo, **MongoDB Atlas** persistence, JWT auth, and a unified LLM layer over **Gemini** and **Groq**. In production a Docker container on **AWS EC2** serves the built SPA and the API from one origin (`client/dist` + `/api/*`).
 
 ---
 
@@ -39,11 +35,20 @@ flowchart TB
     Tailor["Tailor<br/>resume + template"]
   end
 
-  subgraph Server["Express API — server/src/app.js"]
+  subgraph AWS["AWS — ap-south-1 (production)"]
+    EC2["EC2 t3.micro<br/>Docker container :4000"]
+    ECR[("ECR<br/>coldmail-app image")]
+    S3[("S3<br/>resume PDFs")]
+    SM[("Secrets Manager<br/>DB · JWT · SMTP")]
+    IAM["IAM instance role<br/>ECR pull · S3 · secrets"]
+  end
+
+  subgraph Server["Express API — inside container"]
     AuthMW["requireAuth<br/>verify JWT + per-user context"]
     Routes["Routes<br/>auth · email · enrich · templates · resumes · tailor · ai · log"]
     LLM["llm.js<br/>generateStructuredJson()"]
     Draft["imapDrafts.js<br/>MIME + IMAP APPEND"]
+    S3svc["s3.js<br/>opt-in PDF storage"]
   end
 
   subgraph External["External services"]
@@ -53,17 +58,23 @@ flowchart TB
     TexLive[("texlive.net — LaTeX to PDF")]
   end
 
-  Client -->|"Bearer access token (+ refresh cookie on /api/auth)"| AuthMW
+  Client -->|"http://EC2_IP:4000<br/>Bearer token + refresh cookie"| EC2
+  EC2 --> ECR
+  EC2 --> IAM
+  IAM --> S3
+  IAM --> SM
+  EC2 --> AuthMW
   AuthMW --> Routes
   Routes --> LLM --> AIP
   Routes --> Mongo
+  Routes --> S3svc --> S3
   Routes --> Draft --> Gmail
   Routes --> TexLive
-  Client -->|"production: static from client/dist"| Server
 ```
 
-- **Single-origin in production:** Express serves the SPA at `/` and the API at `/api/*` — one URL, one process, one Render deploy.
+- **Single-origin in production:** one Docker container serves the SPA at `/` and the API at `/api/*` on port **4000**.
 - **Development:** Vite (`:5173`) proxies `/api` to Express (`:4000`); CORS allows configured origins plus any localhost port, with `credentials` enabled for the refresh cookie.
+- **Resume storage:** when `S3_BUCKET` is set (production), new PDFs go to S3; metadata stays in MongoDB. Without `S3_BUCKET`, PDFs are stored inline in Mongo (local dev default).
 
 ---
 
@@ -119,7 +130,7 @@ sequenceDiagram
   SPA-->>U: Toast + Drafts Log update
 ```
 
-**Why drafts, not direct send?** Render's free tier blocks outbound SMTP (25/465/587). IMAP `APPEND` with the `\Draft` flag is free and lets you review + use Gmail's native Schedule Send. `RESEND_API_KEY` remains an optional direct-send path.
+**Why drafts, not direct send?** IMAP `APPEND` with the `\Draft` flag avoids SMTP deliverability issues and lets you review + use Gmail's native Schedule Send. `RESEND_API_KEY` remains an optional direct-send path.
 
 ---
 
@@ -157,66 +168,6 @@ flowchart LR
 
 ---
 
-## Tailor system
-
-Two parallel workflows on the Tailor tab, both session-based and per-user.
-
-```mermaid
-stateDiagram-v2
-  [*] --> CreateSession: POST /tailor/session or /template-session
-  CreateSession --> Queue: AI generates suggestions
-  Queue --> Review: GET .../next
-  Review --> Decide: POST .../decide approve reject refine
-  Decide --> Queue: more suggestions
-  Queue --> Compile: resume path — POST .../compile
-  Compile --> TexLive: texlive.net to PDF
-  Queue --> Save: template path — POST .../save
-  Save --> [*]: new template in library
-  Compile --> [*]: download PDF / add to resumes
-```
-
-- **Resume tailor:** parses a LaTeX CV into sections/bullets/skills; AI suggests content-only rewrites (same macros); approved edits compile to PDF via texlive.net.
-- **Template tailor:** parses subject + paragraphs; AI rewrites preserve HTML and `{{tokens}}`; result can be saved as a new template.
-
----
-
-## Module map
-
-```
-coldMail/
-├── client/                     # React 18 + Vite + Tailwind 3
-│   └── src/
-│       ├── App.jsx             # Auth gate + tabs (Compose/Templates/Resumes/Tailor/Log)
-│       ├── main.jsx            # AuthProvider + JdProvider + theme
-│       ├── context/            # authContext · jdContext · tailorTarget
-│       ├── lib/                # api · authToken · aiModel · aiError · tailorApi · render · utils
-│       └── components/
-│           ├── EmailForm.jsx   # Three compose modes; applies default template/resume
-│           ├── TemplateLibrary.jsx · ResumeLibrary.jsx   # CRUD + tags + "set as default"
-│           ├── auth/AuthPage.jsx · profile/ProfilePanel.jsx
-│           ├── Tailor/         # Resume + template tailoring UI
-│           └── ...             # panels, pickers, modals, header
-├── server/                     # Express 4 (ESM)
-│   └── src/
-│       ├── app.js              # helmet · cors(credentials) · cookie-parser · public vs requireAuth routes
-│       ├── index.js            # Boot, Mongo connect, seedAdmin, graceful shutdown
-│       ├── routes/             # auth · email · templates · resumes · enrich · tailor · ai · log
-│       ├── seed/seedAdmin.js   # Idempotent admin seed + claim of unowned docs
-│       ├── middleware/         # auth · aiModel · validate · rateLimit · upload · error
-│       └── services/
-│           ├── db.js           # Mongo client + indexes (incl. users, refresh_tokens, userId)
-│           ├── userContext.js  # AsyncLocalStorage per-user scoping
-│           ├── userStore.js · jwt.js · refreshTokenStore.js   # Auth
-│           ├── store.js · resumeStore.js   # Per-user CRUD (+ isDefault)
-│           ├── imapDrafts.js · mailer.js · enrich.js
-│           ├── llm.js · aiModel.js · aiErrors.js · templateTags.js · pdfTags.js
-│           └── tailor/         # LaTeX parse/compile, sessions, AI suggestions
-├── scripts/                    # CLI apply pipeline (optional automation)
-├── render.yaml · package.json
-```
-
----
-
 ## MongoDB collections
 
 | Collection | Contents |
@@ -224,7 +175,7 @@ coldMail/
 | `users` | `{ id, email (unique), name, passwordHash, createdAt }` |
 | `refresh_tokens` | `{ jti (unique), userId, revoked, expiresAt (TTL) }` — rotation + revocation |
 | `templates` | `{ id, userId, name, subject, body, tags[], isDefault?, createdAt, updatedAt }` |
-| `resumes` | `{ id, userId, name, tags[], filename, contentType, content (Binary), size, isDefault? }` |
+| `resumes` | `{ id, userId, name, tags[], filename, contentType, size, isDefault?, s3Key? \| content (Binary) }` — S3 when `S3_BUCKET` set, else inline PDF |
 | `sent_log` | `{ id, userId, to, subject, status, sentAt, error? }` |
 | `tailor_sessions` | `{ id, userId, kind, queue/applied state, expiresAt (TTL) }` |
 
@@ -232,99 +183,123 @@ Indexes (incl. `email` unique, `userId` compound, and TTLs) are ensured on boot 
 
 ---
 
-## Configuration
+## Deployment (AWS EC2)
 
-Full template: [`server/.env.example`](./server/.env.example).
+Production runs on **AWS EC2 Free Tier** in **ap-south-1 (Mumbai)**. The app is containerized (same image locally and in the cloud), with secrets in **Secrets Manager** and resume PDFs in **S3**.
 
-```env
-# Server
-PORT=4000
-NODE_ENV=development
-CORS_ORIGIN=http://localhost:5173
+### Production topology
 
-# MongoDB Atlas (required)
-MONGODB_URI=mongodb+srv://...
-MONGODB_DB=coldmail
+```mermaid
+flowchart LR
+  Dev["Developer Mac<br/>docker build + push"]
+  GH[("GitHub<br/>aws-migration branch")]
+  ECR[("ECR<br/>coldmail-app:latest")]
+  EC2["EC2 t3.micro<br/>coldmail-api"]
+  SM[("Secrets Manager")]
+  S3[("S3 resumes")]
+  Atlas[("MongoDB Atlas")]
 
-# Auth (JWT) — generate strong random secrets in production
-JWT_ACCESS_SECRET=
-JWT_REFRESH_SECRET=
-JWT_ACCESS_TTL=15m
-JWT_REFRESH_TTL=30d
-AUTH_RATE_LIMIT_MAX=20
-
-# Admin seed (optional) — creates user + claims unowned data on first boot
-SEED_ADMIN_EMAIL=
-SEED_ADMIN_NAME=
-SEED_ADMIN_PASSWORD=
-
-# Gmail — IMAP for drafts; SMTP for local dev fallback
-SMTP_USER=you@gmail.com
-SMTP_PASS=xxxx xxxx xxxx xxxx
-IMAP_HOST=imap.gmail.com
-IMAP_PORT=993
-MAIL_FROM="Your Name <you@gmail.com>"
-DRAFT_ATTACHMENT_FILENAME=Sk_Sahil_Parvez_CV
-
-# AI — at least one key enables AI features
-GEMINI_API_KEY=
-GROQ_API_KEY=
-AI_PROVIDER=gemini
-
-# Rate limits + Tailor
-RATE_LIMIT_WINDOW_MIN=1
-RATE_LIMIT_MAX=30
-CV_DEFAULT_PATH=./Sk_Sahil_Parvez_CV_
-TEXLIVE_NET_URL=https://texlive.net/cgi-bin/latexcgi
+  Dev --> ECR
+  GH -.->|"optional CI"| ECR
+  EC2 -->|"pull on boot"| ECR
+  EC2 --> SM
+  EC2 --> S3
+  EC2 --> Atlas
 ```
 
-**Gmail:** enable 2-Step Verification, create an app password, use it for `SMTP_PASS` (same credential for IMAP). **AI keys:** [Gemini](https://aistudio.google.com/app/apikey) (`gemini-2.5-flash`) / [Groq](https://console.groq.com/keys) (`llama-3.3-70b-versatile`); pick provider + model in Settings.
+| AWS service | Purpose |
+|-------------|---------|
+| **ECR** | Stores the `coldmail-app` Docker image |
+| **EC2** | Runs the container on port 4000 (t3.micro, free tier 12 months) |
+| **S3** | Resume PDF storage (`coldmail-resumes-<account-id>`) |
+| **Secrets Manager** | `mongodb-uri`, JWT secrets, SMTP credentials |
+| **IAM** | Instance role — ECR pull, S3 read/write, Secrets read |
+| **MongoDB Atlas** | Database (unchanged; allow EC2 outbound IP or `0.0.0.0/0`) |
 
----
+### Console setup checklist
 
-## API reference
+1. **ECR** — create repository `coldmail-app`.
+2. **S3** — create bucket `coldmail-resumes-<account-id>`; block public access; enable versioning.
+3. **Secrets Manager** — six secrets (plaintext value only, no `KEY=` prefix):
 
-All endpoints under `/api`. **Public:** `/health`, `/ai/*`, `/auth/(signup|login|refresh|logout)`. **Everything else requires a Bearer access token.** Rate-limited: auth, send, enrich, tailor.
+   | Secret name | Maps to env var at runtime |
+   |-------------|---------------------------|
+   | `coldmail/mongodb-uri` | `MONGODB_URI` |
+   | `coldmail/jwt-access-secret` | `JWT_ACCESS_SECRET` |
+   | `coldmail/jwt-refresh-secret` | `JWT_REFRESH_SECRET` |
+   | `coldmail/smtp-user` | `SMTP_USER` |
+   | `coldmail/smtp-pass` | `SMTP_PASS` |
+   | `coldmail/mail-from` | `MAIL_FROM` |
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/auth/signup` · `/auth/login` | Create / authenticate; returns access token + sets refresh cookie |
-| POST | `/auth/refresh` · `/auth/logout` | Rotate access token / revoke session |
-| GET · PATCH · POST | `/auth/me` · `/auth/profile` · `/auth/change-password` | Current user, update name, change password |
-| GET | `/health` · `/ai/models` · `/ai/providers` | Liveness, model + provider listing |
-| POST | `/preview` · `/send-email` · `/send-bulk` | Render / save one or many drafts |
-| POST | `/enrich/(email\|names\|jd-match\|job-intake)` | AI enrichment |
-| GET/POST/PUT/DELETE | `/templates` · `/resumes` | Per-user CRUD (+ `PUT/DELETE /:id/default`, `/suggest-tags`) |
-| GET/DELETE | `/log` | Drafts log |
-| * | `/tailor/*` | Resume + template tailor sessions |
+4. **IAM role** `coldmail-ec2-instance` — trusted by **EC2**; inline policy for ECR pull, S3 object access on the resumes bucket, and `secretsmanager:GetSecretValue` on `coldmail/*`.
+5. **Security group** `coldmail-sg` — inbound **22** (SSH, My IP) and **4000** (app, `0.0.0.0/0`).
+6. **EC2** — Amazon Linux 2023, t3.micro, attach IAM role + security group; optional **user data** script fetches secrets, pulls from ECR, and starts the container.
+7. **Elastic IP** (recommended) — stable public IP; update `CORS_ORIGIN` to `http://<elastic-ip>:4000` if the IP changes after first boot.
 
-Example — `POST /send-email` (with `Authorization: Bearer <token>`):
+Optional IaC: [`infra/terraform/`](./infra/terraform/) and [`infra/README.md`](./infra/README.md) (EC2, ECR, S3, Secrets Manager; import guide for console-built resources).
 
-```json
-{ "email": "john@example.com", "name": "John", "company": "Acme",
-  "subject": "Quick question for {{company}}",
-  "template": "<h1>Hello {{name}}</h1>", "resumeId": "iops5MJTAc" }
+### Build and push image
+
+```bash
+# From repo root (aws-migration branch)
+aws ecr get-login-password --region ap-south-1 | \
+  docker login --username AWS --password-stdin ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com
+
+docker build -t ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/coldmail-app:latest .
+docker push ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/coldmail-app:latest
 ```
 
----
+### Container runtime
 
-## Deployment (Render)
+On first boot (user data) or via SSH, the instance:
 
-[`render.yaml`](./render.yaml) defines a single web service:
+1. Installs Docker + AWS CLI.
+2. Logs into ECR using the **instance role** (no long-lived keys on the VM).
+3. Fetches secrets from Secrets Manager.
+4. Sets `CORS_ORIGIN=http://<public-ip>:4000`.
+5. Runs `docker run -p 4000:4000 --restart unless-stopped` with all env vars.
 
-1. Push to GitHub → Render **Blueprint** → select repo.
-2. Set secrets: `MONGODB_URI`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `SEED_ADMIN_PASSWORD`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`, `GEMINI_API_KEY`, `GROQ_API_KEY`/`RESEND_API_KEY` (optional).
-3. Atlas → Network Access → allow `0.0.0.0/0` (Render free tier has unstable outbound IPs).
-4. Verify: `GET /api/health` → `{ "ok": true, "features": { "aiEnrich": true } }`.
+If user data was omitted at launch, run the startup script manually over SSH (see Deployment section above).
 
-Verify the production build locally:
+### Verify
+
+```bash
+curl http://<ec2-public-ip>:4000/api/health
+# → { "ok": true, "features": { "aiEnrich": true } }
+```
+
+Open `http://<ec2-public-ip>:4000` in a browser and log in.
+
+### Redeploy after code changes
+
+```bash
+# Mac — rebuild and push
+docker build -t ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/coldmail-app:latest .
+docker push ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/coldmail-app:latest
+
+# EC2 — SSH in, pull and restart container
+sudo docker pull ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/coldmail-app:latest
+sudo docker rm -f coldmail && <docker run ...>   # same env as initial deploy
+```
+
+Optional: `.github/workflows/aws-deploy.yml` pushes to ECR on every `aws-migration` push (requires `AWS_DEPLOY_ROLE_ARN` secret). Redeploy on EC2 via SSH (`docker pull` + restart).
+
+### Cost (approximate)
+
+| Resource | Monthly |
+|----------|---------|
+| EC2 t3.micro | ~$0 (free tier, 12 months) |
+| Secrets Manager (6 secrets) | ~$2.40 |
+| S3 + ECR | ~$0–1 (low usage) |
+| **Total** | **~$3–4/month** |
+
+### Local production smoke test
 
 ```bash
 npm run build
 NODE_ENV=production node server/src/index.js   # SPA + API on :4000
+# or: docker build -t coldmail:local . && docker run --rm -p 4000:4000 --env-file server/.env coldmail:local
 ```
-
-**Free-tier caveats:** service sleeps after ~15 min idle (30–60s cold start); Atlas M0 may sleep; outbound SMTP blocked so IMAP drafts is the default.
 
 ---
 
@@ -334,7 +309,10 @@ NODE_ENV=production node server/src/index.js   # SPA + API on :4000
 - **Per-user isolation** — `requireAuth` + `AsyncLocalStorage` scope every store query to the owner; id-based reads/writes verify ownership.
 - **helmet** — security headers (CSP disabled so Vite bundles + sandboxed previews work). **CORS** — allowlist via `CORS_ORIGIN`, `credentials` enabled for the refresh cookie.
 - **Rate limiting** — stricter limiter on auth routes; standard limiter on send + AI routes.
-- **Validation** — `validator` on auth + send endpoints. **Secrets** — only in `server/.env` / Render env, never sent to the client. **Preview sandbox** — template preview iframe uses `sandbox`.
+- **Validation** — `validator` on auth + send endpoints.
+- **Secrets** — local dev: `server/.env` (gitignored). Production: **AWS Secrets Manager**, injected at container start; never sent to the client.
+- **IAM least privilege** — EC2 instance role grants only ECR pull, S3 resumes bucket, and required secrets.
+- **Preview sandbox** — template preview iframe uses `sandbox`.
 - **AI data minimisation** — JD match sends `{id, name, tags}` only.
 
 ---

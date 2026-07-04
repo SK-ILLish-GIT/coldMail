@@ -1,12 +1,15 @@
-aws_region    = "us-east-1"
+aws_region    = "ap-south-1"
 project_name  = "coldmail"
 github_org    = "SK-ILLish-GIT"
 github_repo   = "coldMail"
 github_branch = "aws-migration"
 
-# Set after first deploy to your App Runner URL (or custom domain).
-cors_origin = ""
+# EC2 key pair — must already exist in this region (EC2 → Key pairs).
+key_name = "coldmail-key"
 
-# Optional custom domain — leave empty to skip.
-# domain_name     = "coldmail.example.com"
-# route53_zone_id = "Z0123456789ABCDEF"
+# Restrict SSH to your IP, e.g. "1.2.3.4/32"
+ssh_allowed_cidr = "0.0.0.0/0"
+app_allowed_cidr = "0.0.0.0/0"
+
+allocate_eip   = true
+instance_type  = "t3.micro"

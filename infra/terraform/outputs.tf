@@ -6,16 +6,28 @@ output "s3_bucket_name" {
   value = aws_s3_bucket.resumes.bucket
 }
 
-output "apprunner_service_url" {
-  value = "https://${aws_apprunner_service.app.service_url}"
+output "ec2_instance_id" {
+  value = aws_instance.app.id
 }
 
-output "apprunner_service_arn" {
-  value = aws_apprunner_service.app.arn
+output "ec2_public_ip" {
+  value = local.public_ip
+}
+
+output "app_url" {
+  value = "http://${local.public_ip}:4000"
+}
+
+output "health_check_url" {
+  value = "http://${local.public_ip}:4000/api/health"
 }
 
 output "github_deploy_role_arn" {
   value = aws_iam_role.github_deploy.arn
+}
+
+output "ec2_instance_role_arn" {
+  value = aws_iam_role.ec2_instance.arn
 }
 
 output "secret_arns" {

@@ -1,12 +1,12 @@
-# --- App Runner: pull images from ECR ---
-resource "aws_iam_role" "apprunner_ecr_access" {
-  name = "${local.name_prefix}-apprunner-ecr-access"
+# --- EC2 instance role (ECR pull + S3 + Secrets Manager) ---
+resource "aws_iam_role" "ec2_instance" {
+  name = "${local.name_prefix}-ec2-instance"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
       Effect    = "Allow"
-      Principal = { Service = "build.apprunner.amazonaws.com" }
+      Principal = { Service = "ec2.amazonaws.com" }
       Action    = "sts:AssumeRole"
     }]
   })
@@ -14,34 +14,27 @@ resource "aws_iam_role" "apprunner_ecr_access" {
   tags = local.common_tags
 }
 
-resource "aws_iam_role_policy_attachment" "apprunner_ecr_access" {
-  role       = aws_iam_role.apprunner_ecr_access.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSAppRunnerServicePolicyForECRAccess"
-}
-
-# --- App Runner: runtime (S3 + Secrets Manager) ---
-resource "aws_iam_role" "apprunner_instance" {
-  name = "${local.name_prefix}-apprunner-instance"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "tasks.apprunner.amazonaws.com" }
-      Action    = "sts:AssumeRole"
-    }]
-  })
-
-  tags = local.common_tags
-}
-
-resource "aws_iam_role_policy" "apprunner_instance" {
-  name = "${local.name_prefix}-apprunner-instance"
-  role = aws_iam_role.apprunner_instance.id
+resource "aws_iam_role_policy" "ec2_instance" {
+  name = "${local.name_prefix}-ec2-instance"
+  role = aws_iam_role.ec2_instance.id
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+        ]
+        Resource = aws_ecr_repository.app.arn
+      },
       {
         Effect   = "Allow"
         Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
@@ -58,7 +51,14 @@ resource "aws_iam_role_policy" "apprunner_instance" {
   })
 }
 
-# --- GitHub Actions OIDC deploy role ---
+resource "aws_iam_instance_profile" "ec2" {
+  name = "${local.name_prefix}-ec2-instance"
+  role = aws_iam_role.ec2_instance.name
+
+  tags = local.common_tags
+}
+
+# --- GitHub Actions OIDC — push images to ECR ---
 resource "aws_iam_openid_connect_provider" "github" {
   url = "https://token.actions.githubusercontent.com"
 
@@ -117,15 +117,6 @@ resource "aws_iam_role_policy" "github_deploy" {
           "ecr:UploadLayerPart",
         ]
         Resource = aws_ecr_repository.app.arn
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "apprunner:DescribeService",
-          "apprunner:ListServices",
-          "apprunner:StartDeployment",
-        ]
-        Resource = "*"
       }
     ]
   })

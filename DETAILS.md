@@ -8,8 +8,11 @@ Architecture, data flows, auth, AI, and deployment. For setup, see [README.md](.
 - [High-level architecture](#high-level-architecture)
 - [Auth and per-user data](#auth-and-per-user-data)
 - [Request flow — saving a draft](#request-flow--saving-a-draft)
+- [Company contacts](#company-contacts)
 - [AI architecture](#ai-architecture)
 - [MongoDB collections](#mongodb-collections)
+- [API routes (summary)](#api-routes-summary)
+- [Agent CLI](#agent-cli)
 - [Deployment (AWS EC2)](#deployment-aws-ec2)
 - [Security](#security)
 - [Development](#development)
@@ -18,9 +21,11 @@ Architecture, data flows, auth, AI, and deployment. For setup, see [README.md](.
 
 ## Overview
 
-**coldMail** is a multi-user cold-email workbench. Each user maintains their own library of HTML templates and PDF resumes, composes personalised outreach in three input modes (MailID / CSV / LinkedIn), optionally lets AI pick or tailor content to a job description, and saves every message as a **Gmail draft** (via IMAP).
+**coldMail** is a multi-user cold-email workbench. Each user maintains their own library of HTML templates and PDF resumes, a **company contact index** built from past outreach, composes personalised email in three input modes (MailID / CSV / LinkedIn), optionally lets AI pick or tailor content to a job description, and saves every message as a **Gmail draft** (via IMAP).
 
 React + Express monorepo, **MongoDB Atlas** persistence, JWT auth, and a unified LLM layer over **Gemini** and **Groq**. In production a Docker container on **AWS EC2** serves the built SPA and the API from one origin (`client/dist` + `/api/*`).
+
+**UI tabs:** Compose · Templates · Resumes · Tailor · **Contacts** · Drafts Log
 
 ---
 
@@ -32,7 +37,9 @@ flowchart TB
     Gate["Auth gate<br/>login · signup · profile"]
     Compose["Compose<br/>MailID · CSV · LinkedIn"]
     Library["Templates · Resumes<br/>per-user + default flag"]
+    Contacts["Contacts tab<br/>grouped by company · inline edit"]
     Tailor["Tailor<br/>resume + template"]
+    Log["Drafts Log<br/>sent_log audit"]
   end
 
   subgraph AWS["AWS — ap-south-1 (production)"]
@@ -45,14 +52,14 @@ flowchart TB
 
   subgraph Server["Express API — inside container"]
     AuthMW["requireAuth<br/>verify JWT + per-user context"]
-    Routes["Routes<br/>auth · email · enrich · templates · resumes · tailor · ai · log"]
+    Routes["Routes<br/>auth · email · enrich · templates · resumes · contacts · tailor · ai · log"]
     LLM["llm.js<br/>generateStructuredJson()"]
     Draft["imapDrafts.js<br/>MIME + IMAP APPEND"]
     S3svc["s3.js<br/>opt-in PDF storage"]
   end
 
   subgraph External["External services"]
-    Mongo[("MongoDB Atlas<br/>users · refresh_tokens · templates · resumes · sent_log · tailor_sessions")]
+    Mongo[("MongoDB Atlas<br/>users · templates · resumes · sent_log · company_contacts · tailor_sessions")]
     AIP[("Gemini / Groq")]
     Gmail[("Gmail IMAP — Drafts")]
     TexLive[("texlive.net — LaTeX to PDF")]
@@ -100,7 +107,7 @@ sequenceDiagram
   S-->>B: new accessToken + new refresh cookie
 ```
 
-**Per-user scoping:** `requireAuth` runs the request inside an `AsyncLocalStorage` user context (`services/userContext.js`), mirroring the AI-model middleware. Every store (`store.js`, `resumeStore.js`, `tailor/sessionPersistence.js`) reads the current `userId` and filters/stamps queries automatically — so routes and deep tailor call-chains need no changes and users only ever see their own data.
+**Per-user scoping:** `requireAuth` runs the request inside an `AsyncLocalStorage` user context (`services/userContext.js`), mirroring the AI-model middleware. Every store (`store.js`, `resumeStore.js`, `contactStore.js`, `tailor/sessionPersistence.js`) reads the current `userId` and filters/stamps queries automatically — so routes and deep tailor call-chains need no changes and users only ever see their own data.
 
 **Defaults:** a user can mark one template and one resume as their default (`isDefault` flag, one per user). Compose auto-selects them; otherwise it starts blank.
 
@@ -126,11 +133,45 @@ sequenceDiagram
   API->>API: Rename PDF to DRAFT_ATTACHMENT_FILENAME.pdf
   API->>IMAP: APPEND to Drafts with \Draft flag
   API->>DB: Insert sent_log row (drafted / failed) for this user
+  API->>DB: Upsert company_contacts (company + email + name)
   API-->>SPA: { success, status: drafted, meta }
   SPA-->>U: Toast + Drafts Log update
 ```
 
 **Why drafts, not direct send?** IMAP `APPEND` with the `\Draft` flag avoids SMTP deliverability issues and lets you review + use Gmail's native Schedule Send. `RESEND_API_KEY` remains an optional direct-send path.
+
+---
+
+## Company contacts
+
+A **derived contact index** (`company_contacts`) is maintained separately from the Drafts Log audit trail. Each successful draft upserts `{ company, email, name }` keyed by normalized company slug (`companyKey`). Clearing the Drafts Log does **not** remove contacts.
+
+```mermaid
+flowchart LR
+  subgraph write [Write path]
+    Send["POST /send-email"] --> Log["sent_log"]
+    Send --> Index["company_contacts upsert"]
+  end
+  subgraph read [Read path]
+    Type["MailID: type company"] --> Fetch["GET /contacts?company="]
+    Tab["Contacts tab"] --> Grouped["GET /contacts/grouped"]
+    Fetch --> Fill["Auto-fill emails + names"]
+    Grouped --> Edit["PUT /contacts/:id"]
+  end
+  Index --> DB[("company_contacts")]
+  DB --> Fetch
+  DB --> Grouped
+```
+
+| UI surface | Behaviour |
+|------------|-----------|
+| **Compose → By MailID** | Debounced company input → fetch contacts → replace Emails field + recipient table |
+| **Contacts tab** | Companies grouped; inline edit name/email; search; **Use in Compose** |
+| **Drafts Log** | Read-only audit (`to`, `name`, `company`, subject, status) — source data for backfill |
+
+**Company matching:** `Acme Inc.` and `ACME` normalize to the same `companyKey` (`acme`) via `server/src/utils/companyKey.js`.
+
+**Backfill:** `npm run contacts:backfill` replays historical `sent_log` rows into `company_contacts` (one-time after deploy).
 
 ---
 
@@ -176,10 +217,74 @@ flowchart LR
 | `refresh_tokens` | `{ jti (unique), userId, revoked, expiresAt (TTL) }` — rotation + revocation |
 | `templates` | `{ id, userId, name, subject, body, tags[], isDefault?, createdAt, updatedAt }` |
 | `resumes` | `{ id, userId, name, tags[], filename, contentType, size, isDefault?, s3Key? \| content (Binary) }` — S3 when `S3_BUCKET` set, else inline PDF |
-| `sent_log` | `{ id, userId, to, subject, status, sentAt, error? }` |
+| `sent_log` | `{ id, userId, to, name, company, subject, status, sentAt, error?, meta? }` — append-only audit |
+| `company_contacts` | `{ id, userId, companyKey, companyDisplay, email, name, lastContactedAt, draftCount }` — unique on `(userId, companyKey, email)` |
 | `tailor_sessions` | `{ id, userId, kind, queue/applied state, expiresAt (TTL) }` |
 
 Indexes (incl. `email` unique, `userId` compound, and TTLs) are ensured on boot in `services/db.js`.
+
+---
+
+## API routes (summary)
+
+| Prefix | Purpose |
+|--------|---------|
+| `/api/auth` | Signup, login, refresh, logout, profile, change-password |
+| `/api/health` | DB ping + feature flags (public) |
+| `/api/ai` | List providers/models (public) |
+| `/api/preview`, `/api/send-email`, `/api/send-bulk` | Render + save Gmail drafts |
+| `/api/enrich` | Email patterns, names, job-intake, jd-match |
+| `/api/templates`, `/api/resumes` | Library CRUD + auto-tags + defaults |
+| `/api/contacts` | Company contact index (see below) |
+| `/api/tailor` | Resume + template tailoring sessions |
+| `/api/log` | Drafts Log list + clear |
+
+**Contacts (`/api/contacts`):**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/grouped?q=` | All contacts grouped by company (Contacts tab) |
+| GET | `/companies?q=` | Company typeahead (prefix search) |
+| GET | `/?company=` | Contacts for one company (MailID autofill) |
+| PUT | `/:id` | Update `{ name, email }` |
+
+---
+
+## Agent CLI
+
+Scripts in `scripts/` call the REST API with JWT auth (no browser).
+
+```mermaid
+sequenceDiagram
+  participant CLI as run-apply-pipeline.mjs
+  participant Auth as coldmail-auth.mjs
+  participant DB as MongoDB users
+  participant API as Express /api
+
+  CLI->>Auth: resolveAccessToken()
+  Auth->>DB: find owner email (SEED_ADMIN_EMAIL hint)
+  Auth->>Auth: password from env (not stored plaintext in DB)
+  Auth->>API: POST /auth/login
+  API-->>Auth: accessToken
+  Auth-->>CLI: Bearer token
+  CLI->>API: enrich · templates · send-bulk …
+```
+
+| Script | Command | Purpose |
+|--------|---------|---------|
+| Apply pipeline | `npm run agent:apply -- --job-url … --emails …` | JD intake → match → Gmail drafts |
+| Contact backfill | `npm run contacts:backfill` | `sent_log` → `company_contacts` |
+
+**CLI auth env vars** (see `server/.env.example`):
+
+| Variable | Purpose |
+|----------|---------|
+| `SEED_ADMIN_EMAIL` | Hint for which user to log in as (email also in DB) |
+| `COLDMAIL_PASSWORD` or `SEED_ADMIN_PASSWORD` | Account password (bcrypt in DB — not readable) |
+| `COLDMAIL_ACCESS_TOKEN` | Optional — skip login if set |
+| `COLDMAIL_API_BASE` | API base URL (default: production Render URL) |
+
+Cursor skills in `.cursor/skills/` orchestrate the apply pipeline step-by-step (`jd-apply-orchestrator`, `job-intake`, `draft-mail`, etc.).
 
 ---
 
@@ -332,5 +437,7 @@ npm run dev                          # API :4000 + Vite :5173 (proxies /api)
 | `npm run dev` | Concurrent Vite client + `--watch` server |
 | `npm run build` | Build client → `client/dist` |
 | `npm start` | Production: serve SPA + API |
+| `npm run agent:apply` | JD apply pipeline (CLI, authenticated) |
+| `npm run contacts:backfill` | Backfill `company_contacts` from `sent_log` |
 
 Health check: `GET /api/health` returns `ok: true` and `features.aiEnrich: true` when an AI key is set.

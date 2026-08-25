@@ -19,7 +19,13 @@ Built as a **React + Express monorepo**, persisted in **MongoDB Atlas**, powered
 **Library**
 - **Templates** — HTML subject/body, tags, auto-tag, AI tailor, edit/copy
 - **Resumes** — PDF library in MongoDB; consistent attachment filename on send
+- **Contacts** — past outreach grouped by company; edit name/email inline; autofill in Compose
 - Tag filters (OR) on compose pickers
+
+**Contacts & autofill**
+- Every Gmail draft with a company name builds a **contact index** (`company_contacts` in MongoDB)
+- **Compose → By MailID** — type a company you've contacted before → emails + names auto-fill
+- **Contacts tab** — browse, search, edit contacts; **Use in Compose** jumps to MailID with that company
 
 **Tailor**
 - **Resume tailor** — LaTeX CV → AI suggestions → compile PDF via texlive.net
@@ -27,7 +33,11 @@ Built as a **React + Express monorepo**, persisted in **MongoDB Atlas**, powered
 
 **Output**
 - Gmail Drafts via IMAP `APPEND` (works on Render free tier where SMTP is blocked)
-- Drafts Log with status pills
+- Drafts Log with status pills (audit trail per recipient)
+
+**Agent / CLI**
+- `npm run agent:apply` — full JD → match template/resume → Gmail drafts pipeline (no UI)
+- `npm run contacts:backfill` — seed `company_contacts` from existing Drafts Log rows
 
 **AI**
 - **Gemini** or **Groq** — switch provider + model in Settings
@@ -62,8 +72,16 @@ curl http://localhost:4000/api/health
 | `SMTP_USER` / `SMTP_PASS` | Gmail app password (IMAP drafts + local SMTP) |
 | `GEMINI_API_KEY` | Google AI — [get key](https://aistudio.google.com/app/apikey) |
 | `GROQ_API_KEY` | Groq — [get key](https://console.groq.com/keys) (optional) |
+| `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` | Boot admin user + CLI login (see DETAILS.md) |
 
-See [`server/.env.example`](./server/.env.example) and [DETAILS.md § Configuration](./DETAILS.md#configuration-reference) for the full list.
+See [`server/.env.example`](./server/.env.example) and [DETAILS.md](./DETAILS.md) for the full list.
+
+### Useful scripts
+
+```bash
+npm run contacts:backfill   # one-time: sent_log → company_contacts
+npm run agent:apply -- --job-url "..." --emails "recruiter@co.com"
+```
 
 ---
 

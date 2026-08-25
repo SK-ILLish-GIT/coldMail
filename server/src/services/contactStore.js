@@ -1,5 +1,7 @@
 import { nanoid } from 'nanoid';
+import validator from 'validator';
 
+import { HttpError } from '../middleware/error.js';
 import { normalizeCompanyKey } from '../utils/companyKey.js';
 import { getDb } from './db.js';
 import { requireCurrentUserId } from './userContext.js';
@@ -177,5 +179,39 @@ export const contactStore = {
       lastContactedAt: r.lastContactedAt,
       contacts: r.contacts,
     }));
+  },
+
+  async update(id, { name, email }) {
+    const userId = requireCurrentUserId();
+    const col = getDb().collection(COL);
+    const doc = await col.findOne({ id: String(id), userId });
+    if (!doc) throw new HttpError(404, 'Contact not found.');
+
+    const emailNorm = String(email ?? doc.email).trim().toLowerCase();
+    const nameTrim = String(name ?? doc.name ?? '').trim();
+
+    if (!validator.isEmail(emailNorm)) {
+      throw new HttpError(400, 'A valid email is required.');
+    }
+
+    if (emailNorm !== doc.email) {
+      const dup = await col.findOne({
+        userId,
+        companyKey: doc.companyKey,
+        email: emailNorm,
+        id: { $ne: doc.id },
+      });
+      if (dup) {
+        throw new HttpError(409, 'That email already exists for this company.');
+      }
+    }
+
+    await col.updateOne(
+      { id: doc.id, userId },
+      { $set: { email: emailNorm, name: nameTrim } }
+    );
+
+    const updated = await col.findOne({ id: doc.id, userId }, STRIP);
+    return updated;
   },
 };

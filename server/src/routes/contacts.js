@@ -44,4 +44,18 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+// PUT /api/contacts/:id — update name and/or email
+router.put('/:id', async (req, res, next) => {
+  try {
+    const { name, email } = req.body || {};
+    if (name == null && email == null) {
+      throw new HttpError(400, 'name or email is required.');
+    }
+    const updated = await contactStore.update(req.params.id, { name, email });
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

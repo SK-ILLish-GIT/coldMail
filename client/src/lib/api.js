@@ -125,6 +125,7 @@ export const api = {
         ? `/contacts/grouped?q=${encodeURIComponent(q.trim())}`
         : "/contacts/grouped",
     ),
+  updateContact: (id, payload) => call("put", `/contacts/${id}`, payload),
 
   enrichEmail: (payload) => call("post", "/enrich/email", payload),
   extractNames: (payload) => call("post", "/enrich/names", payload),

@@ -111,6 +111,21 @@ export const api = {
   listLog: () => call("get", "/log"),
   clearLog: () => call("delete", "/log"),
 
+  searchContactCompanies: (q, limit = 8) =>
+    call(
+      "get",
+      `/contacts/companies?q=${encodeURIComponent(q)}&limit=${limit}`,
+    ),
+  listContactsByCompany: (company) =>
+    call("get", `/contacts?company=${encodeURIComponent(company)}`),
+  listContactsGrouped: (q = "") =>
+    call(
+      "get",
+      q.trim()
+        ? `/contacts/grouped?q=${encodeURIComponent(q.trim())}`
+        : "/contacts/grouped",
+    ),
+
   enrichEmail: (payload) => call("post", "/enrich/email", payload),
   extractNames: (payload) => call("post", "/enrich/names", payload),
   matchJD: (payload) => call("post", "/enrich/jd-match", payload),

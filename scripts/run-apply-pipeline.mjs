@@ -228,7 +228,7 @@ async function main() {
     process.exit(1);
   }
 
-  const api = createClient(opts.base || undefined);
+  const api = await createClient(opts.base || undefined);
   let session;
 
   if (opts.sessionId) {

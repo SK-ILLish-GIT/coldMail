@@ -4,6 +4,7 @@ import { nanoid } from 'nanoid';
 import { renderTemplate } from '../utils/render.js';
 import { saveDraft } from '../services/imapDrafts.js';
 import { sentLogStore } from '../services/store.js';
+import { contactStore } from '../services/contactStore.js';
 import { resumeStore } from '../services/resumeStore.js';
 import { HttpError } from '../middleware/error.js';
 import { validateSingleSend, validateBulkSend } from '../middleware/validate.js';
@@ -78,6 +79,16 @@ async function logSend(entry) {
     await sentLogStore.append(entry);
   } catch (err) {
     console.error('[coldMail] failed to write sent log entry:', err);
+  }
+}
+
+async function indexContact({ company, email, name }) {
+  const c = String(company || '').trim();
+  if (!c) return;
+  try {
+    await contactStore.upsertFromDraft({ company: c, email, name });
+  } catch (err) {
+    console.error('[coldMail] failed to upsert company contact:', err);
   }
 }
 
@@ -159,6 +170,7 @@ router.post(
         ...metaPart,
       };
       await logSend(entry);
+      await indexContact({ company, email, name });
 
       res.json({ success: true, ...entry });
     } catch (err) {
@@ -232,6 +244,11 @@ router.post(
             ...metaPart,
           };
           await logSend(entry);
+          await indexContact({
+            company: r.company || '',
+            email: r.email,
+            name: r.name || '',
+          });
           results.push({ email: r.email, status: 'drafted', messageId: info.messageId });
           sent++;
         } catch (err) {

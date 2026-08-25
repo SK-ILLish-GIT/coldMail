@@ -17,6 +17,7 @@ import templateRoutes from './routes/templates.js';
 import logRoutes from './routes/log.js';
 import enrichRoutes from './routes/enrich.js';
 import resumeRoutes from './routes/resumes.js';
+import contactRoutes from './routes/contacts.js';
 import tailorRoutes from './routes/tailor.js';
 import aiRoutes from './routes/ai.js';
 import { ping } from './services/db.js';
@@ -111,6 +112,7 @@ export function createApp() {
   app.use('/api/templates', templateRoutes);
   app.use('/api/log', logRoutes);
   app.use('/api/resumes', resumeRoutes);
+  app.use('/api/contacts', contactRoutes);
   // Tailor endpoints hit Gemini and (optionally) texlive.net; rate-limited.
   app.use('/api/tailor', sendLimiter, tailorRoutes);
 

@@ -43,6 +43,12 @@ async function ensureIndexes(database) {
       { expiresAt: 1 },
       { expireAfterSeconds: 0 }
     ),
+    database.collection('company_contacts').createIndex(
+      { userId: 1, companyKey: 1, email: 1 },
+      { unique: true }
+    ),
+    database.collection('company_contacts').createIndex({ userId: 1, companyKey: 1, lastContactedAt: -1 }),
+    database.collection('company_contacts').createIndex({ userId: 1, companyKey: 1 }),
   ]);
   indexesEnsured = true;
 }

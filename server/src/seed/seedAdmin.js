@@ -3,7 +3,7 @@ import { findByEmail, createUser } from '../services/userStore.js';
 
 // Collections whose pre-auth documents were global (no owner). On first boot
 // with an admin seed configured, they get assigned to the admin user.
-const OWNED_COLLECTIONS = ['templates', 'sent_log', 'resumes', 'tailor_sessions'];
+const OWNED_COLLECTIONS = ['templates', 'sent_log', 'resumes', 'tailor_sessions', 'company_contacts'];
 
 /**
  * Idempotent boot seed. If SEED_ADMIN_EMAIL + SEED_ADMIN_PASSWORD are set:

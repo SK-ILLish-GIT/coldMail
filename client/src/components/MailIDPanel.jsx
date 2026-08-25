@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 
 import { api } from "../lib/api.js";
@@ -111,6 +111,38 @@ export default function MailIDPanel({
 }) {
   const [rawInput, setRawInput] = useState("");
   const [extracting, setExtracting] = useState(false);
+  const contactFetchId = useRef(0);
+
+  // When company matches past outreach, auto-replace emails + recipients.
+  useEffect(() => {
+    const trimmed = company.trim();
+    if (trimmed.length < 2) return undefined;
+
+    const fetchId = ++contactFetchId.current;
+    const timer = setTimeout(async () => {
+      try {
+        const contacts = await api.listContactsByCompany(trimmed);
+        if (fetchId !== contactFetchId.current || !contacts.length) return;
+
+        const display = contacts[0]?.companyDisplay || trimmed;
+        setRawInput(contacts.map((c) => c.email).join("\n"));
+        setRecipients(
+          contacts.map((c) => ({
+            email: c.email,
+            name: c.name || "",
+            company: trimmed,
+          })),
+        );
+        toast.success(
+          `Loaded ${contacts.length} contact${contacts.length === 1 ? "" : "s"} for ${display}`,
+        );
+      } catch {
+        // No history or transient error — leave emails unchanged.
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [company, setRecipients]);
 
   const previewEmails = parseEmails(rawInput);
   const canExtract =

@@ -1,3 +1,5 @@
+import { AuthError, closeDb, resolveAccessToken } from './coldmail-auth.mjs';
+
 const DEFAULT_BASE = 'https://coldmail-e9x0.onrender.com/api';
 
 export class ApiError extends Error {
@@ -9,13 +11,37 @@ export class ApiError extends Error {
   }
 }
 
-export function createClient(baseUrl = process.env.COLDMAIL_API_BASE || DEFAULT_BASE) {
+export async function createClient(baseUrl = process.env.COLDMAIL_API_BASE || DEFAULT_BASE) {
   const base = baseUrl.replace(/\/$/, '');
+  let accessToken = '';
+
+  try {
+    const auth = await resolveAccessToken(base);
+    accessToken = auth.accessToken;
+    if (auth.email && !auth.fromEnv) {
+      console.error(`[coldmail-api] logged in as ${auth.email}`);
+    }
+  } catch (err) {
+    if (err instanceof AuthError) {
+      throw new ApiError(err.message, 401);
+    }
+    throw err;
+  } finally {
+    await closeDb();
+  }
 
   async function request(method, path, body) {
+    const headers = {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    };
+    if (accessToken) {
+      headers.Authorization = `Bearer ${accessToken}`;
+    }
+
     const res = await fetch(`${base}${path}`, {
       method,
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      headers,
       body: body != null ? JSON.stringify(body) : undefined,
     });
     let data = null;

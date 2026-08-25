@@ -68,6 +68,8 @@ export default function EmailForm({
   onClearTemplate,
   initialResume,
   onClearResume,
+  initialMailidCompany,
+  onClearMailidCompany,
   aiEnabled = false,
 }) {
   const [mode, setMode] = useState("mailid");
@@ -153,6 +155,16 @@ export default function EmailForm({
     onClearResume?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialResume]);
+
+  // Hydrate MailID company from Contacts tab → Use in Compose.
+  useEffect(() => {
+    if (!initialMailidCompany?.trim()) return;
+    setMode("mailid");
+    setMailidCompany(initialMailidCompany.trim());
+    toast.success(`Company set to "${initialMailidCompany.trim()}"`);
+    onClearMailidCompany?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialMailidCompany]);
 
   const loadTemplates = async () => {
     setTemplatesLoading(true);

@@ -8,6 +8,7 @@ import { TailorTargetProvider } from "./context/tailorTarget.jsx";
 import EmailForm from "./components/EmailForm.jsx";
 import TemplateLibrary from "./components/TemplateLibrary.jsx";
 import ResumeLibrary from "./components/ResumeLibrary.jsx";
+import ContactLibrary from "./components/ContactLibrary.jsx";
 import SentLog from "./components/SentLog.jsx";
 import AppFooter from "./components/AppFooter.jsx";
 import HeaderSettingsMenu from "./components/HeaderSettingsMenu.jsx";
@@ -21,6 +22,7 @@ const TABS = [
   { id: "templates", label: "Templates" },
   { id: "resumes", label: "Resumes" },
   { id: "tailor", label: "Tailor" },
+  { id: "contacts", label: "Contacts" },
   { id: "log", label: "Drafts Log" },
 ];
 
@@ -39,6 +41,7 @@ export default function App() {
   const [tab, setTabState] = useState(readTabFromHash);
   const [activeTemplate, setActiveTemplate] = useState(null);
   const [activeResume, setActiveResume] = useState(null);
+  const [composeCompany, setComposeCompany] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
   const [theme, setTheme] = useTheme();
   const [health, setHealth] = useState({
@@ -103,6 +106,12 @@ export default function App() {
   const handleUseResume = (resume) => {
     if (!resume?.id) return;
     setActiveResume(resume);
+    setTab("compose");
+  };
+
+  const handleUseCompany = (company) => {
+    if (!String(company || "").trim()) return;
+    setComposeCompany(String(company).trim());
     setTab("compose");
   };
 
@@ -224,6 +233,8 @@ export default function App() {
               onClearTemplate={() => setActiveTemplate(null)}
               initialResume={activeResume}
               onClearResume={() => setActiveResume(null)}
+              initialMailidCompany={composeCompany}
+              onClearMailidCompany={() => setComposeCompany(null)}
               aiEnabled={Boolean(health.features?.aiEnrich)}
             />
           )}
@@ -246,6 +257,9 @@ export default function App() {
                 Boolean(health.features?.aiEnrich)
               }
             />
+          )}
+          {tab === "contacts" && (
+            <ContactLibrary onUseCompany={handleUseCompany} />
           )}
           {tab === "log" && <SentLog />}
         </main>
